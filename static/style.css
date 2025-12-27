@@ -1,0 +1,75 @@
+:root {
+    --bg-color: #1e1e1e;
+    --editor-bg: #111;
+    --key-bg: #333;
+    --key-active: #555;
+    --key-shift-active: #005a9e;
+    --key-ctrl-active: #007acc;
+    --text-color: #d4d4d4;
+    --dim-color: #666;
+    --accent-color: #007acc;
+    --border-color: #111;
+}
+
+* { box-sizing: border-box; touch-action: none; user-select: none; -webkit-user-select: none; }
+body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; width: 100vw; display: flex; flex-direction: column; overflow: hidden; font-family: Consolas, "Courier New", monospace; }
+
+/* 全局工具栏 */
+#global-toolbar { height: 45px; min-height: 45px; background-color: #252526; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; z-index: 50; padding: 0 5px; }
+.tool-group { display: flex; height: 100%; }
+.tool-btn { width: 50px; height: 100%; background-color: transparent; color: #ccc; border: none; font-size: 18px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+.tool-btn:active { background-color: #3e3e42; }
+#run-btn { color: #4ec9b0; }
+#copy-btn { color: #ce9178; }
+#mode-toggle-btn { background-color: #333; color: #fff; width: 60px; font-weight: bold; }
+
+/* 预览区 */
+#lines-container { height: 80px; min-height: 80px; background-color: #000; display: flex; flex-direction: column; justify-content: center; overflow: hidden; padding: 5px 10px; border-bottom: 2px solid #444; }
+.line-view { white-space: pre; overflow: hidden; height: 22px; line-height: 22px; font-size: 14px; color: var(--dim-color); display: block; tab-size: 4; }
+.line-view.current { color: #d4d4d4; font-size: 16px; height: 26px; line-height: 26px; font-weight: bold; overflow-x: auto; scrollbar-width: none; }
+.line-view.current::-webkit-scrollbar { display: none; }
+
+.cursor { display: inline-block; width: 2px; height: 18px; background-color: #0f0; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-bottom: 3px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 全屏编辑器 */
+#editor-wrapper { display: none; flex: 1; position: relative; background-color: var(--editor-bg); overflow: hidden; }
+.editor-font { font-family: Consolas, "Courier New", monospace; font-size: 14px; line-height: 1.5; tab-size: 4; }
+#highlight-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 10px; margin: 0; white-space: pre-wrap; word-break: break-all; color: #d4d4d4; pointer-events: none; z-index: 1; overflow: auto; }
+#full-editor { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 10px; margin: 0; border: none; outline: none; background: transparent; color: transparent; caret-color: #0f0; resize: none; z-index: 2; white-space: pre-wrap; word-break: break-all; user-select: text; -webkit-user-select: text; overflow: auto; }
+
+/* 模态框 */
+#input-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 300; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+.modal-content { background-color: #252526; width: 85%; max-width: 400px; border: 1px solid #444; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+.modal-header { color: #ccc; font-weight: bold; margin-bottom: 10px; font-size: 14px; }
+#modal-textarea { background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 4px; padding: 8px; font-family: Consolas, monospace; font-size: 14px; height: 150px; resize: none; outline: none; user-select: text; -webkit-user-select: text; }
+.modal-footer { display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px; }
+.modal-btn { padding: 8px 16px; border: none; border-radius: 3px; font-size: 14px; cursor: pointer; color: #fff; }
+#modal-cancel { background-color: #3e3e42; }
+#modal-run { background-color: #0e639c; }
+
+/* 输出面板 */
+#output-panel { position: absolute; bottom: 0; left: 0; width: 100%; height: 60%; background-color: #0d0d0d; border-top: 2px solid #007acc; z-index: 200; display: none; flex-direction: column; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+#output-header { height: 35px; background-color: #1e1e1e; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; border-bottom: 1px solid #333; color: #eee; font-size: 14px; }
+#output-content { flex: 1; padding: 10px; overflow-y: auto; font-family: Consolas, monospace; font-size: 13px; white-space: pre-wrap; color: #ccc; user-select: text; -webkit-user-select: text; }
+.out-section { margin-bottom: 10px; }
+.out-title { color: #569cd6; font-weight: bold; margin-bottom: 4px; display: block; }
+.out-err { color: #f48771; } .out-warn { color: #cca700; } .out-res { color: #fff; } .out-stat { color: #6a9955; font-size: 12px; font-style: italic; border-top: 1px solid #333; margin-top: 5px; padding-top: 5px;}
+
+/* 高亮配色 */
+.hl-kw { color: #569cd6; font-weight: bold; } .hl-str { color: #ce9178; } .hl-com { color: #6a9955; } .hl-dir { color: #c586c0; } .hl-num { color: #b5cea8; } 
+
+/* 键盘 */
+#keyboard-container { flex: 1; display: flex; flex-direction: column; padding: 2px; justify-content: space-between; background-color: var(--bg-color); border-top: 1px solid #333; }
+.row { display: flex; width: 100%; height: 20%; margin-bottom: 2px; }
+.key { background-color: #333; color: #eee; border: 1px solid #111; border-radius: 4px; margin: 0 1px; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; flex-grow: 1; position: relative; box-shadow: 0 2px 0 #000; }
+.key:active, .key.active { background-color: #555; transform: translateY(2px); box-shadow: none; }
+.key.shift-hold { background-color: #005a9e; border-color: #007acc; }
+.key.ctrl-hold { background-color: #006000; border-color: #0f0; }
+.key-content { display: flex; flex-direction: column; alignItems: center; line-height: 1; pointer-events: none; }
+.sup { font-size: 9px; color: #888; margin-bottom: 2px; } .main { font-size: 14px; }
+.shifted .sup { color: #fff; font-size: 14px; } .shifted .main { color: #666; font-size: 9px; } .alpha-key .sup { display: none; }
+.w-1 { flex: 1; } .w-1-5 { flex: 1.5; } .w-2 { flex: 2; } .w-2-25 { flex: 2.25; } .w-space { flex: 6; }
+.spacer { flex: 1; visibility: hidden; } .spacer-1-5 { flex: 1.5; visibility: hidden; } .spacer-sm { flex: 0.2; visibility: hidden; }
+.mod { background-color: #2a2a2a; font-size: 11px; } .nav-key { background-color: #252526; } .hide-keyboard { display: none !important; }
+@media screen and (orientation: portrait) { .key { font-size: 11px; } .sup { font-size: 8px; } .main { font-size: 11px; } }

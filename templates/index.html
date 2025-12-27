@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>C++ 在线编辑器</title>
+    <!-- 引入外部 CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- 全局顶部栏 -->
+    <div id="global-toolbar">
+        <div class="tool-group">
+            <button id="run-btn" class="tool-btn" title="运行">▶</button>
+            <button id="copy-btn" class="tool-btn" title="复制">❐</button>
+            <p>Powered by <a href="https://github.com/Huchangzhi/phoi">phoi</a></p>
+        </div>
+        <button id="mode-toggle-btn" class="tool-btn">▼</button>
+    </div>
+
+    <!-- 3行预览区 (键盘模式) -->
+    <div id="lines-container">
+        <div id="line-prev" class="line-view"></div>
+        <div id="line-curr" class="line-view current"></div>
+        <div id="line-next" class="line-view"></div>
+    </div>
+
+    <!-- 输入模态框 -->
+    <div id="input-modal">
+        <div class="modal-content">
+            <div class="modal-header">Standard Input (Stdin)</div>
+            <textarea id="modal-textarea" placeholder="在此输入数据..."></textarea>
+            <div class="modal-footer">
+                <button id="modal-cancel" class="modal-btn">取消</button>
+                <button id="modal-run" class="modal-btn">运行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 输出面板 -->
+    <div id="output-panel">
+        <div id="output-header">
+            <span>Terminal</span>
+            <span id="close-output">✕</span>
+        </div>
+        <div id="output-content"></div>
+    </div>
+
+    <!-- 全屏编辑器 -->
+    <div id="editor-wrapper">
+        <pre id="highlight-layer" class="editor-font"></pre>
+        <textarea id="full-editor" class="editor-font" spellcheck="false" autocapitalize="off"></textarea>
+    </div>
+
+    <!-- 虚拟键盘容器 -->
+    <div id="keyboard-container">
+        <!-- 这里的按键将由 JS 动态生成，或者你可以保留之前的静态HTML -->
+        <!-- 为了保持代码整洁，我建议保留您之前静态写好的HTML，这里为了篇幅我简写了，请把之前的键盘HTML内容粘贴在下面 -->
+        
+        <!-- Row 1 -->
+        <div class="row">
+            <div class="key w-1" data-key="`" data-shift="~"><div class="key-content"><span class="sup">~</span><span class="main">`</span></div></div>
+            <div class="key w-1" data-key="1" data-shift="!"><div class="key-content"><span class="sup">!</span><span class="main">1</span></div></div>
+            <div class="key w-1" data-key="2" data-shift="@"><div class="key-content"><span class="sup">@</span><span class="main">2</span></div></div>
+            <div class="key w-1" data-key="3" data-shift="#"><div class="key-content"><span class="sup">#</span><span class="main">3</span></div></div>
+            <div class="key w-1" data-key="4" data-shift="$"><div class="key-content"><span class="sup">$</span><span class="main">4</span></div></div>
+            <div class="key w-1" data-key="5" data-shift="%"><div class="key-content"><span class="sup">%</span><span class="main">5</span></div></div>
+            <div class="key w-1" data-key="6" data-shift="^"><div class="key-content"><span class="sup">^</span><span class="main">6</span></div></div>
+            <div class="key w-1" data-key="7" data-shift="&"><div class="key-content"><span class="sup">&</span><span class="main">7</span></div></div>
+            <div class="key w-1" data-key="8" data-shift="*"><div class="key-content"><span class="sup">*</span><span class="main">8</span></div></div>
+            <div class="key w-1" data-key="9" data-shift="("><div class="key-content"><span class="sup">(</span><span class="main">9</span></div></div>
+            <div class="key w-1" data-key="0" data-shift=")"><div class="key-content"><span class="sup">)</span><span class="main">0</span></div></div>
+            <div class="key w-1" data-key="-" data-shift="_"><div class="key-content"><span class="sup">_</span><span class="main">-</span></div></div>
+            <div class="key w-1" data-key="=" data-shift="+"><div class="key-content"><span class="sup">+</span><span class="main">=</span></div></div>
+            <div class="key w-2 mod repeat-key" data-key="Backspace">Bksp</div>
+            <div class="spacer-sm"></div><div class="spacer"></div>
+            <div class="key nav-key" data-key="Home">Hom</div><div class="key nav-key" data-key="PageUp">PgU</div>
+        </div>
+        <!-- Row 2 -->
+        <div class="row">
+            <div class="key w-1-5 mod" data-key="Tab">Tab</div>
+            <div class="key w-1 alpha-key" data-key="q">Q</div><div class="key w-1 alpha-key" data-key="w">W</div><div class="key w-1 alpha-key" data-key="e">E</div>
+            <div class="key w-1 alpha-key" data-key="r">R</div><div class="key w-1 alpha-key" data-key="t">T</div><div class="key w-1 alpha-key" data-key="y">Y</div>
+            <div class="key w-1 alpha-key" data-key="u">U</div><div class="key w-1 alpha-key" data-key="i">I</div><div class="key w-1 alpha-key" data-key="o">O</div>
+            <div class="key w-1 alpha-key" data-key="p">P</div>
+            <div class="key w-1" data-key="[" data-shift="{"><div class="key-content"><span class="sup">{</span><span class="main">[</span></div></div>
+            <div class="key w-1" data-key="]" data-shift="}"><div class="key-content"><span class="sup">}</span><span class="main">]</span></div></div>
+            <div class="key w-1-5" data-key="\" data-shift="|"><div class="key-content"><span class="sup">|</span><span class="main">\</span></div></div>
+            <div class="spacer-sm"></div>
+            <div class="key nav-key" data-key="Delete">Del</div><div class="key nav-key" data-key="End">End</div><div class="key nav-key" data-key="PageDown">PgD</div>
+        </div>
+        <!-- Row 3 -->
+        <div class="row">
+            <div class="key w-1-75 mod" data-key="CapsLock">Caps</div>
+            <div class="key w-1 alpha-key" data-key="a">A</div><div class="key w-1 alpha-key" data-key="s">S</div><div class="key w-1 alpha-key" data-key="d">D</div>
+            <div class="key w-1 alpha-key" data-key="f">F</div><div class="key w-1 alpha-key" data-key="g">G</div><div class="key w-1 alpha-key" data-key="h">H</div>
+            <div class="key w-1 alpha-key" data-key="j">J</div><div class="key w-1 alpha-key" data-key="k">K</div><div class="key w-1 alpha-key" data-key="l">L</div>
+            <div class="key w-1" data-key=";" data-shift=":"><div class="key-content"><span class="sup">:</span><span class="main">;</span></div></div>
+            <div class="key w-1" data-key="'" data-shift='"'><div class="key-content"><span class="sup">"</span><span class="main">'</span></div></div>
+            <div class="key w-2-25 mod highlight" data-key="Enter" style="background:#444">Enter</div>
+            <div class="spacer-sm"></div>
+            <div class="spacer"></div><div class="spacer"></div><div class="spacer"></div>
+        </div>
+        <!-- Row 4 -->
+        <div class="row">
+            <div class="key w-2-25 mod shift-key" data-key="Shift">Shift</div>
+            <div class="key w-1 alpha-key" data-key="z">Z</div><div class="key w-1 alpha-key" data-key="x">X</div><div class="key w-1 alpha-key" data-key="c">C</div>
+            <div class="key w-1 alpha-key" data-key="v">V</div><div class="key w-1 alpha-key" data-key="b">B</div><div class="key w-1 alpha-key" data-key="n">N</div>
+            <div class="key w-1 alpha-key" data-key="m">M</div>
+            <div class="key w-1" data-key="," data-shift="<"><div class="key-content"><span class="sup">&lt;</span><span class="main">,</span></div></div>
+            <div class="key w-1" data-key="." data-shift=">"><div class="key-content"><span class="sup">&gt;</span><span class="main">.</span></div></div>
+            <div class="key w-1" data-key="/" data-shift="?"><div class="key-content"><span class="sup">?</span><span class="main">/</span></div></div>
+            <div class="key w-2 mod shift-key" data-key="Shift">Shift</div>
+            <div class="spacer-sm"></div><div class="spacer"></div>
+            <div class="key nav-key repeat-key" data-key="ArrowUp">↑</div><div class="spacer"></div>
+        </div>
+        <!-- Row 5 -->
+        <div class="row">
+            <div class="key w-1-5 mod ctrl-key" data-key="Control">Ctrl</div>
+            <div class="spacer"></div><div class="spacer-1-5"></div>
+            <div class="key w-space" data-key=" ">Space</div>
+            <div class="spacer"></div><div class="spacer"></div>
+            <div class="key w-1 mod" data-key="ContextMenu">≡</div>
+            <div class="key w-1-5 mod ctrl-key" data-key="Control">Ctrl</div>
+            <div class="spacer-sm"></div>
+            <div class="key nav-key repeat-key" data-key="ArrowLeft">←</div>
+            <div class="key nav-key repeat-key" data-key="ArrowDown">↓</div>
+            <div class="key nav-key repeat-key" data-key="ArrowRight">→</div>
+        </div>
+    </div>
+
+    <!-- 引入 JS -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
