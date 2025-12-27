@@ -2,6 +2,8 @@
 const editorWrapper = document.getElementById('editor-wrapper');
 const fullEditor = document.getElementById('full-editor');
 const highlightLayer = document.getElementById('highlight-layer');
+const gutter = document.getElementById('gutter'); // 行号槽
+
 const keyboardContainer = document.getElementById('keyboard-container');
 const toggleBtn = document.getElementById('mode-toggle-btn');
 const runBtn = document.getElementById('run-btn');
@@ -10,9 +12,14 @@ const outputPanel = document.getElementById('output-panel');
 const outputContent = document.getElementById('output-content');
 const closeOutputBtn = document.getElementById('close-output');
 const linesContainer = document.getElementById('lines-container');
+
+// 3行模式的元素
 const linePrev = document.getElementById('line-prev');
 const lineCurr = document.getElementById('line-curr');
 const lineNext = document.getElementById('line-next');
+const lnPrev = document.getElementById('ln-prev');
+const lnCurr = document.getElementById('ln-curr');
+const lnNext = document.getElementById('ln-next');
 
 const keys = document.querySelectorAll('.key');
 const shiftKeys = document.querySelectorAll('.shift-key');
@@ -33,84 +40,52 @@ let isCtrlActive = false;
 let isFullMode = false;
 let keyRepeatTimer = null, keyDelayTimer = null;
 
-// --- Run Logic (Calls Python Backend) ---
-runBtn.addEventListener('click', () => {
-    inputModal.style.display = 'flex';
-    modalTextarea.value = "";
-    modalTextarea.focus();
-});
-
+// Run & Copy
+runBtn.addEventListener('click', () => { inputModal.style.display = 'flex'; modalTextarea.value = ""; modalTextarea.focus(); });
 modalCancel.addEventListener('click', () => { inputModal.style.display = 'none'; });
-modalRun.addEventListener('click', () => {
-    inputModal.style.display = 'none';
-    executeRunCode(modalTextarea.value);
-});
+modalRun.addEventListener('click', () => { inputModal.style.display = 'none'; executeRunCode(modalTextarea.value); });
 
 async function executeRunCode(stdin) {
     outputPanel.style.display = 'flex';
     outputContent.innerHTML = '<span style="color:#888;">Compiling and running...</span>';
-    
-    // 发送数据到本地 Flask 服务器 /run 接口
     try {
         const response = await fetch('/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                code: globalText,
-                input: stdin
-            })
+            body: JSON.stringify({ code: globalText, input: stdin })
         });
-
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        
         const data = await response.json();
-        
         let html = "";
         if(data.Warnings) html += `<div class="out-section"><span class="out-title out-warn">WARNINGS:</span><div class="out-warn">${escapeHtml(data.Warnings)}</div></div>`;
         if(data.Errors) html += `<div class="out-section"><span class="out-title out-err">ERRORS:</span><div class="out-err">${escapeHtml(data.Errors)}</div></div>`;
         if(data.Result) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res">${escapeHtml(data.Result)}</div></div>`;
         else if(!data.Errors) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res" style="color:#666">(No output)</div></div>`;
         if(data.Stats) html += `<div class="out-stat">${escapeHtml(data.Stats)}</div>`;
-        
         outputContent.innerHTML = html;
     } catch (e) {
-        outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>确保 app.py 正在运行。</span>`;
+        outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>Make sure app.py is running.</span>`;
     }
 }
 
-// --- Copy Logic ---
 function copyCode() {
     const t = document.createElement('textarea'); t.value = globalText; document.body.appendChild(t); t.select();
-    try {
-        if(document.execCommand('copy')){
-            if(navigator.vibrate)navigator.vibrate(50);
-            const originalColor = copyBtn.style.color;
-            copyBtn.style.color = "#0f0";
-            setTimeout(() => copyBtn.style.color = originalColor, 500);
-        } else alert('Fail');
-    } catch(e){}
+    try { if(document.execCommand('copy')){ if(navigator.vibrate)navigator.vibrate(50); } else alert('Fail'); } catch(e){}
     document.body.removeChild(t);
 }
 copyBtn.addEventListener('click', copyCode);
 closeOutputBtn.addEventListener('click', () => outputPanel.style.display='none');
 
-// --- Helper Functions ---
+// Core Helpers
 function escapeHtml(t) { return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function highlight(code) {
     let pMap = {}, pIdx = 0;
-    // 保护字符串和注释
     let safe = code.replace(/(".*?"|'.*?'|\/\/.*$)/gm, m => { const k=`_P${pIdx++}_`; pMap[k]=m; return k; });
     safe = escapeHtml(safe);
-    
-    // Keywords
     safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
-    // Numbers
     safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
-    // Preprocessor
     safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}${r}</span>`);
-    
-    // Restore
     Object.keys(pMap).forEach(k => {
         let o = pMap[k], r = '';
         if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
@@ -123,52 +98,51 @@ function highlight(code) {
 function updateHighlight() {
     const txt = fullEditor.value;
     highlightLayer.innerHTML = highlight(txt.endsWith('\n')?txt+' ':txt);
+    updateGutter(); // Update line numbers
 }
 
-// Sync Listeners
-fullEditor.addEventListener('input', () => { updateHighlight(); globalText = fullEditor.value; globalCursorPos = fullEditor.selectionStart; });
-fullEditor.addEventListener('scroll', () => { highlightLayer.scrollTop=fullEditor.scrollTop; highlightLayer.scrollLeft=fullEditor.scrollLeft; });
+function updateGutter() {
+    const lineCount = fullEditor.value.split('\n').length;
+    // Generate 1\n2\n3...
+    gutter.innerText = Array.from({length: lineCount}, (_, i) => i + 1).join('\n');
+}
 
-// --- Toggle Line Comment ---
+function syncScroll() {
+    highlightLayer.scrollTop = fullEditor.scrollTop;
+    highlightLayer.scrollLeft = fullEditor.scrollLeft;
+    gutter.scrollTop = fullEditor.scrollTop; // Sync gutter scroll
+}
+
+fullEditor.addEventListener('input', () => { updateHighlight(); globalText = fullEditor.value; globalCursorPos = fullEditor.selectionStart; });
+fullEditor.addEventListener('scroll', syncScroll);
+
+// Editor Logic
 function toggleLineComment() {
     let start = globalText.lastIndexOf('\n', globalCursorPos - 1) + 1;
     let end = globalText.indexOf('\n', globalCursorPos);
     if (end === -1) end = globalText.length;
-    
     const line = globalText.substring(start, end);
     let newLine = "", offset = 0;
-
-    if (line.trim().startsWith('//')) {
-        newLine = line.replace('//', ''); offset = -2;
-    } else {
-        newLine = '//' + line; offset = 2;
-    }
+    if (line.trim().startsWith('//')) { newLine = line.replace('//', ''); offset = -2; }
+    else { newLine = '//' + line; offset = 2; }
     globalText = globalText.substring(0, start) + newLine + globalText.substring(end);
     globalCursorPos += offset;
     syncState();
 }
 
-// --- Smart Enter (Indent & Brackets) ---
 function handleEnter() {
-    // Check surroundings
     const prevChar = globalText[globalCursorPos-1];
     const nextChar = globalText[globalCursorPos];
-    
-    // Get indent from current line
     const lastNL = globalText.lastIndexOf('\n', globalCursorPos - 1);
     const lineStart = lastNL === -1 ? 0 : lastNL + 1;
     const currentLine = globalText.substring(lineStart, globalCursorPos);
-    const indentMatch = currentLine.match(/^(\t*)/); // Only matching Tabs
+    const indentMatch = currentLine.match(/^(\t*)/);
     let indent = indentMatch ? indentMatch[1] : "";
 
-    // If inside {}
     if (prevChar === '{' && nextChar === '}') {
-        // Expand to 3 lines
-        insertTextAtCursor('\n' + indent + '\t' + '\n' + indent, 1 + indent.length);
+        insertTextAtCursor('\n' + indent + '\t' + '\n' + indent, 1 + indent.length); 
         return;
     } 
-    
-    // Normal indent inheritance
     if (prevChar === '{') indent += '\t';
     insertTextAtCursor('\n' + indent);
 }
@@ -179,7 +153,7 @@ function handleAutoPair(char) {
     else insertTextAtCursor(char);
 }
 
-// --- Display Logic ---
+// Display Logic (Updated for Line Numbers)
 function renderThreeLines() {
     if(isFullMode) return;
     const lines = globalText.split('\n');
@@ -188,6 +162,13 @@ function renderThreeLines() {
         if(globalCursorPos >= accum && globalCursorPos <= accum + lines[i].length) { idx=i; start=accum; break; }
         accum += lines[i].length + 1;
     }
+    
+    // Set Line Numbers (Index + 1)
+    lnPrev.textContent = (idx > 0) ? (idx) : "";
+    lnCurr.textContent = idx + 1;
+    lnNext.textContent = (idx < lines.length - 1) ? (idx + 2) : "";
+
+    // Set Text
     linePrev.textContent = lines[idx-1]||(idx===0?"-- TOP --":"");
     lineNext.textContent = lines[idx+1]||(idx===lines.length-1?"-- END --":"");
     const cT = lines[idx]; const rC = globalCursorPos - start;
@@ -219,11 +200,14 @@ function moveCursor(d) {
     syncState();
 }
 function syncState() {
-    if(isFullMode) { fullEditor.value=globalText; fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); updateHighlight(); }
+    if(isFullMode) { 
+        fullEditor.value=globalText; 
+        fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); 
+        updateHighlight(); // Updates Gutter too
+    }
     else renderThreeLines();
 }
 
-// --- Keyboard Input ---
 function handleKeyInput(keyEl) {
     const rawKey = keyEl.getAttribute('data-key');
     if (rawKey === 'Shift') return;
@@ -236,11 +220,9 @@ function handleKeyInput(keyEl) {
 
     let char = null;
     if (isShiftActive) {
-        // Fix for symbols < > ?
         const shiftAttr = keyEl.getAttribute('data-shift');
         if (shiftAttr) char = shiftAttr;
         else if (rawKey.length === 1 && /[a-z]/i.test(rawKey)) char = rawKey.toUpperCase();
-        
         shiftUsageFlag = true;
         if (!isShiftHeld) { isShiftActive = false; updateKeyboardVisuals(); }
     } else {
@@ -248,7 +230,6 @@ function handleKeyInput(keyEl) {
     }
 
     if (char && ['(', '{', '[', '"', "'"].includes(char)) { handleAutoPair(char); return; }
-    
     if (char) insertTextAtCursor(char);
     else {
         switch(rawKey){
@@ -269,7 +250,6 @@ function handleKeyInput(keyEl) {
     }
 }
 
-// --- Full Editor Handlers ---
 fullEditor.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); } 
     else if (e.key === 'Enter') {
@@ -281,7 +261,6 @@ fullEditor.addEventListener('keydown', (e) => {
         const currentLine = val.substring(lineStart, pos);
         const indentMatch = currentLine.match(/^(\t*)/);
         let indent = indentMatch ? indentMatch[1] : "";
-
         if (prev === '{' && next === '}') {
             document.execCommand('insertText', false, '\n' + indent + '\t' + '\n' + indent);
             fullEditor.selectionStart = fullEditor.selectionEnd = pos + 1 + indent.length + 1; 
@@ -304,7 +283,6 @@ fullEditor.addEventListener('keydown', (e) => {
     }
 });
 
-// --- Visual & Touch ---
 keys.forEach(k => {
     if(k.getAttribute('data-key')==='Shift'||k.getAttribute('data-key')==='Control'||k.classList.contains('spacer'))return;
     const rep = k.classList.contains('repeat-key');
@@ -321,7 +299,6 @@ function updateKeyboardVisuals() {
         const dKey = k.getAttribute('data-key');
         if(dKey==='Shift') k.classList.toggle('shift-hold', isShiftActive);
         if(dKey==='Control') k.classList.toggle('ctrl-hold', isCtrlActive);
-        
         if(k.classList.contains('alpha-key')) k.innerText=isShiftActive?dKey.toUpperCase():dKey.toUpperCase();
         else if(sVal){ const sup=k.querySelector('.sup');const main=k.querySelector('.main'); if(sup&&main) k.classList.toggle('shifted', isShiftActive); }
     });
@@ -339,25 +316,26 @@ ctrlKeys.forEach(k=>{
     k.addEventListener('mousedown',s);k.addEventListener('mouseup',e);
 });
 
-// --- Mode Toggle ---
 toggleBtn.addEventListener('click', () => {
     isFullMode = !isFullMode;
     if (isFullMode) {
         keyboardContainer.classList.add('hide-keyboard');
-        linesContainer.style.display = 'none'; 
-        editorWrapper.style.display = 'block';
-        fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); updateHighlight();
+        document.getElementById('lines-container').style.display = 'none'; 
+        editorWrapper.style.display = 'flex'; // Use flex for row layout
+        fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); 
+        updateHighlight();
+        syncScroll();
         toggleBtn.textContent = '▲';
     } else {
         globalText=fullEditor.value; globalCursorPos=fullEditor.selectionStart;
         keyboardContainer.classList.remove('hide-keyboard');
-        linesContainer.style.display = 'flex';
+        document.getElementById('lines-container').style.display = 'flex';
         editorWrapper.style.display = 'none';
         toggleBtn.textContent = '▼';
         renderThreeLines();
     }
 });
 
-// Init
+updateGutter();
 renderThreeLines();
 updateKeyboardVisuals();
