@@ -104,7 +104,7 @@ function highlight(code) {
     safe = escapeHtml(safe);
     
     // Keywords
-    safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|vector|iostream|string|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
+    safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
     // Numbers
     safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
     // Preprocessor
