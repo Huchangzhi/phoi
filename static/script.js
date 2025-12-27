@@ -64,7 +64,7 @@ async function executeRunCode(stdin) {
         if(data.Stats) html += `<div class="out-stat">${escapeHtml(data.Stats)}</div>`;
         outputContent.innerHTML = html;
     } catch (e) {
-        outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>Make sure app.py is running.</span>`;
+        outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>请确定网络状态良好并稍后再试</span>`;
     }
 }
 
