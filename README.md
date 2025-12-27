@@ -3,4 +3,4 @@
 
 运行器：[rextester](https://rextester.com/)
 
-体验:[点我](https://huchangzhi.github.io/phoi/)
+体验:[点我](https://ide.胡.fun)
