@@ -30,12 +30,13 @@ const modalTextarea = document.getElementById('modal-textarea');
 const modalRun = document.getElementById('modal-run');
 const modalCancel = document.getElementById('modal-cancel');
 
-// --- [功能优化 3] 恢复保存的代码 (如果存在) ---
+// --- 恢复保存的代码 ---
 const defaultCode = `#include <iostream>\n#include <vector>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello" << endl;\n\treturn 0;\n};`;
+// 如果本地没有保存过，才使用默认代码
 let globalText = localStorage.getItem('phoi_savedCode') || defaultCode;
 let globalCursorPos = globalText.length;
 
-// --- [功能优化 2] 恢复保存的模式 ---
+// --- 恢复保存的模式 ---
 let isFullMode = localStorage.getItem('phoi_isFullMode') === 'true';
 
 let isShiftActive = false;
@@ -43,10 +44,19 @@ let isShiftHeld = false;
 let shiftUsageFlag = false;
 let isCtrlActive = false;
 let keyRepeatTimer = null, keyDelayTimer = null;
+let saveTimer = null; // 用于防抖保存
 
-// --- [功能优化 1] 恢复保存的输入数据 ---
+// --- [优化] 防抖保存代码到本地 ---
+// 避免每次按键都写入硬盘造成卡顿，延迟 500ms 保存
+function triggerSaveCode() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        localStorage.setItem('phoi_savedCode', globalText);
+    }, 500);
+}
+
+// --- 恢复保存的输入数据 ---
 modalTextarea.value = localStorage.getItem('phoi_savedStdin') || "";
-// 监听输入并保存
 modalTextarea.addEventListener('input', () => {
     localStorage.setItem('phoi_savedStdin', modalTextarea.value);
 });
@@ -54,7 +64,6 @@ modalTextarea.addEventListener('input', () => {
 // Run & Copy
 runBtn.addEventListener('click', () => { 
     inputModal.style.display = 'flex'; 
-    // 自动聚焦，方便输入
     modalTextarea.focus(); 
 });
 modalCancel.addEventListener('click', () => { inputModal.style.display = 'none'; });
@@ -99,11 +108,25 @@ function escapeHtml(t) { return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;
 
 function highlight(code) {
     let pMap = {}, pIdx = 0;
-    let safe = code.replace(/(".?"|'.?'|\/\/.*$)/gm, (m) => { const k = `___P${pIdx++}_`; pMap[k]=m; return k; });
+    // --- [修正] 正则表达式修复 ---
+    // 之前是 ".?" (0或1个字符)，导致长字符串不高亮。改为 "[^"]*" (非引号的任意字符序列)
+    // 同时也修复了注释匹配
+    let safe = code.replace(/("[^"]*"|'[^']*'|\/\/.*$)/gm, (m) => { 
+        const k = `___P${pIdx++}_`; 
+        pMap[k]=m; 
+        return k; 
+    });
+    
     safe = escapeHtml(safe);
+    
+    // 关键词高亮
     safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
+    // 数字高亮
     safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
+    // 预处理指令高亮
     safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}</span>${r}`);
+    
+    // 还原字符串和注释
     Object.keys(pMap).forEach(k => {
         let o = pMap[k], r = '';
         if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
@@ -115,6 +138,7 @@ function highlight(code) {
 
 function updateHighlight() {
     const txt = fullEditor.value;
+    // 确保最后一行也有换行符处理，防止正则漏掉
     highlightLayer.innerHTML = highlight(txt.endsWith('\n')?txt+' ':txt);
     updateGutter(); 
 }
@@ -134,8 +158,8 @@ fullEditor.addEventListener('input', () => {
     updateHighlight(); 
     globalText = fullEditor.value; 
     globalCursorPos = fullEditor.selectionStart;
-    // 在全屏模式下输入也需要保存代码
-    localStorage.setItem('phoi_savedCode', globalText);
+    // 触发防抖保存
+    triggerSaveCode();
 });
 fullEditor.addEventListener('scroll', syncScroll);
 
@@ -221,8 +245,8 @@ function moveCursor(d) {
 }
 
 function syncState() {
-    // --- [功能优化 3] 每次状态同步（代码改变）时保存代码 ---
-    localStorage.setItem('phoi_savedCode', globalText);
+    // 触发防抖保存
+    triggerSaveCode();
 
     if(isFullMode) {
         fullEditor.value=globalText;
@@ -342,7 +366,6 @@ ctrlKeys.forEach(k=>{
 
 toggleBtn.addEventListener('click', () => {
     isFullMode = !isFullMode;
-    // --- [功能优化 2] 切换模式时保存状态 ---
     localStorage.setItem('phoi_isFullMode', isFullMode);
     
     if (isFullMode) {
@@ -369,7 +392,6 @@ if (isFullMode) {
     document.getElementById('lines-container').style.display = 'none';
     editorWrapper.style.display = 'flex';
     toggleBtn.textContent = '▲';
-    // 在全屏模式下初始化编辑器内容
     fullEditor.value = globalText;
     updateHighlight();
 } else {
