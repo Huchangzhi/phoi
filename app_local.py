@@ -26,6 +26,7 @@ DANGEROUS_PATTERNS = [
     r'<windows\.h>',        # 禁止 Windows API
     r'<unistd\.h>',         # 禁止 POSIX 系统调用
     r'\bfstream\b',         # 禁止文件流操作
+    r'\bfreopen\b',
     r'\bFILE\s*\*',         # 禁止 C 风格文件指针
     r'\bfopen\s*\(',        # 禁止 fopen
     r'__asm__',             # 禁止内联汇编
