@@ -2,7 +2,7 @@
 const editorWrapper = document.getElementById('editor-wrapper');
 const fullEditor = document.getElementById('full-editor');
 const highlightLayer = document.getElementById('highlight-layer');
-const gutter = document.getElementById('gutter'); // 行号槽
+const gutter = document.getElementById('gutter'); 
 
 const keyboardContainer = document.getElementById('keyboard-container');
 const toggleBtn = document.getElementById('mode-toggle-btn');
@@ -30,20 +30,38 @@ const modalTextarea = document.getElementById('modal-textarea');
 const modalRun = document.getElementById('modal-run');
 const modalCancel = document.getElementById('modal-cancel');
 
-// State
-let globalText = `#include <iostream>\n#include <vector>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello" << endl;\n\treturn 0;\n}`;
+// --- [功能优化 3] 恢复保存的代码 (如果存在) ---
+const defaultCode = `#include <iostream>\n#include <vector>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello" << endl;\n\treturn 0;\n};`;
+let globalText = localStorage.getItem('phoi_savedCode') || defaultCode;
 let globalCursorPos = globalText.length;
+
+// --- [功能优化 2] 恢复保存的模式 ---
+let isFullMode = localStorage.getItem('phoi_isFullMode') === 'true';
+
 let isShiftActive = false;
 let isShiftHeld = false;
 let shiftUsageFlag = false;
 let isCtrlActive = false;
-let isFullMode = false;
 let keyRepeatTimer = null, keyDelayTimer = null;
 
+// --- [功能优化 1] 恢复保存的输入数据 ---
+modalTextarea.value = localStorage.getItem('phoi_savedStdin') || "";
+// 监听输入并保存
+modalTextarea.addEventListener('input', () => {
+    localStorage.setItem('phoi_savedStdin', modalTextarea.value);
+});
+
 // Run & Copy
-runBtn.addEventListener('click', () => { inputModal.style.display = 'flex'; modalTextarea.value = ""; modalTextarea.focus(); });
+runBtn.addEventListener('click', () => { 
+    inputModal.style.display = 'flex'; 
+    // 自动聚焦，方便输入
+    modalTextarea.focus(); 
+});
 modalCancel.addEventListener('click', () => { inputModal.style.display = 'none'; });
-modalRun.addEventListener('click', () => { inputModal.style.display = 'none'; executeRunCode(modalTextarea.value); });
+modalRun.addEventListener('click', () => { 
+    inputModal.style.display = 'none'; 
+    executeRunCode(modalTextarea.value); 
+});
 
 async function executeRunCode(stdin) {
     outputPanel.style.display = 'flex';
@@ -81,11 +99,11 @@ function escapeHtml(t) { return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;
 
 function highlight(code) {
     let pMap = {}, pIdx = 0;
-    let safe = code.replace(/(".*?"|'.*?'|\/\/.*$)/gm, m => { const k=`_P${pIdx++}_`; pMap[k]=m; return k; });
+    let safe = code.replace(/(".?"|'.?'|\/\/.*$)/gm, (m) => { const k = `___P${pIdx++}_`; pMap[k]=m; return k; });
     safe = escapeHtml(safe);
     safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
     safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
-    safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}${r}</span>`);
+    safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}</span>${r}`);
     Object.keys(pMap).forEach(k => {
         let o = pMap[k], r = '';
         if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
@@ -98,22 +116,27 @@ function highlight(code) {
 function updateHighlight() {
     const txt = fullEditor.value;
     highlightLayer.innerHTML = highlight(txt.endsWith('\n')?txt+' ':txt);
-    updateGutter(); // Update line numbers
+    updateGutter(); 
 }
 
 function updateGutter() {
     const lineCount = fullEditor.value.split('\n').length;
-    // Generate 1\n2\n3...
     gutter.innerText = Array.from({length: lineCount}, (_, i) => i + 1).join('\n');
 }
 
 function syncScroll() {
     highlightLayer.scrollTop = fullEditor.scrollTop;
     highlightLayer.scrollLeft = fullEditor.scrollLeft;
-    gutter.scrollTop = fullEditor.scrollTop; // Sync gutter scroll
+    gutter.scrollTop = fullEditor.scrollTop; 
 }
 
-fullEditor.addEventListener('input', () => { updateHighlight(); globalText = fullEditor.value; globalCursorPos = fullEditor.selectionStart; });
+fullEditor.addEventListener('input', () => { 
+    updateHighlight(); 
+    globalText = fullEditor.value; 
+    globalCursorPos = fullEditor.selectionStart;
+    // 在全屏模式下输入也需要保存代码
+    localStorage.setItem('phoi_savedCode', globalText);
+});
 fullEditor.addEventListener('scroll', syncScroll);
 
 // Editor Logic
@@ -138,7 +161,7 @@ function handleEnter() {
     const currentLine = globalText.substring(lineStart, globalCursorPos);
     const indentMatch = currentLine.match(/^(\t*)/);
     let indent = indentMatch ? indentMatch[1] : "";
-
+    
     if (prevChar === '{' && nextChar === '}') {
         insertTextAtCursor('\n' + indent + '\t' + '\n' + indent, 1 + indent.length); 
         return;
@@ -153,7 +176,6 @@ function handleAutoPair(char) {
     else insertTextAtCursor(char);
 }
 
-// Display Logic (Updated for Line Numbers)
 function renderThreeLines() {
     if(isFullMode) return;
     const lines = globalText.split('\n');
@@ -163,12 +185,10 @@ function renderThreeLines() {
         accum += lines[i].length + 1;
     }
     
-    // Set Line Numbers (Index + 1)
     lnPrev.textContent = (idx > 0) ? (idx) : "";
     lnCurr.textContent = idx + 1;
     lnNext.textContent = (idx < lines.length - 1) ? (idx + 2) : "";
 
-    // Set Text
     linePrev.textContent = lines[idx-1]||(idx===0?"-- TOP --":"");
     lineNext.textContent = lines[idx+1]||(idx===lines.length-1?"-- END --":"");
     const cT = lines[idx]; const rC = globalCursorPos - start;
@@ -199,11 +219,15 @@ function moveCursor(d) {
     }
     syncState();
 }
+
 function syncState() {
-    if(isFullMode) { 
-        fullEditor.value=globalText; 
-        fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); 
-        updateHighlight(); // Updates Gutter too
+    // --- [功能优化 3] 每次状态同步（代码改变）时保存代码 ---
+    localStorage.setItem('phoi_savedCode', globalText);
+
+    if(isFullMode) {
+        fullEditor.value=globalText;
+        fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
+        updateHighlight(); 
     }
     else renderThreeLines();
 }
@@ -212,7 +236,7 @@ function handleKeyInput(keyEl) {
     const rawKey = keyEl.getAttribute('data-key');
     if (rawKey === 'Shift') return;
     if (rawKey === 'Control') { isCtrlActive = !isCtrlActive; updateKeyboardVisuals(); return; }
-
+    
     if (isCtrlActive) {
         if (rawKey === '/') { toggleLineComment(); isCtrlActive = false; updateKeyboardVisuals(); return; }
         isCtrlActive = false; updateKeyboardVisuals();
@@ -251,7 +275,7 @@ function handleKeyInput(keyEl) {
 }
 
 fullEditor.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); } 
+    if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); }
     else if (e.key === 'Enter') {
         e.preventDefault();
         const val = fullEditor.value; const pos = fullEditor.selectionStart;
@@ -263,7 +287,7 @@ fullEditor.addEventListener('keydown', (e) => {
         let indent = indentMatch ? indentMatch[1] : "";
         if (prev === '{' && next === '}') {
             document.execCommand('insertText', false, '\n' + indent + '\t' + '\n' + indent);
-            fullEditor.selectionStart = fullEditor.selectionEnd = pos + 1 + indent.length + 1; 
+            fullEditor.selectionStart = fullEditor.selectionEnd = pos + 1 + indent.length + 1;
         } else {
             if (prev === '{') indent += '\t';
             document.execCommand('insertText', false, '\n' + indent);
@@ -287,7 +311,7 @@ keys.forEach(k => {
     if(k.getAttribute('data-key')==='Shift'||k.getAttribute('data-key')==='Control'||k.classList.contains('spacer'))return;
     const rep = k.classList.contains('repeat-key');
     const tr=(e)=>{e.preventDefault();k.classList.add('active');if(navigator.vibrate)navigator.vibrate(10);handleKeyInput(k);
-        if(rep){keyDelayTimer=setTimeout(()=>{keyRepeatTimer=setInterval(()=>{if(navigator.vibrate)navigator.vibrate(5);handleKeyInput(k);},50)},400);}};
+    if(rep){keyDelayTimer=setTimeout(()=>{keyRepeatTimer=setInterval(()=>{if(navigator.vibrate)navigator.vibrate(5);handleKeyInput(k);},50)},400);}};
     const rl=(e)=>{e.preventDefault();k.classList.remove('active');clearTimeout(keyDelayTimer);clearInterval(keyRepeatTimer);};
     k.addEventListener('touchstart',tr,{passive:false}); k.addEventListener('touchend',rl);
     k.addEventListener('mousedown',tr); k.addEventListener('mouseup',rl); k.addEventListener('mouseleave',rl);
@@ -318,11 +342,14 @@ ctrlKeys.forEach(k=>{
 
 toggleBtn.addEventListener('click', () => {
     isFullMode = !isFullMode;
+    // --- [功能优化 2] 切换模式时保存状态 ---
+    localStorage.setItem('phoi_isFullMode', isFullMode);
+    
     if (isFullMode) {
         keyboardContainer.classList.add('hide-keyboard');
-        document.getElementById('lines-container').style.display = 'none'; 
-        editorWrapper.style.display = 'flex'; // Use flex for row layout
-        fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); 
+        document.getElementById('lines-container').style.display = 'none';
+        editorWrapper.style.display = 'flex'; 
+        fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
         updateHighlight();
         syncScroll();
         toggleBtn.textContent = '▲';
@@ -336,6 +363,17 @@ toggleBtn.addEventListener('click', () => {
     }
 });
 
-updateGutter();
-renderThreeLines();
+// 初始化：根据保存的模式直接应用布局
+if (isFullMode) {
+    keyboardContainer.classList.add('hide-keyboard');
+    document.getElementById('lines-container').style.display = 'none';
+    editorWrapper.style.display = 'flex';
+    toggleBtn.textContent = '▲';
+    // 在全屏模式下初始化编辑器内容
+    fullEditor.value = globalText;
+    updateHighlight();
+} else {
+    updateGutter();
+    renderThreeLines();
+}
 updateKeyboardVisuals();
