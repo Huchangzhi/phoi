@@ -13,6 +13,7 @@
         <div class="tool-group">
             <button id="run-btn" class="tool-btn" title="运行">▶</button>
             <button id="copy-btn" class="tool-btn" title="复制">❐</button>
+            <button id="debug-btn" class="tool-btn" title="AI调试">⚙</button>
             <p style="color:#666; font-size:12px; margin-left:10px; line-height: 45px;">Powered by <a href="https://github.com/Huchangzhi/phoi">phoi</a></p>
         </div>
         <button id="mode-toggle-btn" class="tool-btn">▼</button>
@@ -45,6 +46,98 @@
             <div class="modal-footer">
                 <button id="modal-cancel" class="modal-btn">取消</button>
                 <button id="modal-run" class="modal-btn">运行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI调试模态框 -->
+    <div id="ai-debug-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">AI代码调试</span>
+                <span class="modal-step" id="debug-step">步骤 1/3</span>
+                <span id="close-ai-debug">✕</span>
+            </div>
+            <div class="modal-body">
+                <!-- 配置界面 -->
+                <div id="config-section" class="debug-section">
+                    <h3>API配置</h3>
+                    <div class="form-group">
+                        <label for="api-base-url">Base URL:</label>
+                        <input type="text" id="api-base-url" placeholder="https://api.openai.com/v1">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-key">API Key:</label>
+                        <input type="password" id="api-key" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="api-model">模型:</label>
+                        <input type="text" id="api-model" placeholder="gpt-3.5-turbo" value="gpt-3.5-turbo">
+                    </div>
+                    <button id="use-public-api-btn" class="modal-btn">使用公共API</button>
+                    <button id="save-config-btn" class="modal-btn primary">保存配置</button>
+                </div>
+
+                <!-- 问题输入界面 -->
+                <div id="problem-section" class="debug-section" style="display: none;">
+                    <h3>题目与样例</h3>
+                    <div class="form-group">
+                        <label for="problem-desc">题目描述:</label>
+                        <textarea id="problem-desc" placeholder="输入题目描述..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="sample-input">样例输入:</label>
+                        <textarea id="sample-input" placeholder="输入样例输入..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="sample-output">样例输出:</label>
+                        <textarea id="sample-output" placeholder="输入样例输出..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="prev-problem-btn" class="modal-btn">上一步</button>
+                        <button id="start-debug-btn" class="modal-btn primary">开始调试</button>
+                    </div>
+                </div>
+
+
+                <!-- 调试界面 -->
+                <div id="debugging-section" class="debug-section" style="display: none;">
+                    <div id="debug-output" class="debug-output">
+                        <div id="debug-messages"></div>
+                        <div id="debug-loading" class="loading" style="display: none;">
+                            <div class="loading-dots">
+                                <div></div>
+                                <div></div>
+                                <div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 代码查看框 -->
+                    <div class="form-group">
+                        <label>AI生成的最新代码:</label>
+                        <pre id="ai-code-output" class="code-output"></pre>
+                    </div>
+                    <!-- 代码替换功能 -->
+                    <div class="form-group">
+                        <button id="replace-code-btn" class="modal-btn primary">替换当前代码</button>
+                    </div>
+                    <!-- 用户与AI交流功能 -->
+                    <div class="form-group">
+                        <label for="user-query">与AI交流:</label>
+                        <textarea id="user-query" placeholder="向AI询问关于代码的问题..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <button id="send-query-btn" class="modal-btn primary">发送</button>
+                    </div>
+                    <div class="form-group">
+                        <label>AI回复:</label>
+                        <div id="ai-response" class="ai-response-box"></div>
+                    </div>
+                    <div class="debug-controls">
+                        <button id="stop-debug-btn" class="modal-btn">停止调试</button>
+                        <button id="finish-debug-btn" class="modal-btn primary">完成调试</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
