@@ -256,6 +256,29 @@ function extractVariableNames(code) {
         }
     }
 
+    // Also match function parameters: function(type param1, type param2, ...)
+    // Find function definitions and extract parameter names
+    const functionRegex = /\b(?:[a-zA-Z_*&:<>]+\s+)+[a-zA-Z_][a-zA-Z0-9_]*\s*\(([^)]*)\)\s*(?:const\s+)?(?:\[[^\]]*\]\s*)*(?:noexcept\s*\(.*\)\s*)*(?:->\s*[\w_*:<>]+)?\s*{/gi;
+    let functionMatch;
+    while ((functionMatch = functionRegex.exec(code)) !== null) {
+        const paramsStr = functionMatch[1]; // Parameters part
+        if (paramsStr.trim()) {
+            // Split parameters by comma and extract variable names
+            const params = paramsStr.split(',');
+            for (const param of params) {
+                // Match the variable name in the parameter (last word that looks like a variable name)
+                const varMatches = param.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g);
+                if (varMatches) {
+                    // Take the last match (which should be the variable name)
+                    const varName = varMatches[varMatches.length - 1];
+                    if (varName) {
+                        variables.add(varName);
+                    }
+                }
+            }
+        }
+    }
+
     // Also match pair declarations specifically: pair<type, type> varName
     const pairDeclarationRegex = /pair\s*<\s*[\w:<> ]+\s*,\s*[\w:<> ]+\s*>\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
     while ((match = pairDeclarationRegex.exec(code)) !== null) {
@@ -313,6 +336,12 @@ require(['vs/editor/editor.main'], function() {
         parameterHints: {
             enabled: true,
             cycle: false
+        },
+        // 禁用内置的单词补全，避免与自定义补全重复
+        wordBasedSuggestions: false,
+        suggest: {
+            // 确保自定义补全优先级更高
+            localityBonus: false
         }
     });
 
@@ -347,7 +376,7 @@ require(['vs/editor/editor.main'], function() {
                 const usedContainers = new Set();
                 for (const containerName in stlContainers) {
                     // Look for declarations like: containerName<...> varName or containerName varName
-                    const regex = new RegExp(`\\b${containerName}\\b\\s*(?:<[^>]*>)?\\s+\\w+`, 'g');
+                    const regex = new RegExp(`\\b${containerName}\\b\\s*(?:<[^>]*>)?\\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\\s*,\\s*[a-zA-Z_][a-zA-Z0-9_]*)*`, 'g');
                     if (regex.test(fullText)) {
                         usedContainers.add(containerName);
                     }
@@ -395,7 +424,7 @@ require(['vs/editor/editor.main'], function() {
                 // If we can identify the specific variable type, narrow down suggestions
                 if (potentialContainerName) {
                     // Search for the declaration of this variable in the code
-                    const declarationRegex = new RegExp(`\\b(${Object.keys(stlContainers).join('|')})\\b\\s*(?:<[^>]*>)?\\s+(${potentialContainerName})\\b`, 'g');
+                    const declarationRegex = new RegExp(`\\b(${Object.keys(stlContainers).join('|')})\\b\\s*(?:<[^>]*>)?\\s+(?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*(${potentialContainerName})\\b`, 'g');
                     const matches = [...fullText.matchAll(declarationRegex)];
 
                     if (matches.length > 0) {
@@ -444,31 +473,13 @@ require(['vs/editor/editor.main'], function() {
                     suggestions: suggestions
                 };
             } else {
-                // Get all variable names from the current code
-                const fullText = model.getValue();
-                const variableNames = extractVariableNames(fullText);
-
-                const suggestions = [];
-
-                // Add variable name suggestions
-                for (const varName of variableNames) {
-                    if (varName !== potentialContainerName) { // Avoid duplicate if it's already handled as container
-                        suggestions.push({
-                            label: varName,
-                            kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText: varName,
-                            detail: 'Variable',
-                            documentation: `Variable defined in current code`,
-                            range: range
-                        });
-                    }
-                }
-
+                // For non-dot cases, return empty suggestions since other providers handle keywords and variables
                 return {
-                    suggestions: suggestions
+                    suggestions: []
                 };
             }
-        }
+        },
+        triggerCharacters: ['.']  // Trigger suggestion when '.' is typed
     });
 
     // Register completion provider for C++ keywords
@@ -498,6 +509,41 @@ require(['vs/editor/editor.main'], function() {
                     kind: monaco.languages.CompletionItemKind.Keyword,
                     insertText: insertText,
                     insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
+        }
+    });
+
+    // Register completion provider for variable names
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get all variable names from the current code
+            const fullText = model.getValue();
+            const variableNames = extractVariableNames(fullText);
+
+            const suggestions = [];
+
+            // Add variable name suggestions
+            for (const varName of variableNames) {
+                suggestions.push({
+                    label: varName,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: varName,
+                    detail: 'Variable or function parameter',
+                    documentation: `Variable or function parameter defined in current code`,
                     range: range
                 });
             }
@@ -794,7 +840,7 @@ require(['vs/editor/editor.main'], function() {
             // Add variable name suggestions
             for (const varName of variableNames) {
                 // Check if the variable is a pair type
-                const pairDeclarationRegex = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`, 'g');
+                const pairDeclarationRegex = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`);
 
                 suggestions.push({
                     label: varName,
@@ -802,8 +848,8 @@ require(['vs/editor/editor.main'], function() {
                         ? monaco.languages.CompletionItemKind.Struct
                         : monaco.languages.CompletionItemKind.Variable,
                     insertText: varName,
-                    detail: pairDeclarationRegex.test(fullText) ? 'pair variable' : 'Variable',
-                    documentation: `Variable defined in current code`,
+                    detail: pairDeclarationRegex.test(fullText) ? 'pair variable' : 'Variable or function parameter',
+                    documentation: `Variable or function parameter defined in current code`,
                     range: range
                 });
             }
