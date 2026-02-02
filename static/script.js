@@ -90,6 +90,30 @@ function triggerSaveCode() {
     }, 500);
 }
 
+// Initialize Monaco Editor
+require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+require(['vs/editor/editor.main'], function() {
+    const editor = monaco.editor.create(document.getElementById('editor-container'), {
+        value: globalText,
+        language: 'cpp',
+        theme: 'vs-dark', // 使用暗色主题
+        automaticLayout: true
+    });
+
+    // Update globalText when editor content changes
+    editor.onDidChangeModelContent(() => {
+        globalText = editor.getValue();
+        triggerSaveCode();
+    });
+
+    // Update editor when globalText changes
+    window.addEventListener('codeUpdated', () => {
+        if (editor.getValue() !== globalText) {
+            editor.setValue(globalText);
+        }
+    });
+});
+
 // --- 恢复保存的输入数据 ---
 modalTextarea.value = localStorage.getItem('phoi_savedStdin') || "";
 modalTextarea.addEventListener('input', () => {
@@ -1025,11 +1049,11 @@ ctrlKeys.forEach(k=>{
 toggleBtn.addEventListener('click', () => {
     isFullMode = !isFullMode;
     localStorage.setItem('phoi_isFullMode', isFullMode);
-    
+
     if (isFullMode) {
         keyboardContainer.classList.add('hide-keyboard');
         document.getElementById('lines-container').style.display = 'none';
-        editorWrapper.style.display = 'flex'; 
+        editorWrapper.style.display = 'flex';
         fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
         updateHighlight();
         syncScroll();
@@ -1041,6 +1065,12 @@ toggleBtn.addEventListener('click', () => {
         editorWrapper.style.display = 'none';
         toggleBtn.textContent = '▼';
         renderThreeLines();
+    }
+
+    // Show/hide Monaco Editor container based on mode
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer) {
+        editorContainer.style.display = isFullMode ? 'block' : 'none';
     }
 });
 
@@ -1056,4 +1086,11 @@ if (isFullMode) {
     updateGutter();
     renderThreeLines();
 }
+
+// 根据保存的模式设置 Monaco Editor 容器的显示状态
+const editorContainer = document.getElementById('editor-container');
+if (editorContainer) {
+    editorContainer.style.display = isFullMode ? 'block' : 'none';
+}
+
 updateKeyboardVisuals();

@@ -274,7 +274,6 @@
             <button id="copy-btn" class="tool-btn" title="复制">❐</button>
             <p style="color:#666; font-size:12px; margin-left:10px; line-height: 45px;">Powered by <a href="https://github.com/Huchangzhi/phoi">phoi</a></p>
         </div>
-        <button id="mode-toggle-btn" class="tool-btn">▼</button>
     </div>
 
     <!-- 输入模态框 -->
@@ -302,17 +301,60 @@
     <div id="editor-wrapper">
         <!-- 左侧行号槽 -->
         <div id="gutter"></div>
-        <!-- 右侧代码容器 -->
-        <div id="file-content">
-            <pre id="highlight-layer"></pre>
-        </div>
+        <!-- Monaco Editor 容器 -->
+        <div id="editor-container" style="width:100%;height:100%;"></div>
     </div>
 
+
+    <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
     <script>
+        // Initialize Monaco Editor
+        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+
+        let monacoEditor = null;
+        let isMonacoLoaded = false;
+
+        function initMonacoEditor(code) {
+            if (monacoEditor) {
+                monacoEditor.dispose();
+            }
+
+            require(['vs/editor/editor.main'], function() {
+                monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: code,
+                    language: 'cpp',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false
+                });
+
+                isMonacoLoaded = true;
+            });
+        }
+
         // DOM Elements
         const editorWrapper = document.getElementById('editor-wrapper');
-        const highlightLayer = document.getElementById('highlight-layer');
-        const gutter = document.getElementById('gutter');
+        // Monaco Editor 初始化
+        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+        function initMonacoEditor(code) {
+            if (monacoEditor) {
+                monacoEditor.dispose();
+            }
+
+            require(['vs/editor/editor.main'], function () {
+                monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: code,
+                    language: 'cpp',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false
+                });
+            });
+        }
 
         const runBtn = document.getElementById('run-btn');
         const copyBtn = document.getElementById('copy-btn');
@@ -420,54 +462,24 @@
             return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
         }
 
-        function highlight(code) {
-            let pMap = {}, pIdx = 0;
-            // 处理字符串、字符常量和注释
-            let safe = code.replace(/("[^"]*"|'[^']*'|\/\/.*$)/gm, (m) => {
-                const k = `___P${pIdx++}_`;
-                pMap[k]=m;
-                return k;
-            });
-
-            safe = escapeHtml(safe);
-
-            // 关键词高亮
-            safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
-            // 数字高亮
-            safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
-            // 预处理指令高亮
-            safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}</span>${r}`);
-
-            // 还原字符串和注释
-            Object.keys(pMap).forEach(k => {
-                let o = pMap[k], r = '';
-                if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
-                else if(o.startsWith('//')) r = `<span class="hl-com">${escapeHtml(o)}</span>`;
-                safe = safe.replace(k, r);
-            });
-            return safe;
-        }
 
         // 全局变量
         let globalText = '';
 
-        // 更新高亮和行号
+        // 更新行号并初始化 Monaco Editor
         function updateDisplay(code) {
             globalText = code;
-            highlightLayer.innerHTML = highlight(code);
-            updateGutter();
+
+            // 初始化 Monaco Editor
+            initMonacoEditor(code);
         }
 
-        function updateGutter() {
-            const lineCount = globalText.split('\n').length;
-            gutter.innerText = Array.from({length: lineCount}, (_, i) => i + 1).join('\n');
-        }
 
         // 页面加载完成后，获取代码并显示
         window.addEventListener('load', async () => {
             const code = await getCodeFromUrl();
             updateDisplay(code);
-            
+
             // 如果URL参数中包含自动运行标志，则自动运行
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('autorun') && urlParams.get('autorun') === 'true') {
@@ -476,6 +488,7 @@
                 }, 500); // 延迟执行，确保页面完全加载
             }
         });
+
     </script>
 </body>
 </html>
