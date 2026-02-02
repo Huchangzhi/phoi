@@ -90,26 +90,537 @@ function triggerSaveCode() {
     }, 500);
 }
 
+// Define C++ keywords for autocompletion
+const cppKeywords = [
+    // Control Flow
+    'if', 'else', 'switch', 'case', 'default', 'break', 'continue', 'goto',
+    // Loops
+    'while', 'do', 'for',
+    // Functions
+    'return', 'extern', 'inline',
+    // Data Types
+    'void', 'bool', 'char', 'wchar_t', 'char8_t', 'char16_t', 'char32_t', 'short', 'int', 'long', 'float', 'double',
+    'signed', 'unsigned', 'typedef',
+    // Modifiers
+    'const', 'volatile', 'static', 'auto', 'register', 'mutable',
+    // Classes & Objects
+    'class', 'struct', 'union', 'enum', 'public', 'private', 'protected', 'friend', 'virtual', 'override', 'final',
+    'this', 'explicit', 'constexpr', 'consteval', 'constinit',
+    // Inheritance
+    'public', 'private', 'protected', 'virtual', 'override',
+    // Storage Classes
+    'static', 'extern', 'register', 'mutable',
+    // Operators
+    'new', 'delete', 'sizeof', 'typeid', 'dynamic_cast', 'static_cast', 'reinterpret_cast', 'const_cast',
+    // Namespace
+    'namespace', 'using',
+    // Templates
+    'template', 'typename', 'decltype', 'concept', 'requires',
+    // Exception Handling
+    'try', 'catch', 'throw', 'noexcept',
+    // Others
+    'true', 'false', 'nullptr', 'asm', 'thread_local', 'alignas', 'alignof'
+];
+
+// Define C++ STL containers and their methods for autocompletion
+const stlContainers = {
+    'vector': [
+        'assign', 'get_allocator', 'at', 'front', 'back', 'data', 'begin', 'end', 'rbegin', 'rend',
+        'empty', 'size', 'max_size', 'reserve', 'capacity', 'shrink_to_fit', 'clear', 'insert',
+        'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap'
+    ],
+    'queue': [
+        'empty', 'size', 'front', 'back', 'push', 'emplace', 'pop', 'swap'
+    ],
+    'stack': [
+        'empty', 'size', 'top', 'push', 'emplace', 'pop', 'swap'
+    ],
+    'set': [
+        'key_comp', 'value_comp', 'get_allocator', 'begin', 'end', 'rbegin', 'rend',
+        'empty', 'size', 'max_size', 'find', 'count', 'lower_bound', 'upper_bound', 'equal_range',
+        'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge'
+    ],
+    'multiset': [
+        'key_comp', 'value_comp', 'get_allocator', 'begin', 'end', 'rbegin', 'rend',
+        'empty', 'size', 'max_size', 'find', 'count', 'lower_bound', 'upper_bound', 'equal_range',
+        'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge'
+    ],
+    'map': [
+        'at', 'operator[]', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend',
+        'empty', 'size', 'max_size', 'clear', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint',
+        'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains',
+        'lower_bound', 'upper_bound', 'equal_range', 'key_comp', 'value_comp', 'get_allocator'
+    ],
+    'multimap': [
+        'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend',
+        'empty', 'size', 'max_size', 'clear', 'insert', 'emplace', 'emplace_hint',
+        'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains',
+        'lower_bound', 'upper_bound', 'equal_range', 'key_comp', 'value_comp', 'get_allocator'
+    ],
+    'unordered_set': [
+        'begin', 'end', 'cbegin', 'cend', 'bucket_count', 'max_bucket_count', 'bucket_size',
+        'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function',
+        'key_eq', 'get_allocator', 'empty', 'size', 'max_size', 'find', 'count', 'contains',
+        'equal_range', 'insert', 'emplace', 'emplace_hint', 'insert_or_assign', 'try_emplace',
+        'erase', 'clear', 'swap', 'extract', 'merge', 'reserve', 'rehash'
+    ],
+    'unordered_map': [
+        'at', 'operator[]', 'begin', 'end', 'cbegin', 'cend', 'empty', 'size', 'max_size',
+        'clear', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace',
+        'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'equal_range',
+        'bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor',
+        'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator'
+    ],
+    'priority_queue': [
+        'empty', 'size', 'top', 'push', 'emplace', 'pop', 'swap'
+    ],
+    'deque': [
+        'assign', 'get_allocator', 'at', 'operator[]', 'front', 'back', 'begin', 'end',
+        'rbegin', 'rend', 'empty', 'size', 'max_size', 'resize', 'shrink_to_fit',
+        'clear', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back',
+        'push_front', 'emplace_front', 'pop_front', 'swap'
+    ],
+    'list': [
+        'assign', 'get_allocator', 'front', 'back', 'begin', 'end', 'rbegin', 'rend',
+        'empty', 'size', 'max_size', 'clear', 'insert', 'emplace', 'erase', 'push_back',
+        'emplace_back', 'pop_back', 'push_front', 'emplace_front', 'pop_front', 'resize',
+        'swap', 'merge', 'splice', 'remove', 'remove_if', 'reverse', 'unique', 'sort'
+    ],
+    'array': [
+        'at', 'operator[]', 'front', 'back', 'data', 'begin', 'end', 'rbegin', 'rend',
+        'cbegin', 'cend', 'crbegin', 'crend', 'empty', 'size', 'max_size', 'fill', 'swap'
+    ]
+};
+
+// Define C++ standard library functions for autocompletion
+const cppFunctions = {
+    // C-style I/O functions
+    'cstdio': [
+        'printf', 'scanf', 'fprintf', 'fscanf', 'sscanf', 'sprintf', 'snprintf',
+        'getchar', 'putchar', 'gets', 'puts', 'fgets', 'fputs', 'fclose', 'fflush'
+    ],
+    // Standard library functions
+    'cstdlib': [
+        'malloc', 'calloc', 'realloc', 'free', 'abs', 'labs', 'llabs', 'atoi', 'atol', 'atoll',
+        'atof', 'rand', 'srand', 'qsort', 'bsearch'
+    ],
+    // String functions
+    'cstring': [
+        'memcpy', 'memset', 'strcpy', 'strncpy', ' strcat', 'strncat',
+        'memcmp', 'strcmp', 'strncmp', 'strlen', 'strchr', 'strstr'
+    ],
+    // Utility functions
+    'utility': [
+        'pair', 'make_pair', 'swap', 'forward', 'move'
+    ],
+    // Algorithm functions
+    'algorithm': [
+        'sort', 'reverse', 'lower_bound', 'upper_bound', 'find', 'count', 'max', 'min',
+        'max_element', 'min_element', 'unique', 'remove', 'fill', 'next_permutation', 'prev_permutation'
+    ],
+    // Memory functions
+    'memory': [
+        'make_unique', 'make_shared', 'unique_ptr', 'shared_ptr', 'weak_ptr'
+    ],
+    'cmath': [
+        'min', 'max', 'sqrt', 'pow'
+    ],
+};
+
+// Define common C++ objects like cin/cout
+const cppObjects = {
+    'iostream': [
+        'cin', 'cout', 'cerr', 'clog', 'endl', 'ws', 'flush'
+    ],
+    'iomanip': [
+        'setw', 'setprecision', 'setfill', 'setbase', 'hex', 'dec', 'oct', 'fixed', 'scientific'
+    ],
+    'queue': [],
+    'vector': [],
+    'set': [],
+    'map': [],
+    'deque': [],
+};
+
 // Initialize Monaco Editor
+let monacoEditor = null; // Global reference to the Monaco editor instance
+
 require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
 require(['vs/editor/editor.main'], function() {
-    const editor = monaco.editor.create(document.getElementById('editor-container'), {
+    monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
         value: globalText,
         language: 'cpp',
         theme: 'vs-dark', // 使用暗色主题
         automaticLayout: true
     });
 
+    // Register completion items for C++ keywords and STL methods
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get the text before the current position to detect if we're after a dot (.)
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // Check if the text ends with a dot followed by the current word
+            if (textBefore.endsWith('.')) {
+                // Find the variable name before the dot
+                const beforeDot = textBefore.substring(0, textBefore.lastIndexOf('.')).trim();
+
+                // Extract the identifier before the dot (could be a member access chain)
+                const parts = beforeDot.split(/[^\w\d_]/);
+                const potentialContainerName = parts[parts.length - 1];
+
+                // Get the full text to analyze what STL containers are actually used
+                const fullText = model.getValue();
+
+                // Find which STL containers are declared in the code
+                const usedContainers = new Set();
+                for (const containerName in stlContainers) {
+                    // Look for declarations like: containerName<...> varName or containerName varName
+                    const regex = new RegExp(`${containerName}\\s*(?:<[^>]*>)?\\s+\\w+`, 'g');
+                    if (regex.test(fullText)) {
+                        usedContainers.add(containerName);
+                    }
+                }
+
+                // If we have a potential container name, check if it matches any used STL containers
+                const suggestions = [];
+
+                // Add suggestions only for containers that are actually used in the code
+                for (const containerName of usedContainers) {
+                    if (stlContainers[containerName]) {
+                        stlContainers[containerName].forEach(method => {
+                            suggestions.push({
+                                label: method,
+                                kind: monaco.languages.CompletionItemKind.Method,
+                                insertText: method,
+                                detail: `${containerName}::${method}`,
+                                documentation: `STL ${containerName} container method`,
+                                range: range
+                            });
+                        });
+                    }
+                }
+
+                // If we can identify the specific variable type, narrow down suggestions
+                if (potentialContainerName) {
+                    // Search for the declaration of this variable in the code
+                    const declarationRegex = new RegExp(`(${Object.keys(stlContainers).join('|')})\\s*(?:<[^>]*>)?\\s+(${potentialContainerName})\\b`, 'g');
+                    const matches = [...fullText.matchAll(declarationRegex)];
+
+                    if (matches.length > 0) {
+                        // Get the container type from the last match (most recent declaration)
+                        const containerType = matches[matches.length - 1][1];
+
+                        // Only suggest methods for this specific container type
+                        if (stlContainers[containerType]) {
+                            suggestions.length = 0; // Clear previous suggestions
+                            stlContainers[containerType].forEach(method => {
+                                suggestions.push({
+                                    label: method,
+                                    kind: monaco.languages.CompletionItemKind.Method,
+                                    insertText: method,
+                                    detail: `${containerType}::${method}`,
+                                    documentation: `STL ${containerType} container method`,
+                                    range: range
+                                });
+                            });
+                        }
+                    }
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            } else {
+                // Regular keyword completion
+                const suggestions = cppKeywords.map(keyword => ({
+                    label: keyword,
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: keyword,
+                    range: range
+                }));
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+        },
+        triggerCharacters: ['.']  // Trigger suggestion when '.' is typed
+    });
+
+    // Register completion provider for variable declarations to suggest STL containers
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position where we might declare a variable
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be declaring a variable (after a space or tab, not after a dot)
+            if (!textBefore.endsWith('.') && !textBefore.endsWith('>')) {
+                const suggestions = [];
+
+                // Add STL container suggestions
+                for (const containerName in stlContainers) {
+                    suggestions.push({
+                        label: containerName,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: containerName,
+                        detail: `STL ${containerName} container`,
+                        documentation: `Standard Template Library ${containerName} container`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        }
+    });
+
+    // Register completion provider for C++ standard library functions and objects
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position where we might include a header or use a function
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be including a header (after '#include')
+            if (textBefore.trim().endsWith('#include')) {
+                const suggestions = [];
+
+                // Add C++ standard library header suggestions
+                const allHeaders = new Set([
+                    ...Object.keys(cppFunctions),
+                    ...Object.keys(cppObjects)
+                ]);
+
+                for (const headerName of allHeaders) {
+                    suggestions.push({
+                        label: `<${headerName}>`,
+                        kind: monaco.languages.CompletionItemKind.Module,
+                        insertText: `<${headerName}>`,
+                        detail: `C++ standard library header`,
+                        documentation: `Include the ${headerName} header`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+            // If we're not after a dot or in a template, suggest function names and objects
+            else if (!textBefore.endsWith('.') && !textBefore.includes('<') || textBefore.endsWith('>')) {
+                const suggestions = [];
+
+                // Add all function suggestions from all headers
+                for (const [headerName, functions] of Object.entries(cppFunctions)) {
+                    functions.forEach(func => {
+                        suggestions.push({
+                            label: func,
+                            kind: monaco.languages.CompletionItemKind.Function,
+                            insertText: func,
+                            detail: `${headerName}::${func}`,
+                            documentation: `Function from ${headerName} header`,
+                            range: range
+                        });
+                    });
+                }
+
+                // Add all object suggestions from all headers
+                for (const [headerName, objects] of Object.entries(cppObjects)) {
+                    objects.forEach(obj => {
+                        suggestions.push({
+                            label: obj,
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText: obj,
+                            detail: `${headerName}::${obj}`,
+                            documentation: `Object from ${headerName} header`,
+                            range: range
+                        });
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        }
+    });
+
+    // Register completion provider for directives when typing #
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position right after '#'
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be typing after '#'
+            if (textBefore.trim() === '#' || textBefore.trim().endsWith('#')) {
+                const suggestions = [
+                    {
+                        label: 'include',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'include',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Include a file at compilation time',
+                        range: range
+                    },
+                    {
+                        label: 'define',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'define',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Define a macro',
+                        range: range
+                    },
+                    {
+                        label: 'ifdef',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'ifdef',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Conditional compilation - if defined',
+                        range: range
+                    },
+                    {
+                        label: 'ifndef',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'ifndef',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Conditional compilation - if not defined',
+                        range: range
+                    },
+                    {
+                        label: 'endif',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'endif',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'End conditional compilation block',
+                        range: range
+                    },
+                    {
+                        label: 'pragma',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'pragma',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Implementation-specific commands',
+                        range: range
+                    }
+                ];
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        },
+        triggerCharacters: ['#']  // Trigger suggestion when '#' is typed
+    });
+
+    // Register completion provider for header files when typing <>
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position right after '#include <'
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be typing inside #include <>
+            if (textBefore.trim().endsWith('#include <') ||
+                (/.*#include\s*<[^>]*$/.test(textBefore))) {
+                const suggestions = [];
+
+                // Add C++ standard library header suggestions
+                const allHeaders = new Set([
+                    ...Object.keys(cppFunctions),
+                    ...Object.keys(cppObjects)
+                ]);
+
+                for (const headerName of allHeaders) {
+                    suggestions.push({
+                        label: headerName,
+                        kind: monaco.languages.CompletionItemKind.Module,
+                        insertText: `${headerName}>`,
+                        detail: `C++ standard library header`,
+                        documentation: `Standard library header: ${headerName}`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        },
+        triggerCharacters: ['<']  // Trigger suggestion when '<' is typed in include statements
+    });
+
     // Update globalText when editor content changes
-    editor.onDidChangeModelContent(() => {
-        globalText = editor.getValue();
+    monacoEditor.onDidChangeModelContent(() => {
+        globalText = monacoEditor.getValue();
         triggerSaveCode();
     });
 
     // Update editor when globalText changes
     window.addEventListener('codeUpdated', () => {
-        if (editor.getValue() !== globalText) {
-            editor.setValue(globalText);
+        if (monacoEditor && monacoEditor.getValue() !== globalText) {
+            monacoEditor.setValue(globalText);
         }
     });
 });
@@ -933,9 +1444,17 @@ function syncState() {
     if(isFullMode) {
         fullEditor.value=globalText;
         fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
-        updateHighlight(); 
+        updateHighlight();
+
+        // Also update the Monaco editor if it exists
+        if(monacoEditor) {
+            monacoEditor.setValue(globalText);
+        }
     }
     else renderThreeLines();
+
+    // Dispatch custom event to notify Monaco editor of content change
+    window.dispatchEvent(new CustomEvent('codeUpdated'));
 }
 
 function handleKeyInput(keyEl) {
@@ -1047,6 +1566,17 @@ ctrlKeys.forEach(k=>{
 });
 
 toggleBtn.addEventListener('click', () => {
+    // 在切换前先保存当前编辑器的内容到globalText
+    if (isFullMode) {
+        // 当前是全屏模式，从fullEditor获取内容
+        globalText = fullEditor.value;
+        globalCursorPos = fullEditor.selectionStart;
+    } else {
+        // 当前是3行模式，从globalText获取内容（实际上不需要改变，因为3行模式就是显示globalText）
+        // 但我们需要确保globalText是最新的
+        // 由于3行模式只是显示globalText的一部分，所以不需要额外操作
+    }
+
     isFullMode = !isFullMode;
     localStorage.setItem('phoi_isFullMode', isFullMode);
 
@@ -1058,8 +1588,19 @@ toggleBtn.addEventListener('click', () => {
         updateHighlight();
         syncScroll();
         toggleBtn.textContent = '▲';
+
+        // 同时更新Monaco编辑器
+        if (monacoEditor) {
+            monacoEditor.setValue(globalText);
+        }
     } else {
-        globalText=fullEditor.value; globalCursorPos=fullEditor.selectionStart;
+        // Before switching to 3-line mode, get latest content from Monaco editor if it exists
+        if (monacoEditor) {
+            globalText = monacoEditor.getValue();
+        }
+
+        globalCursorPos = globalText.length; // Set cursor to end of text
+
         keyboardContainer.classList.remove('hide-keyboard');
         document.getElementById('lines-container').style.display = 'flex';
         editorWrapper.style.display = 'none';
@@ -1082,6 +1623,11 @@ if (isFullMode) {
     toggleBtn.textContent = '▲';
     fullEditor.value = globalText;
     updateHighlight();
+
+    // 如果Monaco编辑器已创建，也要更新它
+    if (monacoEditor) {
+        monacoEditor.setValue(globalText);
+    }
 } else {
     updateGutter();
     renderThreeLines();
