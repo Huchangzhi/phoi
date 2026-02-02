@@ -190,13 +190,15 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 60%;
+            height: 30%;
+            min-height: 150px;
             background-color: #0d0d0d;
             border-top: 2px solid #007acc;
             z-index: 200;
             display: none;
             flex-direction: column;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            transition: height 0.1s ease; /* 平滑过渡效果 */
         }
         #output-header {
             height: 35px;
@@ -208,6 +210,8 @@
             border-bottom: 1px solid #333;
             color: #eee;
             font-size: 14px;
+            cursor: ns-resize; /* 上下调整大小光标 */
+            user-select: none;
         }
         #output-content {
             flex: 1;
@@ -219,6 +223,23 @@
             color: #ccc;
             user-select: text;
             -webkit-user-select: text;
+            cursor: text; /* 文本选择光标 */
+        }
+        /* 关闭按钮使用默认光标 */
+        #close-output {
+            cursor: default;
+        }
+        /* 输出面板调整大小手柄 */
+        #output-resizer {
+            height: 6px;
+            background: #007acc;
+            cursor: ns-resize;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            border-bottom: 1px solid #333;
+            z-index: 10;
         }
         .out-section {
             margin-bottom: 10px;
@@ -295,6 +316,7 @@
             <span id="close-output">✕</span>
         </div>
         <div id="output-content"></div>
+        <div id="output-resizer" class="output-resizer"></div>
     </div>
 
     <!-- 只读编辑器 -->
@@ -487,6 +509,44 @@
                     runBtn.click();
                 }, 500); // 延迟执行，确保页面完全加载
             }
+        });
+
+        // 添加输出面板调整大小功能
+        let isResizing = false;
+        const outputPanel = document.getElementById('output-panel');
+        const outputResizer = document.getElementById('output-resizer');
+        const globalToolbar = document.getElementById('global-toolbar');
+
+        // 鼠标按下调整大小手柄时
+        outputResizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ns-resize';
+            e.preventDefault();
+        });
+
+        // 鼠标移动时调整输出面板大小
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            // 计算新的高度（基于窗口高度和鼠标位置）
+            const windowHeight = window.innerHeight;
+            const newY = e.clientY;
+            const newHeight = windowHeight - newY;
+
+            // 设置最小和最大高度限制
+            const minHeight = 150; // 最小高度
+            const maxHeight = windowHeight - globalToolbar.offsetHeight - 100; // 最大高度
+
+            // 应用边界限制
+            const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+
+            outputPanel.style.height = `${clampedHeight}px`;
+        });
+
+        // 鼠标释放时结束调整大小
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.cursor = '';
         });
 
     </script>

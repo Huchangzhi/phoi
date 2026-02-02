@@ -124,72 +124,62 @@ const cppKeywords = [
 
 // Define C++ STL containers and their methods for autocompletion
 const stlContainers = {
-    'vector': [
-        'assign', 'get_allocator', 'at', 'front', 'back', 'data', 'begin', 'end', 'rbegin', 'rend',
-        'empty', 'size', 'max_size', 'reserve', 'capacity', 'shrink_to_fit', 'clear', 'insert',
-        'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap'
-    ],
-    'queue': [
-        'empty', 'size', 'front', 'back', 'push', 'emplace', 'pop', 'swap'
-    ],
-    'stack': [
-        'empty', 'size', 'top', 'push', 'emplace', 'pop', 'swap'
-    ],
-    'set': [
-        'key_comp', 'value_comp', 'get_allocator', 'begin', 'end', 'rbegin', 'rend',
-        'empty', 'size', 'max_size', 'find', 'count', 'lower_bound', 'upper_bound', 'equal_range',
-        'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge'
-    ],
-    'multiset': [
-        'key_comp', 'value_comp', 'get_allocator', 'begin', 'end', 'rbegin', 'rend',
-        'empty', 'size', 'max_size', 'find', 'count', 'lower_bound', 'upper_bound', 'equal_range',
-        'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge'
-    ],
-    'map': [
-        'at', 'operator[]', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend',
-        'empty', 'size', 'max_size', 'clear', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint',
-        'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains',
-        'lower_bound', 'upper_bound', 'equal_range', 'key_comp', 'value_comp', 'get_allocator'
-    ],
-    'multimap': [
-        'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend',
-        'empty', 'size', 'max_size', 'clear', 'insert', 'emplace', 'emplace_hint',
-        'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains',
-        'lower_bound', 'upper_bound', 'equal_range', 'key_comp', 'value_comp', 'get_allocator'
-    ],
-    'unordered_set': [
-        'begin', 'end', 'cbegin', 'cend', 'bucket_count', 'max_bucket_count', 'bucket_size',
-        'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function',
-        'key_eq', 'get_allocator', 'empty', 'size', 'max_size', 'find', 'count', 'contains',
-        'equal_range', 'insert', 'emplace', 'emplace_hint', 'insert_or_assign', 'try_emplace',
-        'erase', 'clear', 'swap', 'extract', 'merge', 'reserve', 'rehash'
-    ],
-    'unordered_map': [
-        'at', 'operator[]', 'begin', 'end', 'cbegin', 'cend', 'empty', 'size', 'max_size',
-        'clear', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace',
-        'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'equal_range',
-        'bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor',
-        'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator'
-    ],
-    'priority_queue': [
-        'empty', 'size', 'top', 'push', 'emplace', 'pop', 'swap'
-    ],
-    'deque': [
-        'assign', 'get_allocator', 'at', 'operator[]', 'front', 'back', 'begin', 'end',
-        'rbegin', 'rend', 'empty', 'size', 'max_size', 'resize', 'shrink_to_fit',
-        'clear', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back',
-        'push_front', 'emplace_front', 'pop_front', 'swap'
-    ],
-    'list': [
-        'assign', 'get_allocator', 'front', 'back', 'begin', 'end', 'rbegin', 'rend',
-        'empty', 'size', 'max_size', 'clear', 'insert', 'emplace', 'erase', 'push_back',
-        'emplace_back', 'pop_back', 'push_front', 'emplace_front', 'pop_front', 'resize',
-        'swap', 'merge', 'splice', 'remove', 'remove_if', 'reverse', 'unique', 'sort'
-    ],
-    'array': [
-        'at', 'operator[]', 'front', 'back', 'data', 'begin', 'end', 'rbegin', 'rend',
-        'cbegin', 'cend', 'crbegin', 'crend', 'empty', 'size', 'max_size', 'fill', 'swap'
-    ]
+    'vector': {
+        functions: ['assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend'],
+        properties: ['front', 'back', 'data', 'get_allocator', 'empty', 'size', 'max_size', 'reserve', 'capacity', 'shrink_to_fit', 'operator[]']
+    },
+    'queue': {
+        functions: ['push', 'emplace', 'pop', 'swap'],
+        properties: ['empty', 'size', 'front', 'back']
+    },
+    'stack': {
+        functions: ['push', 'emplace', 'pop', 'swap'],
+        properties: ['empty', 'size', 'top']
+    },
+    'set': {
+        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend'],
+        properties: ['key_comp', 'value_comp', 'get_allocator', 'empty', 'size', 'max_size']
+    },
+    'multiset': {
+        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend'],
+        properties: ['key_comp', 'value_comp', 'get_allocator', 'empty', 'size', 'max_size']
+    },
+    'map': {
+        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
+        properties: ['operator[]', 'empty', 'size', 'max_size', 'clear', 'key_comp', 'value_comp', 'get_allocator']
+    },
+    'multimap': {
+        functions: ['insert', 'emplace', 'emplace_hint', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
+        properties: ['empty', 'size', 'max_size', 'clear', 'key_comp', 'value_comp', 'get_allocator']
+    },
+    'unordered_set': {
+        functions: ['find', 'count', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'insert_or_assign', 'try_emplace', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'cbegin', 'cend'],
+        properties: ['bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator', 'empty', 'size', 'max_size', 'contains']
+    },
+    'unordered_map': {
+        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'equal_range', 'begin', 'end', 'cbegin', 'cend'],
+        properties: ['operator[]', 'empty', 'size', 'max_size', 'clear', 'bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator']
+    },
+    'priority_queue': {
+        functions: ['push', 'emplace', 'pop', 'swap'],
+        properties: ['empty', 'size', 'top']
+    },
+    'deque': {
+        functions: ['assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend'],
+        properties: ['operator[]', 'front', 'back', 'get_allocator', 'empty', 'size', 'max_size', 'shrink_to_fit']
+    },
+    'list': {
+        functions: ['assign', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'push_front', 'emplace_front', 'pop_front', 'resize', 'swap', 'merge', 'splice', 'remove', 'remove_if', 'reverse', 'unique', 'sort', 'clear', 'begin', 'end', 'rbegin', 'rend'],
+        properties: ['front', 'back', 'get_allocator', 'empty', 'size', 'max_size']
+    },
+    'array': {
+        functions: ['at', 'swap', 'fill', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
+        properties: ['operator[]', 'front', 'back', 'data', 'empty', 'size', 'max_size']
+    },
+    'pair': {
+        functions: [],
+        properties: ['first', 'second']
+    }
 };
 
 // Define C++ standard library functions for autocompletion
@@ -255,6 +245,14 @@ function extractVariableNames(code) {
         // The variable name is in match[2]
         if (match[2]) {
             variables.add(match[2]);
+        }
+    }
+
+    // Also match pair declarations specifically: pair<type, type> varName
+    const pairDeclarationRegex = /pair\s*<\s*[\w:<> ]+\s*,\s*[\w:<> ]+\s*>\s+(\w+)/g;
+    while ((match = pairDeclarationRegex.exec(code)) !== null) {
+        if (match[1]) {
+            variables.add(match[1]);
         }
     }
 
@@ -347,25 +345,36 @@ require(['vs/editor/editor.main'], function() {
                 // Add suggestions only for containers that are actually used in the code
                 for (const containerName of usedContainers) {
                     if (stlContainers[containerName]) {
-                        stlContainers[containerName].forEach(method => {
-                            // Determine if the method is a function that needs parentheses
-                            const isFunction = !['empty', 'size', 'max_size', 'capacity', 'front', 'back', 'top', 'begin', 'end', 'rbegin', 'rend'].includes(method);
+                        // Add function suggestions with parentheses
+                        if (stlContainers[containerName].functions) {
+                            stlContainers[containerName].functions.forEach(method => {
+                                const insertText = method + '($1)';
 
-                            let insertText = method;
-                            if (isFunction) {
-                                insertText = method + '($1)';
-                            }
-
-                            suggestions.push({
-                                label: method,
-                                kind: monaco.languages.CompletionItemKind.Method,
-                                insertText: insertText,
-                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                detail: `${containerName}::${method}`,
-                                documentation: `STL ${containerName} container method`,
-                                range: range
+                                suggestions.push({
+                                    label: method,
+                                    kind: monaco.languages.CompletionItemKind.Method,
+                                    insertText: insertText,
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    detail: `${containerName}::${method}()`,
+                                    documentation: `STL ${containerName} container method (function)`,
+                                    range: range
+                                });
                             });
-                        });
+                        }
+
+                        // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
+                        if (stlContainers[containerName].properties) {
+                            stlContainers[containerName].properties.forEach(property => {
+                                suggestions.push({
+                                    label: property,
+                                    kind: monaco.languages.CompletionItemKind.Property,
+                                    insertText: property,
+                                    detail: `${containerName}::${property}`,
+                                    documentation: `STL ${containerName} container property`,
+                                    range: range
+                                });
+                            });
+                        }
                     }
                 }
 
@@ -382,25 +391,37 @@ require(['vs/editor/editor.main'], function() {
                         // Only suggest methods for this specific container type
                         if (stlContainers[containerType]) {
                             suggestions.length = 0; // Clear previous suggestions
-                            stlContainers[containerType].forEach(method => {
-                                // Determine if the method is a function that needs parentheses
-                                const isFunction = !['empty', 'size', 'max_size', 'capacity', 'front', 'back', 'top', 'begin', 'end', 'rbegin', 'rend'].includes(method);
 
-                                let insertText = method;
-                                if (isFunction) {
-                                    insertText = method + '($1)';
-                                }
+                            // Add function suggestions with parentheses
+                            if (stlContainers[containerType].functions) {
+                                stlContainers[containerType].functions.forEach(method => {
+                                    const insertText = method + '($1)';
 
-                                suggestions.push({
-                                    label: method,
-                                    kind: monaco.languages.CompletionItemKind.Method,
-                                    insertText: insertText,
-                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                    detail: `${containerType}::${method}`,
-                                    documentation: `STL ${containerType} container method`,
-                                    range: range
+                                    suggestions.push({
+                                        label: method,
+                                        kind: monaco.languages.CompletionItemKind.Method,
+                                        insertText: insertText,
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                        detail: `${containerType}::${method}()`,
+                                        documentation: `STL ${containerType} container method (function)`,
+                                        range: range
+                                    });
                                 });
-                            });
+                            }
+
+                            // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
+                            if (stlContainers[containerType].properties) {
+                                stlContainers[containerType].properties.forEach(property => {
+                                    suggestions.push({
+                                        label: property,
+                                        kind: monaco.languages.CompletionItemKind.Property,
+                                        insertText: property,
+                                        detail: `${containerType}::${property}`,
+                                        documentation: `STL ${containerType} container property`,
+                                        range: range
+                                    });
+                                });
+                            }
                         }
                     }
                 }
@@ -738,11 +759,16 @@ require(['vs/editor/editor.main'], function() {
 
             // Add variable name suggestions
             for (const varName of variableNames) {
+                // Check if the variable is a pair type
+                const pairDeclarationRegex = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`, 'g');
+
                 suggestions.push({
                     label: varName,
-                    kind: monaco.languages.CompletionItemKind.Variable,
+                    kind: pairDeclarationRegex.test(fullText)
+                        ? monaco.languages.CompletionItemKind.Struct
+                        : monaco.languages.CompletionItemKind.Variable,
                     insertText: varName,
-                    detail: 'Variable',
+                    detail: pairDeclarationRegex.test(fullText) ? 'pair variable' : 'Variable',
                     documentation: `Variable defined in current code`,
                     range: range
                 });
@@ -753,6 +779,7 @@ require(['vs/editor/editor.main'], function() {
             };
         }
     });
+
 
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
@@ -765,6 +792,44 @@ require(['vs/editor/editor.main'], function() {
         if (monacoEditor && monacoEditor.getValue() !== globalText) {
             monacoEditor.setValue(globalText);
         }
+    });
+
+    // 添加输出面板调整大小功能
+    let isResizing = false;
+    const outputPanel = document.getElementById('output-panel');
+    const outputResizer = document.getElementById('output-resizer');
+    const globalToolbar = document.getElementById('global-toolbar');
+
+    // 鼠标按下调整大小手柄时
+    outputResizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'ns-resize';
+        e.preventDefault();
+    });
+
+    // 鼠标移动时调整输出面板大小
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        // 计算新的高度（基于窗口高度和鼠标位置）
+        const windowHeight = window.innerHeight;
+        const newY = e.clientY;
+        const newHeight = windowHeight - newY;
+
+        // 设置最小和最大高度限制
+        const minHeight = 150; // 最小高度
+        const maxHeight = windowHeight - globalToolbar.offsetHeight - 100; // 最大高度
+
+        // 应用边界限制
+        const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+
+        outputPanel.style.height = `${clampedHeight}px`;
+    });
+
+    // 鼠标释放时结束调整大小
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = '';
     });
 });
 
