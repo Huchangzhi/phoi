@@ -125,56 +125,56 @@ const cppKeywords = [
 // Define C++ STL containers and their methods for autocompletion
 const stlContainers = {
     'vector': {
-        functions: ['assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend'],
-        properties: ['front', 'back', 'data', 'get_allocator', 'empty', 'size', 'max_size', 'reserve', 'capacity', 'shrink_to_fit', 'operator[]']
+        functions: ['assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend','front', 'back','empty', 'size', 'max_size', 'reserve'],
+        properties: ['data', 'get_allocator', 'capacity', 'shrink_to_fit', 'operator[]']
     },
     'queue': {
-        functions: ['push', 'emplace', 'pop', 'swap'],
-        properties: ['empty', 'size', 'front', 'back']
+        functions: ['push', 'emplace', 'pop', 'swap', 'empty', 'size', 'front', 'back'],
+        properties: []
     },
     'stack': {
-        functions: ['push', 'emplace', 'pop', 'swap'],
-        properties: ['empty', 'size', 'top']
+        functions: ['push', 'emplace', 'pop', 'swap', 'empty', 'size', 'top'],
+        properties: []
     },
     'set': {
-        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend'],
-        properties: ['key_comp', 'value_comp', 'get_allocator', 'empty', 'size', 'max_size']
+        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
+        properties: ['key_comp', 'value_comp', 'get_allocator']
     },
     'multiset': {
-        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend'],
-        properties: ['key_comp', 'value_comp', 'get_allocator', 'empty', 'size', 'max_size']
+        functions: ['find', 'count', 'lower_bound', 'upper_bound', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
+        properties: ['key_comp', 'value_comp', 'get_allocator']
     },
     'map': {
-        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
-        properties: ['operator[]', 'empty', 'size', 'max_size', 'clear', 'key_comp', 'value_comp', 'get_allocator']
+        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend', 'empty', 'size', 'max_size', 'clear'],
+        properties: ['operator[]', 'key_comp', 'value_comp', 'get_allocator']
     },
     'multimap': {
-        functions: ['insert', 'emplace', 'emplace_hint', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
-        properties: ['empty', 'size', 'max_size', 'clear', 'key_comp', 'value_comp', 'get_allocator']
+        functions: ['empty', 'size', 'max_size', 'clear', 'insert', 'emplace', 'emplace_hint', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'lower_bound', 'upper_bound', 'equal_range', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
+        properties: ['key_comp', 'value_comp', 'get_allocator']
     },
     'unordered_set': {
-        functions: ['find', 'count', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'insert_or_assign', 'try_emplace', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'cbegin', 'cend'],
-        properties: ['bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator', 'empty', 'size', 'max_size', 'contains']
+        functions: ['find', 'count', 'equal_range', 'insert', 'emplace', 'emplace_hint', 'insert_or_assign', 'try_emplace', 'erase', 'clear', 'swap', 'extract', 'merge', 'begin', 'end', 'cbegin', 'cend', 'empty', 'size', 'max_size'],
+        properties: ['bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator', 'contains']
     },
     'unordered_map': {
-        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'equal_range', 'begin', 'end', 'cbegin', 'cend'],
-        properties: ['operator[]', 'empty', 'size', 'max_size', 'clear', 'bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator']
+        functions: ['at', 'insert', 'insert_or_assign', 'emplace', 'emplace_hint', 'try_emplace', 'erase', 'swap', 'extract', 'merge', 'count', 'find', 'contains', 'equal_range', 'begin', 'end', 'cbegin', 'cend', 'empty', 'size', 'max_size', 'clear'],
+        properties: ['operator[]', 'bucket_count', 'max_bucket_count', 'bucket_size', 'bucket', 'load_factor', 'max_load_factor', 'rehash', 'reserve', 'hash_function', 'key_eq', 'get_allocator']
     },
     'priority_queue': {
-        functions: ['push', 'emplace', 'pop', 'swap'],
-        properties: ['empty', 'size', 'top']
+        functions: ['push', 'emplace', 'pop', 'swap','empty', 'size', 'top'],
+        properties: [] 
     },
     'deque': {
-        functions: ['assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend'],
-        properties: ['operator[]', 'front', 'back', 'get_allocator', 'empty', 'size', 'max_size', 'shrink_to_fit']
+        functions: ['front', 'back', 'assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
+        properties: ['operator[]', 'get_allocator', 'shrink_to_fit']
     },
     'list': {
-        functions: ['assign', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'push_front', 'emplace_front', 'pop_front', 'resize', 'swap', 'merge', 'splice', 'remove', 'remove_if', 'reverse', 'unique', 'sort', 'clear', 'begin', 'end', 'rbegin', 'rend'],
-        properties: ['front', 'back', 'get_allocator', 'empty', 'size', 'max_size']
+        functions: ['front', 'back', 'assign', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'push_front', 'emplace_front', 'pop_front', 'resize', 'swap', 'merge', 'splice', 'remove', 'remove_if', 'reverse', 'unique', 'sort', 'clear', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
+        properties: ['get_allocator']
     },
     'array': {
-        functions: ['at', 'swap', 'fill', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend'],
-        properties: ['operator[]', 'front', 'back', 'data', 'empty', 'size', 'max_size']
+        functions: ['at', 'swap', 'fill', 'begin', 'end', 'rbegin', 'rend', 'cbegin', 'cend', 'crbegin', 'crend', 'front', 'back', 'empty', 'size', 'max_size'],
+        properties: ['operator[]', 'data']
     },
     'pair': {
         functions: [],
