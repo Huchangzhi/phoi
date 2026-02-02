@@ -242,6 +242,44 @@ const cppObjects = {
     'deque': [],
 };
 
+// Function to extract variable names from code
+function extractVariableNames(code) {
+    // Match variable declarations: type name or type name[N] or type name(...);
+    // This regex looks for common patterns like: int varName, vector<int> varName, etc.
+    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+(\w+)/g;
+
+    const variables = new Set();
+    let match;
+
+    while ((match = varDeclarationRegex.exec(code)) !== null) {
+        // The variable name is in match[2]
+        if (match[2]) {
+            variables.add(match[2]);
+        }
+    }
+
+    // Also match assignments like varName = ...
+    const assignmentRegex = /(\w+)\s*=[^=]/g;
+    while ((match = assignmentRegex.exec(code)) !== null) {
+        // Avoid matching operators like ==, !=, >=, <=
+        variables.add(match[1]);
+    }
+
+    // Also match function calls like varName.function()
+    const functionCallRegex = /(\w+)\s*\.\s*\w+/g;
+    while ((match = functionCallRegex.exec(code)) !== null) {
+        variables.add(match[1]);
+    }
+
+    // Also match array/index access like varName[index]
+    const arrayAccessRegex = /(\w+)\s*\[/g;
+    while ((match = arrayAccessRegex.exec(code)) !== null) {
+        variables.add(match[1]);
+    }
+
+    return Array.from(variables);
+}
+
 // Initialize Monaco Editor
 let monacoEditor = null; // Global reference to the Monaco editor instance
 
@@ -251,7 +289,19 @@ require(['vs/editor/editor.main'], function() {
         value: globalText,
         language: 'cpp',
         theme: 'vs-dark', // 使用暗色主题
-        automaticLayout: true
+        automaticLayout: true,
+        // 设置代码补全的延迟时间
+        quickSuggestions: {
+            other: true,
+            comments: false,
+            strings: false
+        },
+        quickSuggestionsDelay: 200,  // 200ms延迟
+        // 控制参数提示的延迟
+        parameterHints: {
+            enabled: true,
+            cycle: false
+        }
     });
 
     // Register completion items for C++ keywords and STL methods
@@ -298,10 +348,19 @@ require(['vs/editor/editor.main'], function() {
                 for (const containerName of usedContainers) {
                     if (stlContainers[containerName]) {
                         stlContainers[containerName].forEach(method => {
+                            // Determine if the method is a function that needs parentheses
+                            const isFunction = !['empty', 'size', 'max_size', 'capacity', 'front', 'back', 'top', 'begin', 'end', 'rbegin', 'rend'].includes(method);
+
+                            let insertText = method;
+                            if (isFunction) {
+                                insertText = method + '($1)';
+                            }
+
                             suggestions.push({
                                 label: method,
                                 kind: monaco.languages.CompletionItemKind.Method,
-                                insertText: method,
+                                insertText: insertText,
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                                 detail: `${containerName}::${method}`,
                                 documentation: `STL ${containerName} container method`,
                                 range: range
@@ -324,10 +383,19 @@ require(['vs/editor/editor.main'], function() {
                         if (stlContainers[containerType]) {
                             suggestions.length = 0; // Clear previous suggestions
                             stlContainers[containerType].forEach(method => {
+                                // Determine if the method is a function that needs parentheses
+                                const isFunction = !['empty', 'size', 'max_size', 'capacity', 'front', 'back', 'top', 'begin', 'end', 'rbegin', 'rend'].includes(method);
+
+                                let insertText = method;
+                                if (isFunction) {
+                                    insertText = method + '($1)';
+                                }
+
                                 suggestions.push({
                                     label: method,
                                     kind: monaco.languages.CompletionItemKind.Method,
-                                    insertText: method,
+                                    insertText: insertText,
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                                     detail: `${containerType}::${method}`,
                                     documentation: `STL ${containerType} container method`,
                                     range: range
@@ -341,13 +409,41 @@ require(['vs/editor/editor.main'], function() {
                     suggestions: suggestions
                 };
             } else {
+                // Get all variable names from the current code
+                const fullText = model.getValue();
+                const variableNames = extractVariableNames(fullText);
+
                 // Regular keyword completion
-                const suggestions = cppKeywords.map(keyword => ({
-                    label: keyword,
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: keyword,
-                    range: range
-                }));
+                const suggestions = cppKeywords.map(keyword => {
+                    // For certain keywords that are functions, add parentheses
+                    const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
+                    let insertText = keyword;
+                    if (isFunctionKeyword) {
+                        insertText = keyword + '($1)';
+                    }
+
+                    return {
+                        label: keyword,
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: insertText,
+                        insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                        range: range
+                    };
+                });
+
+                // Add variable name suggestions
+                for (const varName of variableNames) {
+                    if (varName !== potentialContainerName) { // Avoid duplicate if it's already handled as container
+                        suggestions.push({
+                            label: varName,
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText: varName,
+                            detail: 'Variable',
+                            documentation: `Variable defined in current code`,
+                            range: range
+                        });
+                    }
+                }
 
                 return {
                     suggestions: suggestions
@@ -446,10 +542,14 @@ require(['vs/editor/editor.main'], function() {
                 // Add all function suggestions from all headers
                 for (const [headerName, functions] of Object.entries(cppFunctions)) {
                     functions.forEach(func => {
+                        // Add parentheses to function names
+                        const insertText = func + '($1)';
+
                         suggestions.push({
                             label: func,
                             kind: monaco.languages.CompletionItemKind.Function,
-                            insertText: func,
+                            insertText: insertText,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
                             detail: `${headerName}::${func}`,
                             documentation: `Function from ${headerName} header`,
                             range: range
@@ -460,10 +560,18 @@ require(['vs/editor/editor.main'], function() {
                 // Add all object suggestions from all headers
                 for (const [headerName, objects] of Object.entries(cppObjects)) {
                     objects.forEach(obj => {
+                        // For some objects that behave like functions, add parentheses
+                        const isFunctionLike = ['endl', 'flush', 'ws'].includes(obj);
+                        let insertText = obj;
+                        if (isFunctionLike) {
+                            insertText = obj + '($1)';
+                        }
+
                         suggestions.push({
                             label: obj,
                             kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText: obj,
+                            insertText: insertText,
+                            insertTextRules: isFunctionLike ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
                             detail: `${headerName}::${obj}`,
                             documentation: `Object from ${headerName} header`,
                             range: range
@@ -609,6 +717,41 @@ require(['vs/editor/editor.main'], function() {
             };
         },
         triggerCharacters: ['<']  // Trigger suggestion when '<' is typed in include statements
+    });
+
+    // Register completion provider for variable names
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get all variable names from the current code
+            const fullText = model.getValue();
+            const variableNames = extractVariableNames(fullText);
+
+            const suggestions = [];
+
+            // Add variable name suggestions
+            for (const varName of variableNames) {
+                suggestions.push({
+                    label: varName,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: varName,
+                    detail: 'Variable',
+                    documentation: `Variable defined in current code`,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
+        }
     });
 
     // Update globalText when editor content changes
