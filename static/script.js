@@ -235,43 +235,56 @@ const cppObjects = {
 
 // Function to extract variable names from code
 function extractVariableNames(code) {
-    // Match variable declarations: type name or type name[N] or type name(...);
-    // This regex looks for common patterns like: int varName, vector<int> varName, etc.
-    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+(\w+)/g;
-
     const variables = new Set();
     let match;
 
+    // Match variable declarations: type name or type name[N] or type name(...);
+    // This regex looks for common patterns like: int varName, vector<int> varName, etc.
+    // Updated to handle multiple variables in one declaration like: int a, b, c;
+    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
+
     while ((match = varDeclarationRegex.exec(code)) !== null) {
-        // The variable name is in match[2]
-        if (match[2]) {
-            variables.add(match[2]);
+        // Extract all variable names from the declaration
+        const varList = match[2]; // Get the variable name part
+        const individualVars = varList.split(/\s*,\s*/); // Split by comma
+
+        for (const varName of individualVars) {
+            const trimmedVarName = varName.trim();
+            if (trimmedVarName) {
+                variables.add(trimmedVarName);
+            }
         }
     }
 
     // Also match pair declarations specifically: pair<type, type> varName
-    const pairDeclarationRegex = /pair\s*<\s*[\w:<> ]+\s*,\s*[\w:<> ]+\s*>\s+(\w+)/g;
+    const pairDeclarationRegex = /pair\s*<\s*[\w:<> ]+\s*,\s*[\w:<> ]+\s*>\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
     while ((match = pairDeclarationRegex.exec(code)) !== null) {
-        if (match[1]) {
-            variables.add(match[1]);
+        const varList = match[1]; // Get the variable name part
+        const individualVars = varList.split(/\s*,\s*/); // Split by comma
+
+        for (const varName of individualVars) {
+            const trimmedVarName = varName.trim();
+            if (trimmedVarName) {
+                variables.add(trimmedVarName);
+            }
         }
     }
 
     // Also match assignments like varName = ...
-    const assignmentRegex = /(\w+)\s*=[^=]/g;
+    const assignmentRegex = /\b([a-zA-Z_]\w*)\s*=[^=]/g;
     while ((match = assignmentRegex.exec(code)) !== null) {
         // Avoid matching operators like ==, !=, >=, <=
         variables.add(match[1]);
     }
 
     // Also match function calls like varName.function()
-    const functionCallRegex = /(\w+)\s*\.\s*\w+/g;
+    const functionCallRegex = /\b([a-zA-Z_]\w*)\s*\.\s*\w+/g;
     while ((match = functionCallRegex.exec(code)) !== null) {
         variables.add(match[1]);
     }
 
     // Also match array/index access like varName[index]
-    const arrayAccessRegex = /(\w+)\s*\[/g;
+    const arrayAccessRegex = /\b([a-zA-Z_]\w*)\s*\[/g;
     while ((match = arrayAccessRegex.exec(code)) !== null) {
         variables.add(match[1]);
     }
@@ -334,7 +347,7 @@ require(['vs/editor/editor.main'], function() {
                 const usedContainers = new Set();
                 for (const containerName in stlContainers) {
                     // Look for declarations like: containerName<...> varName or containerName varName
-                    const regex = new RegExp(`${containerName}\\s*(?:<[^>]*>)?\\s+\\w+`, 'g');
+                    const regex = new RegExp(`\\b${containerName}\\b\\s*(?:<[^>]*>)?\\s+\\w+`, 'g');
                     if (regex.test(fullText)) {
                         usedContainers.add(containerName);
                     }
@@ -382,7 +395,7 @@ require(['vs/editor/editor.main'], function() {
                 // If we can identify the specific variable type, narrow down suggestions
                 if (potentialContainerName) {
                     // Search for the declaration of this variable in the code
-                    const declarationRegex = new RegExp(`(${Object.keys(stlContainers).join('|')})\\s*(?:<[^>]*>)?\\s+(${potentialContainerName})\\b`, 'g');
+                    const declarationRegex = new RegExp(`\\b(${Object.keys(stlContainers).join('|')})\\b\\s*(?:<[^>]*>)?\\s+(${potentialContainerName})\\b`, 'g');
                     const matches = [...fullText.matchAll(declarationRegex)];
 
                     if (matches.length > 0) {
@@ -435,23 +448,7 @@ require(['vs/editor/editor.main'], function() {
                 const fullText = model.getValue();
                 const variableNames = extractVariableNames(fullText);
 
-                // Regular keyword completion
-                const suggestions = cppKeywords.map(keyword => {
-                    // For certain keywords that are functions, add parentheses
-                    const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
-                    let insertText = keyword;
-                    if (isFunctionKeyword) {
-                        insertText = keyword + '($1)';
-                    }
-
-                    return {
-                        label: keyword,
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: insertText,
-                        insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
-                        range: range
-                    };
-                });
+                const suggestions = [];
 
                 // Add variable name suggestions
                 for (const varName of variableNames) {
@@ -471,8 +468,44 @@ require(['vs/editor/editor.main'], function() {
                     suggestions: suggestions
                 };
             }
-        },
-        triggerCharacters: ['.']  // Trigger suggestion when '.' is typed
+        }
+    });
+
+    // Register completion provider for C++ keywords
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            const suggestions = [];
+
+            // Add all C++ keywords
+            for (const keyword of cppKeywords) {
+                // For certain keywords that are functions, add parentheses
+                const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
+                let insertText = keyword;
+                if (isFunctionKeyword) {
+                    insertText = keyword + '($1)';
+                }
+
+                suggestions.push({
+                    label: keyword,
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: insertText,
+                    insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
+        }
     });
 
     // Register completion provider for variable declarations to suggest STL containers
