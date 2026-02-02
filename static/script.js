@@ -230,6 +230,7 @@ const cppObjects = {
     'set': [],
     'map': [],
     'deque': [],
+    'bits/stdc++.h': [],
 };
 
 // Function to extract variable names from code
