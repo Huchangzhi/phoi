@@ -49,6 +49,12 @@ const vfsPanel = document.getElementById('vfs-panel');
 const vfsCloseBtn = document.getElementById('vfs-close-btn');
 const vfsContent = document.getElementById('vfs-content');
 
+// 插件中心相关元素
+const pluginCenterToggle = document.getElementById('plugin-center-toggle');
+const pluginCenterPanel = document.getElementById('plugin-center-panel');
+const pluginCenterCloseBtn = document.getElementById('plugin-center-close-btn');
+const pluginCenterContent = document.getElementById('plugin-center-content');
+
 // --- 虚拟文件系统相关变量 ---
 let vfsStructure = null;
 const VFS_STORAGE_KEY = 'phoi_vfs_structure';
@@ -62,6 +68,16 @@ let globalCursorPos = globalText.length;
 
 // --- 恢复保存的模式 ---
 let isFullMode = localStorage.getItem('phoi_isFullMode') !== null ? localStorage.getItem('phoi_isFullMode') === 'true' : true; // 默认为电脑模式
+
+// --- 插件设置 ---
+const CPP_AUTOCOMPLETE_ENABLED_KEY = 'phoi_cpp_autocomplete_enabled';
+const CPP_AUTOCOMPLETE_DELAY_KEY = 'phoi_cpp_autocomplete_delay';
+const LUOGU_THEME_ENABLED_KEY = 'phoi_luogu_theme_enabled';
+
+// 默认设置值
+let cppAutocompleteEnabled = localStorage.getItem(CPP_AUTOCOMPLETE_ENABLED_KEY) !== 'false'; // 默认为true
+let cppAutocompleteDelay = parseInt(localStorage.getItem(CPP_AUTOCOMPLETE_DELAY_KEY)) || 200; // 默认为200ms
+let luoguThemeEnabled = localStorage.getItem(LUOGU_THEME_ENABLED_KEY) === 'true'; // 默认为false
 
 let isShiftActive = false;
 let isShiftHeld = false;
@@ -697,546 +713,36 @@ let monacoEditor = null; // Global reference to the Monaco editor instance
 
 require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
 require(['vs/editor/editor.main'], function() {
+    // 根据设置确定初始的quickSuggestionsDelay值
+    const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
+
     monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
         value: globalText,
         language: 'cpp',
         theme: 'vs-dark', // 使用暗色主题
         automaticLayout: true,
         // 设置代码补全的延迟时间
-        quickSuggestions: {
-            other: true,
-            comments: false,
-            strings: false
-        },
-        quickSuggestionsDelay: 200,  // 200ms延迟
+        quickSuggestions: cppAutocompleteEnabled,  // 根据设置启用或禁用快速建议
+        quickSuggestionsDelay: initialQuickSuggestionsDelay,  // 根据设置和延迟值确定
         // 控制参数提示的延迟
         parameterHints: {
-            enabled: true,
+            enabled: cppAutocompleteEnabled,  // 根据设置启用或禁用参数提示
             cycle: false
         },
         // 禁用内置的单词补全，避免与自定义补全重复
         wordBasedSuggestions: false,
         suggest: {
             // 确保自定义补全优先级更高
-            localityBonus: false
+            localityBonus: false,
+            // 根据设置启用或禁用建议
+            snippetsPrevented: !cppAutocompleteEnabled
         }
     });
 
-    // Register completion items for C++ keywords and STL methods
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Get the text before the current position to detect if we're after a dot (.)
-            const currentLine = model.getLineContent(position.lineNumber);
-            const textBefore = currentLine.substring(0, position.column - 1);
-
-            // Check if the text ends with a dot followed by the current word
-            if (textBefore.endsWith('.')) {
-                // Find the variable name before the dot
-                const beforeDot = textBefore.substring(0, textBefore.lastIndexOf('.')).trim();
-
-                // Extract the identifier before the dot (could be a member access chain)
-                const parts = beforeDot.split(/[^\w\d_]/);
-                const potentialContainerName = parts[parts.length - 1];
-
-                // Get the full text to analyze what STL containers are actually used
-                const fullText = model.getValue();
-
-                // Find which STL containers are declared in the code
-                const usedContainers = new Set();
-                for (const containerName in stlContainers) {
-                    // Look for declarations like: containerName<...> varName or containerName varName
-                    const regex = new RegExp(`\\b${containerName}\\b\\s*(?:<[^>]*>)?\\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\\s*,\\s*[a-zA-Z_][a-zA-Z0-9_]*)*`, 'g');
-                    if (regex.test(fullText)) {
-                        usedContainers.add(containerName);
-                    }
-                }
-
-                // If we have a potential container name, check if it matches any used STL containers
-                const suggestions = [];
-
-                // Add suggestions only for containers that are actually used in the code
-                for (const containerName of usedContainers) {
-                    if (stlContainers[containerName]) {
-                        // Add function suggestions with parentheses
-                        if (stlContainers[containerName].functions) {
-                            stlContainers[containerName].functions.forEach(method => {
-                                const insertText = method + '($1)';
-
-                                suggestions.push({
-                                    label: method,
-                                    kind: monaco.languages.CompletionItemKind.Method,
-                                    insertText: insertText,
-                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                    detail: `${containerName}::${method}()`,
-                                    documentation: `STL ${containerName} container method (function)`,
-                                    range: range
-                                });
-                            });
-                        }
-
-                        // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
-                        if (stlContainers[containerName].properties) {
-                            stlContainers[containerName].properties.forEach(property => {
-                                suggestions.push({
-                                    label: property,
-                                    kind: monaco.languages.CompletionItemKind.Property,
-                                    insertText: property,
-                                    detail: `${containerName}::${property}`,
-                                    documentation: `STL ${containerName} container property`,
-                                    range: range
-                                });
-                            });
-                        }
-                    }
-                }
-
-                // If we can identify the specific variable type, narrow down suggestions
-                if (potentialContainerName) {
-                    // Search for the declaration of this variable in the code
-                    const declarationRegex = new RegExp(`\\b(${Object.keys(stlContainers).join('|')})\\b\\s*(?:<[^>]*>)?\\s+(?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*(${potentialContainerName})\\b`, 'g');
-                    const matches = [...fullText.matchAll(declarationRegex)];
-
-                    if (matches.length > 0) {
-                        // Get the container type from the last match (most recent declaration)
-                        const containerType = matches[matches.length - 1][1];
-
-                        // Only suggest methods for this specific container type
-                        if (stlContainers[containerType]) {
-                            suggestions.length = 0; // Clear previous suggestions
-
-                            // Add function suggestions with parentheses
-                            if (stlContainers[containerType].functions) {
-                                stlContainers[containerType].functions.forEach(method => {
-                                    const insertText = method + '($1)';
-
-                                    suggestions.push({
-                                        label: method,
-                                        kind: monaco.languages.CompletionItemKind.Method,
-                                        insertText: insertText,
-                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                                        detail: `${containerType}::${method}()`,
-                                        documentation: `STL ${containerType} container method (function)`,
-                                        range: range
-                                    });
-                                });
-                            }
-
-                            // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
-                            if (stlContainers[containerType].properties) {
-                                stlContainers[containerType].properties.forEach(property => {
-                                    suggestions.push({
-                                        label: property,
-                                        kind: monaco.languages.CompletionItemKind.Property,
-                                        insertText: property,
-                                        detail: `${containerType}::${property}`,
-                                        documentation: `STL ${containerType} container property`,
-                                        range: range
-                                    });
-                                });
-                            }
-                        }
-                    }
-                }
-
-                return {
-                    suggestions: suggestions
-                };
-            } else {
-                // For non-dot cases, return empty suggestions since other providers handle keywords and variables
-                return {
-                    suggestions: []
-                };
-            }
-        },
-        triggerCharacters: ['.']  // Trigger suggestion when '.' is typed
-    });
-
-    // Register completion provider for C++ keywords
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            const suggestions = [];
-
-            // Add all C++ keywords
-            for (const keyword of cppKeywords) {
-                // For certain keywords that are functions, add parentheses
-                const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
-                let insertText = keyword;
-                if (isFunctionKeyword) {
-                    insertText = keyword + '($1)';
-                }
-
-                suggestions.push({
-                    label: keyword,
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: insertText,
-                    insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
-                    range: range
-                });
-            }
-
-            return {
-                suggestions: suggestions
-            };
-        }
-    });
-
-    // Register completion provider for variable names
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Get all variable names from the current code
-            const fullText = model.getValue();
-            const variableNames = extractVariableNames(fullText);
-
-            const suggestions = [];
-
-            // Add variable name suggestions
-            for (const varName of variableNames) {
-                suggestions.push({
-                    label: varName,
-                    kind: monaco.languages.CompletionItemKind.Variable,
-                    insertText: varName,
-                    detail: 'Variable or function parameter',
-                    documentation: `Variable or function parameter defined in current code`,
-                    range: range
-                });
-            }
-
-            return {
-                suggestions: suggestions
-            };
-        }
-    });
-
-    // Register completion provider for variable declarations to suggest STL containers
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Check if we're at a position where we might declare a variable
-            const currentLine = model.getLineContent(position.lineNumber);
-            const textBefore = currentLine.substring(0, position.column - 1);
-
-            // If we're likely to be declaring a variable (after a space or tab, not after a dot)
-            if (!textBefore.endsWith('.') && !textBefore.endsWith('>')) {
-                const suggestions = [];
-
-                // Add STL container suggestions
-                for (const containerName in stlContainers) {
-                    suggestions.push({
-                        label: containerName,
-                        kind: monaco.languages.CompletionItemKind.Class,
-                        insertText: containerName,
-                        detail: `STL ${containerName} container`,
-                        documentation: `Standard Template Library ${containerName} container`,
-                        range: range
-                    });
-                }
-
-                return {
-                    suggestions: suggestions
-                };
-            }
-
-            return {
-                suggestions: []
-            };
-        }
-    });
-
-    // Register completion provider for C++ standard library functions and objects
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Check if we're at a position where we might include a header or use a function
-            const currentLine = model.getLineContent(position.lineNumber);
-            const textBefore = currentLine.substring(0, position.column - 1);
-
-            // If we're likely to be including a header (after '#include')
-            if (textBefore.trim().endsWith('#include')) {
-                const suggestions = [];
-
-                // Add C++ standard library header suggestions
-                const allHeaders = new Set([
-                    ...Object.keys(cppFunctions),
-                    ...Object.keys(cppObjects)
-                ]);
-
-                for (const headerName of allHeaders) {
-                    suggestions.push({
-                        label: `<${headerName}>`,
-                        kind: monaco.languages.CompletionItemKind.Module,
-                        insertText: `<${headerName}>`,
-                        detail: `C++ standard library header`,
-                        documentation: `Include the ${headerName} header`,
-                        range: range
-                    });
-                }
-
-                return {
-                    suggestions: suggestions
-                };
-            }
-            // If we're not after a dot or in a template, suggest function names and objects
-            else if (!textBefore.endsWith('.') && !textBefore.includes('<') || textBefore.endsWith('>')) {
-                const suggestions = [];
-
-                // Add all function suggestions from all headers
-                for (const [headerName, functions] of Object.entries(cppFunctions)) {
-                    functions.forEach(func => {
-                        // Add parentheses to function names
-                        const insertText = func + '($1)';
-
-                        suggestions.push({
-                            label: func,
-                            kind: monaco.languages.CompletionItemKind.Function,
-                            insertText: insertText,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            detail: `${headerName}::${func}`,
-                            documentation: `Function from ${headerName} header`,
-                            range: range
-                        });
-                    });
-                }
-
-                // Add all object suggestions from all headers
-                for (const [headerName, objects] of Object.entries(cppObjects)) {
-                    objects.forEach(obj => {
-                        // For some objects that behave like functions, add parentheses
-                        const isFunctionLike = ['endl', 'flush', 'ws'].includes(obj);
-                        let insertText = obj;
-                        if (isFunctionLike) {
-                            insertText = obj + '($1)';
-                        }
-
-                        suggestions.push({
-                            label: obj,
-                            kind: monaco.languages.CompletionItemKind.Variable,
-                            insertText: insertText,
-                            insertTextRules: isFunctionLike ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
-                            detail: `${headerName}::${obj}`,
-                            documentation: `Object from ${headerName} header`,
-                            range: range
-                        });
-                    });
-                }
-
-                return {
-                    suggestions: suggestions
-                };
-            }
-
-            return {
-                suggestions: []
-            };
-        }
-    });
-
-    // Register completion provider for directives when typing #
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Check if we're at a position right after '#'
-            const currentLine = model.getLineContent(position.lineNumber);
-            const textBefore = currentLine.substring(0, position.column - 1);
-
-            // If we're likely to be typing after '#'
-            if (textBefore.trim() === '#' || textBefore.trim().endsWith('#')) {
-                const suggestions = [
-                    {
-                        label: 'include',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'include',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'Include a file at compilation time',
-                        range: range
-                    },
-                    {
-                        label: 'define',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'define',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'Define a macro',
-                        range: range
-                    },
-                    {
-                        label: 'ifdef',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'ifdef',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'Conditional compilation - if defined',
-                        range: range
-                    },
-                    {
-                        label: 'ifndef',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'ifndef',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'Conditional compilation - if not defined',
-                        range: range
-                    },
-                    {
-                        label: 'endif',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'endif',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'End conditional compilation block',
-                        range: range
-                    },
-                    {
-                        label: 'pragma',
-                        kind: monaco.languages.CompletionItemKind.Keyword,
-                        insertText: 'pragma',
-                        detail: 'C++ preprocessor directive',
-                        documentation: 'Implementation-specific commands',
-                        range: range
-                    }
-                ];
-
-                return {
-                    suggestions: suggestions
-                };
-            }
-
-            return {
-                suggestions: []
-            };
-        },
-        triggerCharacters: ['#']  // Trigger suggestion when '#' is typed
-    });
-
-    // Register completion provider for header files when typing <>
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Check if we're at a position right after '#include <'
-            const currentLine = model.getLineContent(position.lineNumber);
-            const textBefore = currentLine.substring(0, position.column - 1);
-
-            // If we're likely to be typing inside #include <>
-            if (textBefore.trim().endsWith('#include <') ||
-                (/.*#include\s*<[^>]*$/.test(textBefore))) {
-                const suggestions = [];
-
-                // Add C++ standard library header suggestions
-                const allHeaders = new Set([
-                    ...Object.keys(cppFunctions),
-                    ...Object.keys(cppObjects)
-                ]);
-
-                for (const headerName of allHeaders) {
-                    suggestions.push({
-                        label: headerName,
-                        kind: monaco.languages.CompletionItemKind.Module,
-                        insertText: `${headerName}>`,
-                        detail: `C++ standard library header`,
-                        documentation: `Standard library header: ${headerName}`,
-                        range: range
-                    });
-                }
-
-                return {
-                    suggestions: suggestions
-                };
-            }
-
-            return {
-                suggestions: []
-            };
-        },
-        triggerCharacters: ['<']  // Trigger suggestion when '<' is typed in include statements
-    });
-
-    // Register completion provider for variable names
-    monaco.languages.registerCompletionItemProvider('cpp', {
-        provideCompletionItems: function(model, position) {
-            const word = model.getWordUntilPosition(position);
-            const range = {
-                startLineNumber: position.lineNumber,
-                endLineNumber: position.lineNumber,
-                startColumn: word.startColumn,
-                endColumn: word.endColumn
-            };
-
-            // Get all variable names from the current code
-            const fullText = model.getValue();
-            const variableNames = extractVariableNames(fullText);
-
-            const suggestions = [];
-
-            // Add variable name suggestions
-            for (const varName of variableNames) {
-                // Check if the variable is a pair type
-                const pairDeclarationRegex = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`);
-
-                suggestions.push({
-                    label: varName,
-                    kind: pairDeclarationRegex.test(fullText)
-                        ? monaco.languages.CompletionItemKind.Struct
-                        : monaco.languages.CompletionItemKind.Variable,
-                    insertText: varName,
-                    detail: pairDeclarationRegex.test(fullText) ? 'pair variable' : 'Variable or function parameter',
-                    documentation: `Variable or function parameter defined in current code`,
-                    range: range
-                });
-            }
-
-            return {
-                suggestions: suggestions
-            };
-        }
-    });
-
+    // 根据设置决定是否注册代码补全提供程序
+    if (cppAutocompleteEnabled) {
+        registerCompletionProviders();
+    }
 
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
@@ -1811,6 +1317,682 @@ if (vfsCloseBtn) {
         if (sidebarToggle) {
             // 移除CSS类来表示面板关闭状态，而不是修改文本内容
             sidebarToggle.classList.remove('vfs-open');
+        }
+    });
+}
+
+// 插件中心面板切换功能
+function togglePluginCenterPanel() {
+    if (!pluginCenterPanel || !pluginCenterToggle) return; // 如果元素不存在则返回
+
+    if (pluginCenterPanel.style.display === 'none' || pluginCenterPanel.style.display === '') {
+        pluginCenterPanel.style.display = 'flex';
+        // 添加CSS类来表示面板打开状态
+        pluginCenterToggle.classList.add('plugin-center-open');
+
+        // 同时隐藏VFS面板（如果它是可见的）
+        if (vfsPanel) {
+            vfsPanel.style.display = 'none';
+        }
+        if (sidebarToggle) {
+            sidebarToggle.classList.remove('vfs-open');
+        }
+    } else {
+        pluginCenterPanel.style.display = 'none';
+        // 移除CSS类来表示面板关闭状态
+        pluginCenterToggle.classList.remove('plugin-center-open');
+    }
+}
+
+// 插件中心事件处理
+if (pluginCenterToggle) {
+    pluginCenterToggle.addEventListener('click', togglePluginCenterPanel);
+}
+
+// 插件中心关闭按钮事件
+if (pluginCenterCloseBtn) {
+    pluginCenterCloseBtn.addEventListener('click', function() {
+        if (pluginCenterPanel) {
+            pluginCenterPanel.style.display = 'none';
+        }
+        if (pluginCenterToggle) {
+            pluginCenterToggle.classList.remove('plugin-center-open');
+        }
+    });
+}
+
+// 初始化插件设置UI
+function initPluginSettings() {
+    // 设置C++代码补全插件的UI状态
+    const cppAutocompleteEnabledCheckbox = document.getElementById('cpp-autocomplete-enabled');
+    const cppAutocompleteDelayInput = document.getElementById('cpp-autocomplete-delay');
+
+    if (cppAutocompleteEnabledCheckbox) {
+        cppAutocompleteEnabledCheckbox.checked = cppAutocompleteEnabled;
+
+        // 添加事件监听器
+        cppAutocompleteEnabledCheckbox.addEventListener('change', function() {
+            cppAutocompleteEnabled = this.checked;
+            localStorage.setItem(CPP_AUTOCOMPLETE_ENABLED_KEY, cppAutocompleteEnabled);
+
+            // 更新编辑器的代码补全设置
+            if (monacoEditor) {
+                const newQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
+
+                monacoEditor.updateOptions({
+                    quickSuggestions: cppAutocompleteEnabled,
+                    quickSuggestionsDelay: newQuickSuggestionsDelay,
+                    parameterHints: {
+                        enabled: cppAutocompleteEnabled
+                    },
+                    suggest: {
+                        snippetsPrevented: !cppAutocompleteEnabled
+                    }
+                });
+
+                // 重新注册补全提供程序以反映开关状态
+                // 注意：Monaco Editor不提供直接注销补全提供程序的方法
+                // 因此我们只能通过重新创建编辑器或刷新模型来实现
+                // 这里我们简单地重新创建编辑器
+                const currentValue = monacoEditor.getValue();
+                const currentSelection = monacoEditor.getSelection();
+
+                // 销毁当前编辑器实例
+                monacoEditor.dispose();
+
+                // 重新创建编辑器
+                monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: currentValue,
+                    language: 'cpp',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    quickSuggestions: cppAutocompleteEnabled,
+                    quickSuggestionsDelay: newQuickSuggestionsDelay,
+                    parameterHints: {
+                        enabled: cppAutocompleteEnabled
+                    },
+                    wordBasedSuggestions: false,
+                    suggest: {
+                        localityBonus: false,
+                        snippetsPrevented: !cppAutocompleteEnabled
+                    }
+                });
+
+                // 恢复光标位置
+                if(currentSelection) {
+                    monacoEditor.setSelection(currentSelection);
+                }
+
+                // 重新注册补全提供程序
+                registerCompletionProviders();
+
+                // 重新绑定编辑器事件
+                monacoEditor.onDidChangeModelContent(() => {
+                    globalText = monacoEditor.getValue();
+                    triggerSaveCode();
+                });
+            }
+        });
+    }
+
+    if (cppAutocompleteDelayInput) {
+        cppAutocompleteDelayInput.value = cppAutocompleteDelay;
+
+        // 添加事件监听器
+        cppAutocompleteDelayInput.addEventListener('change', function() {
+            cppAutocompleteDelay = parseInt(this.value) || 200;
+            localStorage.setItem(CPP_AUTOCOMPLETE_DELAY_KEY, cppAutocompleteDelay);
+
+            // 更新编辑器的自动补全延迟（仅在代码补全启用时）
+            if (monacoEditor && cppAutocompleteEnabled) {
+                monacoEditor.updateOptions({
+                    quickSuggestionsDelay: cppAutocompleteDelay
+                });
+            }
+        });
+    }
+
+    // 设置洛谷主题库插件的UI状态
+    const luoguThemeEnabledCheckbox = document.getElementById('luogu-theme-enabled');
+
+    if (luoguThemeEnabledCheckbox) {
+        luoguThemeEnabledCheckbox.checked = luoguThemeEnabled;
+
+        // 添加事件监听器
+        luoguThemeEnabledCheckbox.addEventListener('change', function() {
+            luoguThemeEnabled = this.checked;
+            localStorage.setItem(LUOGU_THEME_ENABLED_KEY, luoguThemeEnabled);
+
+            // 洛谷主题启用状态已更新，存储到本地
+            // 实际的主题功能将在后续实现
+            console.log('洛谷主题插件状态已更新:', luoguThemeEnabled);
+        });
+    }
+}
+
+// 初始化插件设置
+initPluginSettings();
+
+
+// 注册代码补全提供程序
+function registerCompletionProviders() {
+    // 如果代码补全被禁用，则不注册任何补全提供程序
+    if (!cppAutocompleteEnabled) {
+        return;
+    }
+
+    // Register completion items for C++ keywords and STL methods
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get the text before the current position to detect if we're after a dot (.)
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // Check if the text ends with a dot followed by the current word
+            if (textBefore.endsWith('.')) {
+                // Find the variable name before the dot
+                const beforeDot = textBefore.substring(0, textBefore.lastIndexOf('.')).trim();
+
+                // Extract the identifier before the dot (could be a member access chain)
+                const parts = beforeDot.split(/[^\w\d_]/);
+                const potentialContainerName = parts[parts.length - 1];
+
+                // Get the full text to analyze what STL containers are actually used
+                const fullText = model.getValue();
+
+                // Find which STL containers are declared in the code
+                const usedContainers = new Set();
+                for (const containerName in stlContainers) {
+                    // Look for declarations like: containerName<...> varName or containerName varName
+                    const regex = new RegExp(`\\b${containerName}\\b\\s*(?:<[^>]*>)?\\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\\s*,\\s*[a-zA-Z_][a-zA-Z0-9_]*)*`, 'g');
+                    if (regex.test(fullText)) {
+                        usedContainers.add(containerName);
+                    }
+                }
+
+                // If we have a potential container name, check if it matches any used STL containers
+                const suggestions = [];
+
+                // Add suggestions only for containers that are actually used in the code
+                for (const containerName of usedContainers) {
+                    if (stlContainers[containerName]) {
+                        // Add function suggestions with parentheses
+                        if (stlContainers[containerName].functions) {
+                            stlContainers[containerName].functions.forEach(method => {
+                                const insertText = method + '($1)';
+
+                                suggestions.push({
+                                    label: method,
+                                    kind: monaco.languages.CompletionItemKind.Method,
+                                    insertText: insertText,
+                                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                    detail: `${containerName}::${method}()`,
+                                    documentation: `STL ${containerName} container method (function)`,
+                                    range: range
+                                });
+                            });
+                        }
+
+                        // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
+                        if (stlContainers[containerName].properties) {
+                            stlContainers[containerName].properties.forEach(property => {
+                                suggestions.push({
+                                    label: property,
+                                    kind: monaco.languages.CompletionItemKind.Property,
+                                    insertText: property,
+                                    detail: `${containerName}::${property}`,
+                                    documentation: `STL ${containerName} container property`,
+                                    range: range
+                                });
+                            });
+                        }
+                    }
+                }
+
+                // If we can identify the specific variable type, narrow down suggestions
+                if (potentialContainerName) {
+                    // Search for the declaration of this variable in the code
+                    const declarationRegex = new RegExp(`\\b(${Object.keys(stlContainers).join('|')})\\b\\s*(?:<[^>]*>)?\\s+(?:[a-zA-Z_][a-zA-Z0-9_]*\\s*,\\s*)*(${potentialContainerName})\\b`, 'g');
+                    const matches = [...fullText.matchAll(declarationRegex)];
+
+                    if (matches.length > 0) {
+                        // Get the container type from the last match (most recent declaration)
+                        const containerType = matches[matches.length - 1][1];
+
+                        // Only suggest methods for this specific container type
+                        if (stlContainers[containerType]) {
+                            suggestions.length = 0; // Clear previous suggestions
+
+                            // Add function suggestions with parentheses
+                            if (stlContainers[containerType].functions) {
+                                stlContainers[containerType].functions.forEach(method => {
+                                    const insertText = method + '($1)';
+
+                                    suggestions.push({
+                                        label: method,
+                                        kind: monaco.languages.CompletionItemKind.Method,
+                                        insertText: insertText,
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                        detail: `${containerType}::${method}()`,
+                                        documentation: `STL ${containerType} container method (function)`,
+                                        range: range
+                                    });
+                                });
+                            }
+
+                            // Add property suggestions WITHOUT parentheses (for things like first, second, operator[])
+                            if (stlContainers[containerType].properties) {
+                                stlContainers[containerType].properties.forEach(property => {
+                                    suggestions.push({
+                                        label: property,
+                                        kind: monaco.languages.CompletionItemKind.Property,
+                                        insertText: property,
+                                        detail: `${containerType}::${property}`,
+                                        documentation: `STL ${containerType} container property`,
+                                        range: range
+                                    });
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            } else {
+                // For non-dot cases, return empty suggestions since other providers handle keywords and variables
+                return {
+                    suggestions: []
+                };
+            }
+        },
+        triggerCharacters: ['.']  // Trigger suggestion when '.' is typed
+    });
+
+    // Register completion provider for C++ keywords
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            const suggestions = [];
+
+            // Add all C++ keywords
+            for (const keyword of cppKeywords) {
+                // For certain keywords that are functions, add parentheses
+                const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
+                let insertText = keyword;
+                if (isFunctionKeyword) {
+                    insertText = keyword + '($1)';
+                }
+
+                suggestions.push({
+                    label: keyword,
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: insertText,
+                    insertTextRules: isFunctionKeyword ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
+        }
+    });
+
+    // Register completion provider for variable names
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get all variable names from the current code
+            const fullText = model.getValue();
+            const variableNames = extractVariableNames(fullText);
+
+            const suggestions = [];
+
+            // Add variable name suggestions
+            for (const varName of variableNames) {
+                suggestions.push({
+                    label: varName,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: varName,
+                    detail: 'Variable or function parameter',
+                    documentation: `Variable or function parameter defined in current code`,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
+        }
+    });
+
+    // Register completion provider for variable declarations to suggest STL containers
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position where we might declare a variable
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be declaring a variable (after a space or tab, not after a dot)
+            if (!textBefore.endsWith('.') && !textBefore.endsWith('>')) {
+                const suggestions = [];
+
+                // Add STL container suggestions
+                for (const containerName in stlContainers) {
+                    suggestions.push({
+                        label: containerName,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: containerName,
+                        detail: `STL ${containerName} container`,
+                        documentation: `Standard Template Library ${containerName} container`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        }
+    });
+
+    // Register completion provider for C++ standard library functions and objects
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position where we might include a header or use a function
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be including a header (after '#include')
+            if (textBefore.trim().endsWith('#include')) {
+                const suggestions = [];
+
+                // Add C++ standard library header suggestions
+                const allHeaders = new Set([
+                    ...Object.keys(cppFunctions),
+                    ...Object.keys(cppObjects)
+                ]);
+
+                for (const headerName of allHeaders) {
+                    suggestions.push({
+                        label: `<${headerName}>`,
+                        kind: monaco.languages.CompletionItemKind.Module,
+                        insertText: `<${headerName}>`,
+                        detail: `C++ standard library header`,
+                        documentation: `Include the ${headerName} header`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+            // If we're not after a dot or in a template, suggest function names and objects
+            else if (!textBefore.endsWith('.') && !textBefore.includes('<') || textBefore.endsWith('>')) {
+                const suggestions = [];
+
+                // Add all function suggestions from all headers
+                for (const [headerName, functions] of Object.entries(cppFunctions)) {
+                    functions.forEach(func => {
+                        // Add parentheses to function names
+                        const insertText = func + '($1)';
+
+                        suggestions.push({
+                            label: func,
+                            kind: monaco.languages.CompletionItemKind.Function,
+                            insertText: insertText,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            detail: `${headerName}::${func}`,
+                            documentation: `Function from ${headerName} header`,
+                            range: range
+                        });
+                    });
+                }
+
+                // Add all object suggestions from all headers
+                for (const [headerName, objects] of Object.entries(cppObjects)) {
+                    objects.forEach(obj => {
+                        // For some objects that behave like functions, add parentheses
+                        const isFunctionLike = ['endl', 'flush', 'ws'].includes(obj);
+                        let insertText = obj;
+                        if (isFunctionLike) {
+                            insertText = obj + '($1)';
+                        }
+
+                        suggestions.push({
+                            label: obj,
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            insertText: insertText,
+                            insertTextRules: isFunctionLike ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                            detail: `${headerName}::${obj}`,
+                            documentation: `Object from ${headerName} header`,
+                            range: range
+                        });
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        }
+    });
+
+    // Register completion provider for directives when typing #
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position right after '#'
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be typing after '#'
+            if (textBefore.trim() === '#' || textBefore.trim().endsWith('#')) {
+                const suggestions = [
+                    {
+                        label: 'include',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'include',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Include a file at compilation time',
+                        range: range
+                    },
+                    {
+                        label: 'define',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'define',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Define a macro',
+                        range: range
+                    },
+                    {
+                        label: 'ifdef',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'ifdef',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Conditional compilation - if defined',
+                        range: range
+                    },
+                    {
+                        label: 'ifndef',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'ifndef',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Conditional compilation - if not defined',
+                        range: range
+                    },
+                    {
+                        label: 'endif',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'endif',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'End conditional compilation block',
+                        range: range
+                    },
+                    {
+                        label: 'pragma',
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: 'pragma',
+                        detail: 'C++ preprocessor directive',
+                        documentation: 'Implementation-specific commands',
+                        range: range
+                    }
+                ];
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        },
+        triggerCharacters: ['#']  // Trigger suggestion when '#' is typed
+    });
+
+    // Register completion provider for header files when typing <>
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Check if we're at a position right after '#include <'
+            const currentLine = model.getLineContent(position.lineNumber);
+            const textBefore = currentLine.substring(0, position.column - 1);
+
+            // If we're likely to be typing inside #include <>
+            if (textBefore.trim().endsWith('#include <') ||
+                (/.*#include\s*<[^>]*$/.test(textBefore))) {
+                const suggestions = [];
+
+                // Add C++ standard library header suggestions
+                const allHeaders = new Set([
+                    ...Object.keys(cppFunctions),
+                    ...Object.keys(cppObjects)
+                ]);
+
+                for (const headerName of allHeaders) {
+                    suggestions.push({
+                        label: headerName,
+                        kind: monaco.languages.CompletionItemKind.Module,
+                        insertText: `${headerName}>`,
+                        detail: `C++ standard library header`,
+                        documentation: `Standard library header: ${headerName}`,
+                        range: range
+                    });
+                }
+
+                return {
+                    suggestions: suggestions
+                };
+            }
+
+            return {
+                suggestions: []
+            };
+        },
+        triggerCharacters: ['<']  // Trigger suggestion when '<' is typed in include statements
+    });
+
+    // Register completion provider for variable names
+    monaco.languages.registerCompletionItemProvider('cpp', {
+        provideCompletionItems: function(model, position) {
+            const word = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            // Get all variable names from the current code
+            const fullText = model.getValue();
+            const variableNames = extractVariableNames(fullText);
+
+            const suggestions = [];
+
+            // Add variable name suggestions
+            for (const varName of variableNames) {
+                // Check if the variable is a pair type
+                const pairDeclarationRegex = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`);
+
+                suggestions.push({
+                    label: varName,
+                    kind: pairDeclarationRegex.test(fullText)
+                        ? monaco.languages.CompletionItemKind.Struct
+                        : monaco.languages.CompletionItemKind.Variable,
+                    insertText: varName,
+                    detail: pairDeclarationRegex.test(fullText) ? 'pair variable' : 'Variable or function parameter',
+                    documentation: `Variable or function parameter defined in current code`,
+                    range: range
+                });
+            }
+
+            return {
+                suggestions: suggestions
+            };
         }
     });
 }

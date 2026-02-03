@@ -38,6 +38,7 @@
     <!-- 左侧边栏 -->
     <div id="left-sidebar">
         <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="{{ url_for('static', filename='file.png') }}" alt="Files" class="icon-btn"></div>
+        <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="{{ url_for('static', filename='ext.png') }}" alt="Plugins" class="icon-btn"></div>
     </div>
 
     <!-- 虚拟文件系统面板 -->
@@ -49,6 +50,43 @@
         <div id="vfs-content" class="vfs-content">
             <div class="vfs-root">
                 <div class="vfs-folder" data-path="/">根目录</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 插件中心面板 -->
+    <div id="plugin-center-panel" class="vfs-panel" style="display: none;">
+        <div class="vfs-header">
+            <span>插件中心</span>
+            <button id="plugin-center-close-btn" class="vfs-close-btn">×</button>
+        </div>
+        <div id="plugin-center-content" class="vfs-content">
+            <!-- C++代码补全插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">C++代码补全</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="cpp-autocomplete-enabled" checked> 启用
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="cpp-autocomplete-delay">延迟时间(ms):</label>
+                        <input type="number" id="cpp-autocomplete-delay" value="200" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查看洛谷主题库插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">查看洛谷主题库</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="luogu-theme-enabled"> 启用
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -465,6 +465,55 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     transform: rotate(180deg); /* 当面板打开时旋转图标 */
 }
 
+.sidebar-button.plugin-center-open img {
+    transform: rotate(180deg); /* 当插件中心面板打开时旋转图标 */
+}
+
+/* 插件中心样式 */
+.plugin-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #2d2d30;
+}
+
+.plugin-header {
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.plugin-settings {
+    padding-left: 10px;
+}
+
+.setting-item {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-item label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #cccccc;
+    font-size: 13px;
+}
+
+.setting-item input[type="number"] {
+    width: 80px;
+    padding: 3px 6px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
 @media screen and (orientation: portrait) { .key { font-size: 11px; } .sup { font-size: 8px; } .main { font-size: 11px; } }
 
 /* 关于弹窗样式 */
