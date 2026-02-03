@@ -8,6 +8,7 @@ const keyboardContainer = document.getElementById('keyboard-container');
 const toggleBtn = document.getElementById('mode-toggle-btn');
 const runBtn = document.getElementById('run-btn');
 const copyBtn = document.getElementById('copy-btn');
+const debugBtn = document.getElementById('debug-btn');
 const outputPanel = document.getElementById('output-panel');
 const outputContent = document.getElementById('output-content');
 const closeOutputBtn = document.getElementById('close-output');
@@ -30,38 +31,48 @@ const modalTextarea = document.getElementById('modal-textarea');
 const modalRun = document.getElementById('modal-run');
 const modalCancel = document.getElementById('modal-cancel');
 
-// VS Code 风格新元素 - 需要检查这些元素是否存在
-const topMenuBar = document.getElementById('top-menu-bar');
-const fileMenu = document.getElementById('file-menu');
-const aboutMenu = document.getElementById('about-menu');
-const fileDropdown = document.getElementById('file-dropdown');
-const uploadFileBtn = document.getElementById('upload-file');
-const downloadFileBtn = document.getElementById('download-file');
-const saveAsBtn = document.getElementById('save-as');
-const newFileBtn = document.getElementById('new-file');
-const newFolderBtn = document.getElementById('new-folder');
-
-const leftSidebar = document.getElementById('left-sidebar');
-const sidebarToggle = document.getElementById('sidebar-toggle');
-const mobileModeBtn = document.getElementById('mobile-mode-btn');
-
-const vfsPanel = document.getElementById('vfs-panel');
-const vfsCloseBtn = document.getElementById('vfs-close-btn');
-const vfsContent = document.getElementById('vfs-content');
-
-// --- 虚拟文件系统相关变量 ---
-let vfsStructure = null;
-const VFS_STORAGE_KEY = 'phoi_vfs_structure';
-let currentFileName = localStorage.getItem('phoi_currentFileName') || 'new.cpp'; // 当前正在编辑的文件名
+// AI调试模态框元素
+const aiDebugModal = document.getElementById('ai-debug-modal');
+const closeAiDebug = document.getElementById('close-ai-debug');
+const debugStep = document.getElementById('debug-step');
+const configSection = document.getElementById('config-section');
+const problemSection = document.getElementById('problem-section');
+const debuggingSection = document.getElementById('debugging-section');
+const apiBaseUrlInput = document.getElementById('api-base-url');
+const apiKeyInput = document.getElementById('api-key');
+const apiModelInput = document.getElementById('api-model');
+const saveConfigBtn = document.getElementById('save-config-btn');
+const problemDescInput = document.getElementById('problem-desc');
+const sampleInputInput = document.getElementById('sample-input');
+const sampleOutputInput = document.getElementById('sample-output');
+const aiCodeOutput = document.getElementById('ai-code-output');
+const replaceCodeBtn = document.getElementById('replace-code-btn');
+const userQueryInput = document.getElementById('user-query');
+const sendQueryBtn = document.getElementById('send-query-btn');
+const aiResponseBox = document.getElementById('ai-response');
+const prevProblemBtn = document.getElementById('prev-problem-btn');
+const startDebugBtn = document.getElementById('start-debug-btn');
+const usePublicApiBtn = document.getElementById('use-public-api-btn');
+const debugOutput = document.getElementById('debug-messages');
+const debugLoading = document.getElementById('debug-loading');
+const stopDebugBtn = document.getElementById('stop-debug-btn');
+const finishDebugBtn = document.getElementById('finish-debug-btn');
 
 // --- 恢复保存的代码 ---
-const defaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Phoi" << endl;\n\treturn 0;\n}`;
+const defaultCode = `#include <iostream>\n#include <vector>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello" << endl;\n\treturn 0;\n};`;
 // 如果本地没有保存过，才使用默认代码
 let globalText = localStorage.getItem('phoi_savedCode') || defaultCode;
 let globalCursorPos = globalText.length;
 
 // --- 恢复保存的模式 ---
-let isFullMode = localStorage.getItem('phoi_isFullMode') !== null ? localStorage.getItem('phoi_isFullMode') === 'true' : true; // 默认为电脑模式
+let isFullMode = localStorage.getItem('phoi_isFullMode') === 'true';
+
+// --- AI调试相关变量 ---
+let currentDebugStep = 1; // 1: 配置, 2: 问题输入, 3: 调试中
+let aiConfig = JSON.parse(localStorage.getItem('aiDebugConfig') || '{"baseUrl": "", "apiKey": "", "model": "gpt-3.5-turbo"}');
+let debugAttempts = 0;
+let maxDebugAttempts = 5;
+let isDebugging = false;
 
 let isShiftActive = false;
 let isShiftHeld = false;
@@ -76,395 +87,7 @@ function triggerSaveCode() {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
         localStorage.setItem('phoi_savedCode', globalText);
-        
-        // 如果当前文件已打开，则保存到虚拟文件系统
-        if (vfsStructure && currentFileName) {
-            if (!vfsStructure['/'].children[currentFileName]) {
-                // 如果文件不存在，创建新文件
-                vfsStructure['/'].children[currentFileName] = {
-                    type: 'file',
-                    name: currentFileName,
-                    content: globalText
-                };
-            } else {
-                // 更新现有文件内容
-                vfsStructure['/'].children[currentFileName].content = globalText;
-            }
-            saveVFS();
-        }
     }, 500);
-}
-
-// 初始化虚拟文件系统
-function initializeVFS() {
-    // 尝试从本地存储加载虚拟文件系统
-    const savedVFS = localStorage.getItem(VFS_STORAGE_KEY);
-    
-    if (savedVFS) {
-        // 如果已有虚拟文件系统，则加载它
-        vfsStructure = JSON.parse(savedVFS);
-        
-        // 检查是否有当前文件，如果没有则使用第一个文件
-        if (!vfsStructure['/'].children[currentFileName]) {
-            const firstFile = Object.keys(vfsStructure['/'].children).find(key => 
-                vfsStructure['/'].children[key].type === 'file'
-            );
-            if (firstFile) {
-                currentFileName = firstFile;
-                globalText = vfsStructure['/'].children[firstFile].content;
-            }
-        } else {
-            // 加载当前文件的内容
-            globalText = vfsStructure['/'].children[currentFileName].content;
-        }
-    } else {
-        // 否则初始化一个新的虚拟文件系统，并将当前代码作为 new.cpp 存储
-        vfsStructure = {
-            '/': {
-                type: 'folder',
-                name: 'root',
-                children: {}
-            }
-        };
-        
-        // 创建初始的 new.cpp 文件
-        vfsStructure['/'].children[currentFileName] = {
-            type: 'file',
-            name: currentFileName,
-            content: globalText
-        };
-        
-        // 保存到本地存储
-        localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
-    }
-}
-
-// 更新顶部菜单栏中显示的当前文件名
-function updateCurrentFileNameDisplay() {
-    const currentFileNameElement = document.getElementById('current-file-name');
-    if (currentFileNameElement) {
-        currentFileNameElement.textContent = currentFileName;
-    }
-}
-
-// 保存虚拟文件系统到本地存储
-function saveVFS() {
-    localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
-}
-
-// 渲染虚拟文件系统
-function renderVFS() {
-    if (!vfsContent) return; // 如果元素不存在则返回
-
-    // 清空内容
-    vfsContent.innerHTML = '';
-
-    // 创建操作按钮
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.padding = '10px';
-    buttonContainer.style.borderBottom = '1px solid #444';
-
-    const newFileButton = document.createElement('button');
-    newFileButton.textContent = '+ 文件';
-    newFileButton.style.marginRight = '5px';
-    newFileButton.onclick = newFile;
-
-    buttonContainer.appendChild(newFileButton);
-    vfsContent.appendChild(buttonContainer);
-
-    // 创建根目录项
-    const rootDiv = document.createElement('div');
-    rootDiv.className = 'vfs-folder';
-    rootDiv.textContent = '根目录';
-    rootDiv.dataset.path = '/';
-    // 为根目录添加点击事件
-    rootDiv.addEventListener('click', function() {
-        console.log('展开根目录');
-    });
-    vfsContent.appendChild(rootDiv);
-
-    // 渲染根目录下的所有子项
-    renderVFSDirectory('/', vfsContent);
-}
-
-// 打开文件
-function openFile(filePath) {
-    // 从虚拟文件系统中获取文件内容
-    const pathParts = filePath.split('/');
-    const fileName = pathParts[pathParts.length - 1];
-
-    if (vfsStructure['/'].children[fileName] && vfsStructure['/'].children[fileName].type === 'file') {
-        // 更新全局文本为文件内容
-        globalText = vfsStructure['/'].children[fileName].content;
-        currentFileName = fileName; // 更新当前文件名
-
-        // 更新编辑器内容
-        if (monacoEditor) {
-            monacoEditor.setValue(globalText);
-        }
-
-        // 更新顶部菜单栏中显示的当前文件名
-        const currentFileNameElement = document.getElementById('current-file-name');
-        if (currentFileNameElement) {
-            currentFileNameElement.textContent = currentFileName;
-        }
-
-        // 保存当前文件名到本地存储
-        localStorage.setItem('phoi_currentFileName', currentFileName);
-
-        // 关闭虚拟文件系统面板
-        if (vfsPanel) {
-            vfsPanel.style.display = 'none';
-        }
-        if (sidebarToggle) {
-            // 移除CSS类来表示面板关闭状态，而不是修改文本内容
-            sidebarToggle.classList.remove('vfs-open');
-        }
-
-        // 显示提示信息
-        showMessage(`已打开文件: ${fileName}`, 'user');
-    }
-}
-
-// 显示消息
-function showMessage(content, sender) {
-    // 创建消息元素
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `debug-message ${sender}`;
-    messageDiv.innerHTML = `<strong>${sender === 'user' ? '用户:' : '系统:'}</strong> ${content}`;
-    
-    // 添加到输出面板
-    const outputContent = document.getElementById('output-content');
-    if (outputContent) {
-        outputContent.appendChild(messageDiv);
-        outputContent.scrollTop = outputContent.scrollHeight;
-        
-        // 显示输出面板
-        const outputPanel = document.getElementById('output-panel');
-        if (outputPanel) {
-            outputPanel.style.display = 'flex';
-            
-            // 3秒后自动隐藏
-            setTimeout(() => {
-                outputPanel.style.display = 'none';
-            }, 3000);
-        }
-    }
-}
-
-// 渲染指定路径的目录
-function renderVFSDirectory(path, parentElement) {
-    if (!parentElement) return; // 如果父元素不存在则返回
-
-    const folder = vfsStructure[path];
-    if (!folder || folder.type !== 'folder') return;
-
-    const container = document.createElement('div');
-    container.className = 'vfs-subfolder';
-    container.style.paddingLeft = '16px';
-
-    for (const itemName in folder.children) {
-        const item = folder.children[itemName];
-
-        if (item.type === 'file') { // 只渲染文件，不渲染文件夹
-            const itemElement = document.createElement('div');
-            itemElement.className = 'vfs-file';
-            itemElement.style.color = 'white'; // 设置文字为白色
-            itemElement.style.display = 'flex';
-            itemElement.style.justifyContent = 'space-between';
-            itemElement.style.alignItems = 'center';
-            itemElement.style.padding = '5px';
-            itemElement.style.cursor = 'pointer';
-
-            // 文件名部分
-            const fileNameSpan = document.createElement('span');
-            fileNameSpan.textContent = item.name;
-            fileNameSpan.style.flexGrow = '1';
-            itemElement.appendChild(fileNameSpan);
-
-            // 删除按钮
-            const deleteButton = document.createElement('button');
-            deleteButton.textContent = '×';
-            deleteButton.style.backgroundColor = '#ff4444';
-            deleteButton.style.color = 'white';
-            deleteButton.style.border = 'none';
-            deleteButton.style.borderRadius = '50%';
-            deleteButton.style.width = '20px';
-            deleteButton.style.height = '20px';
-            deleteButton.style.cursor = 'pointer';
-            deleteButton.onclick = function(e) {
-                e.stopPropagation(); // 阻止事件冒泡到父元素
-                deleteFile(item.name);
-            };
-            itemElement.appendChild(deleteButton);
-
-            itemElement.dataset.path = path + itemName;
-
-            // 为每个项目添加点击事件
-            itemElement.addEventListener('click', function(e) {
-                if (e.target !== deleteButton) { // 只有当点击的不是删除按钮时才打开文件
-                    const itemPath = this.dataset.path;
-                    openFile(itemPath);
-                }
-            });
-
-            container.appendChild(itemElement);
-        }
-    }
-
-    parentElement.appendChild(container);
-}
-
-// 删除文件
-function deleteFile(fileName) {
-    // 检查是否是当前正在使用的文件
-    if (fileName === currentFileName) {
-        alert(`无法删除当前正在使用的文件 "${fileName}"`);
-        return;
-    }
-
-    if (confirm(`确定要删除文件 "${fileName}" 吗？`)) {
-        // 从虚拟文件系统中删除文件
-        delete vfsStructure['/'].children[fileName];
-
-        saveVFS();
-        renderVFS();
-
-        showMessage(`文件 "${fileName}" 已删除`, 'user');
-    }
-}
-
-// 切换虚拟文件系统面板显示状态
-function toggleVFSPanel() {
-    if (!vfsPanel || !sidebarToggle) return; // 如果元素不存在则返回
-
-    if (vfsPanel.style.display === 'none' || vfsPanel.style.display === '') {
-        vfsPanel.style.display = 'flex';
-        // 添加CSS类来表示面板打开状态
-        sidebarToggle.classList.add('vfs-open');
-    } else {
-        vfsPanel.style.display = 'none';
-        // 移除CSS类来表示面板关闭状态
-        sidebarToggle.classList.remove('vfs-open');
-    }
-}
-
-// 上传文件到虚拟文件系统
-function uploadFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.onchange = event => {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            const content = e.target.result;
-            const fileName = file.name;
-            
-            // 将文件添加到根目录
-            vfsStructure['/'].children[fileName] = {
-                type: 'file',
-                name: fileName,
-                content: content
-            };
-            
-            saveVFS();
-            renderVFS();
-            
-            // 自动打开刚上传的文件
-            openFile(fileName);
-        };
-        
-        reader.readAsText(file);
-    };
-    
-    input.click();
-}
-
-// 下载当前活动文件
-function downloadCurrentFile() {
-    const blob = new Blob([globalText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = currentFileName || 'current.cpp'; // 使用当前文件名
-    document.body.appendChild(a);
-    a.click();
-    
-    // 清理
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-}
-
-// 另存为当前文件
-function saveCurrentFileAs() {
-    const fileName = prompt('请输入文件名:', currentFileName || 'new_file.cpp');
-    if (!fileName) return;
-    
-    // 将当前代码保存为新文件
-    vfsStructure['/'].children[fileName] = {
-        type: 'file',
-        name: fileName,
-        content: globalText
-    };
-    
-    saveVFS();
-    renderVFS();
-    
-    // 更新当前文件名
-    currentFileName = fileName;
-    
-    showMessage(`文件已另存为: ${fileName}`, 'user');
-}
-
-// 新建文件
-function newFile() {
-    const fileName = prompt('请输入文件名:', 'new.cpp');
-    if (!fileName) return;
-
-    // 检查文件是否已存在
-    if (vfsStructure['/'].children[fileName]) {
-        alert('文件已存在！');
-        return;
-    }
-
-    // 创建新文件
-    vfsStructure['/'].children[fileName] = {
-        type: 'file',
-        name: fileName,
-        content: defaultCode
-    };
-
-    saveVFS();
-    renderVFS();
-
-    // 自动打开新创建的文件
-    openFile(fileName);
-}
-
-// 新建文件夹
-function newFolder() {
-    const folderName = prompt('请输入文件夹名:');
-    if (!folderName) return;
-    
-    // 检查文件夹是否已存在
-    if (vfsStructure['/'].children[folderName]) {
-        alert('文件夹已存在！');
-        return;
-    }
-    
-    // 创建新文件夹
-    vfsStructure['/'].children[folderName] = {
-        type: 'folder',
-        name: folderName,
-        children: {}
-    };
-    
-    saveVFS();
-    renderVFS();
 }
 
 // Define C++ keywords for autocompletion
@@ -539,7 +162,7 @@ const stlContainers = {
     },
     'priority_queue': {
         functions: ['push', 'emplace', 'pop', 'swap','empty', 'size', 'top'],
-        properties: []
+        properties: [] 
     },
     'deque': {
         functions: ['front', 'back', 'assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
@@ -1275,15 +898,12 @@ require(['vs/editor/editor.main'], function() {
 
         // 设置最小和最大高度限制
         const minHeight = 150; // 最小高度
-        const toolbarHeight = globalToolbar ? globalToolbar.offsetHeight : 0;
-        const maxHeight = windowHeight - toolbarHeight - 100; // 最大高度
+        const maxHeight = windowHeight - globalToolbar.offsetHeight - 100; // 最大高度
 
         // 应用边界限制
         const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
 
-        if (outputPanel) {
-            outputPanel.style.height = `${clampedHeight}px`;
-        }
+        outputPanel.style.height = `${clampedHeight}px`;
     });
 
     // 鼠标释放时结束调整大小
@@ -1294,49 +914,25 @@ require(['vs/editor/editor.main'], function() {
 });
 
 // --- 恢复保存的输入数据 ---
-if (modalTextarea) {
-    modalTextarea.value = localStorage.getItem('phoi_savedStdin') || "";
-    modalTextarea.addEventListener('input', () => {
-        localStorage.setItem('phoi_savedStdin', modalTextarea.value);
-    });
-}
+modalTextarea.value = localStorage.getItem('phoi_savedStdin') || "";
+modalTextarea.addEventListener('input', () => {
+    localStorage.setItem('phoi_savedStdin', modalTextarea.value);
+});
 
 // Run & Copy
-if (runBtn) {
-    runBtn.addEventListener('click', () => {
-        if (inputModal) {
-            inputModal.style.display = 'flex';
-            if (modalTextarea) {
-                modalTextarea.focus();
-            }
-        }
-    });
-}
-if (modalCancel) {
-    modalCancel.addEventListener('click', () => { 
-        if (inputModal) {
-            inputModal.style.display = 'none'; 
-        }
-    });
-}
-if (modalRun) {
-    modalRun.addEventListener('click', () => {
-        if (inputModal) {
-            inputModal.style.display = 'none';
-        }
-        if (modalTextarea) {
-            executeRunCode(modalTextarea.value);
-        }
-    });
-}
+runBtn.addEventListener('click', () => { 
+    inputModal.style.display = 'flex'; 
+    modalTextarea.focus(); 
+});
+modalCancel.addEventListener('click', () => { inputModal.style.display = 'none'; });
+modalRun.addEventListener('click', () => { 
+    inputModal.style.display = 'none'; 
+    executeRunCode(modalTextarea.value); 
+});
 
 async function executeRunCode(stdin) {
-    if (outputPanel) {
-        outputPanel.style.display = 'flex';
-    }
-    if (outputContent) {
-        outputContent.innerHTML = '<span style="color:#888;">Compiling and running...</span>';
-    }
+    outputPanel.style.display = 'flex';
+    outputContent.innerHTML = '<span style="color:#888;">Compiling and running...</span>';
     try {
         const response = await fetch('/run', {
             method: 'POST',
@@ -1351,13 +947,9 @@ async function executeRunCode(stdin) {
         if(data.Result) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res">${escapeHtml(data.Result)}</div></div>`;
         else if(!data.Errors) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res" style="color:#666">(No output)</div></div>`;
         if(data.Stats) html += `<div class="out-stat">${escapeHtml(data.Stats)}</div>`;
-        if (outputContent) {
-            outputContent.innerHTML = html;
-        }
+        outputContent.innerHTML = html;
     } catch (e) {
-        if (outputContent) {
-            outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>请确定网络状态良好并稍后再试</span>`;
-        }
+        outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>请确定网络状态良好并稍后再试</span>`;
     }
 }
 
@@ -1366,66 +958,691 @@ function copyCode() {
     try { if(document.execCommand('copy')){ if(navigator.vibrate)navigator.vibrate(50); } else alert('Fail'); } catch(e){}
     document.body.removeChild(t);
 }
-if (copyBtn) {
-    copyBtn.addEventListener('click', copyCode);
-}
-if (closeOutputBtn) {
-    closeOutputBtn.addEventListener('click', () => {
-        if (outputPanel) {
-            outputPanel.style.display = 'none';
-        }
-    });
-}
+copyBtn.addEventListener('click', copyCode);
+closeOutputBtn.addEventListener('click', () => outputPanel.style.display='none');
+
+// AI调试按钮事件
+debugBtn.addEventListener('click', () => {
+    aiDebugModal.style.display = 'flex';
+    loadAiConfig();
+    // 如果已配置API，直接跳转到调试界面，否则先配置
+    if (aiConfig.apiKey && aiConfig.baseUrl) {
+        currentDebugStep = 1; // 回到配置界面，让用户选择从哪里开始
+        showDebugStep(currentDebugStep);
+    } else {
+        currentDebugStep = 1; // 回到配置界面
+        showDebugStep(currentDebugStep);
+    }
+});
+
+// 关闭AI调试模态框
+closeAiDebug.addEventListener('click', () => {
+    aiDebugModal.style.display = 'none';
+    isDebugging = false;
+});
+
+// 使用公共API
+usePublicApiBtn.addEventListener('click', () => {
+    apiBaseUrlInput.value = 'https://api.suanli.cn/v1';
+    apiKeyInput.value = 'sk-W0rpStc95T7JVYVwDYc29IyirjtpPPby6SozFMQr17m8KWeo';
+    apiModelInput.value = 'free:Qwen3-30B-A3B';
+    showMessage('已填入公共API信息', 'user');
+});
+
+// 保存API配置
+saveConfigBtn.addEventListener('click', () => {
+    aiConfig = {
+        baseUrl: apiBaseUrlInput.value,
+        apiKey: apiKeyInput.value,
+        model: apiModelInput.value
+    };
+    localStorage.setItem('aiDebugConfig', JSON.stringify(aiConfig));
+    showMessage('配置已保存', 'user');
+    setTimeout(() => {
+        currentDebugStep = 2;
+        showDebugStep(currentDebugStep);
+    }, 1000);
+});
+
+// 上一步按钮
+prevProblemBtn.addEventListener('click', () => {
+    currentDebugStep = 1;
+    showDebugStep(currentDebugStep);
+});
+
+// 开始调试按钮
+startDebugBtn.addEventListener('click', startAiDebug);
+
+// 停止调试按钮
+stopDebugBtn.addEventListener('click', () => {
+    isDebugging = false;
+    showMessage('调试已停止', 'user');
+});
+
+// 完成调试按钮
+finishDebugBtn.addEventListener('click', () => {
+    aiDebugModal.style.display = 'none';
+    isDebugging = false;
+});
+
+// 用户与AI交互功能
+sendQueryBtn.addEventListener('click', sendUserQuery);
+
+// 代码替换功能
+replaceCodeBtn.addEventListener('click', () => {
+    if (aiCodeOutput.textContent.trim()) {
+        globalText = aiCodeOutput.textContent;
+        syncState();
+        showMessage('代码已替换到编辑器中', 'user');
+    } else {
+        showMessage('没有可替换的代码', 'user');
+    }
+});
 
 // Core Helpers
-function escapeHtml(t) { 
-    return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); 
+function escapeHtml(t) { return (t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// 加载AI配置到输入框
+function loadAiConfig() {
+    apiBaseUrlInput.value = aiConfig.baseUrl || '';
+    apiKeyInput.value = aiConfig.apiKey || '';
+    apiModelInput.value = aiConfig.model || 'gpt-3.5-turbo';
 }
 
-// 3行预览功能函数
-function renderThreeLines() {
-    if(isFullMode) return; // 只在手机模式下显示
-    
-    const lines = globalText.split('\n');
-    let accum = 0, idx = 0, start = 0;
-    for(let i=0; i<lines.length; i++) {
-        if(globalCursorPos >= accum && globalCursorPos <= accum + lines[i].length) { 
-            idx=i; 
-            start=accum; 
-            break; 
+// 显示当前调试步骤
+function showDebugStep(step) {
+    currentDebugStep = step;
+
+    // 隐藏所有section
+    configSection.style.display = 'none';
+    problemSection.style.display = 'none';
+    debuggingSection.style.display = 'none';
+
+    // 显示当前步骤的section
+    if (step === 1) {
+        configSection.style.display = 'block';
+        debugStep.textContent = '步骤 1/3';
+    } else if (step === 2) {
+        problemSection.style.display = 'block';
+        debugStep.textContent = '步骤 2/3';
+    } else if (step === 3) {
+        debuggingSection.style.display = 'block';
+        debugStep.textContent = '步骤 3/3';
+    }
+}
+
+// 显示调试消息
+function showMessage(content, sender) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `debug-message ${sender}`;
+    messageDiv.innerHTML = `<strong>${sender === 'user' ? '用户:' : 'AI:'}</strong> ${content}`;
+    debugOutput.appendChild(messageDiv);
+    debugOutput.scrollTop = debugOutput.scrollHeight;
+}
+
+// 发送用户查询到AI
+async function sendUserQuery() {
+    const query = userQueryInput.value.trim();
+    if (!query) {
+        showMessage('请输入您的问题', 'user');
+        return;
+    }
+
+    if (!aiConfig.apiKey || !aiConfig.baseUrl) {
+        showMessage('请先配置API信息', 'user');
+        return;
+    }
+
+    try {
+        // 显示用户问题
+        showMessage(query, 'user');
+
+        // 显示加载动画
+        debugLoading.style.display = 'block';
+
+        // 构造提示词，包含当前代码和题目信息
+        let prompt = `当前代码：\n${globalText}\n\n`;
+
+        // 如果有题目信息，也包含进去
+        if (problemDescInput.value || sampleInputInput.value || sampleOutputInput.value) {
+            prompt += `题目描述：\n${problemDescInput.value}\n\n`;
+            prompt += `样例输入：\n${sampleInputInput.value}\n\n`;
+            prompt += `样例输出：\n${sampleOutputInput.value}\n\n`;
         }
-        accum += lines[i].length + 1;
+
+        prompt += `用户问题：${query}\n\n请回答用户的问题，并提供必要的代码修改建议。保持原有码风和变量名，做最少修改。`;
+
+        // 创建一个用于显示流式输出的元素
+        const uniqueId = 'ai-query-response-' + Date.now() + Math.floor(Math.random() * 1000);
+        const aiMessageDiv = document.createElement('div');
+        aiMessageDiv.className = 'debug-message ai';
+        aiMessageDiv.innerHTML = '<strong>AI:</strong> <span id="' + uniqueId + '"></span>';
+        debugOutput.appendChild(aiMessageDiv);
+        debugOutput.scrollTop = debugOutput.scrollHeight;
+
+        const contentSpan = document.getElementById(uniqueId);
+
+        // 调用AI API
+        const aiResponse = await callOpenAIApiForQueryWithDisplay(prompt, contentSpan);
+
+        // 隐藏加载动画
+        debugLoading.style.display = 'none';
+
+        if (!aiResponse) {
+            showMessage('AI响应为空', 'user');
+            return;
+        }
+
+        // 提取代码并显示在代码查看框中
+        const extractedCode = extractCodeFromResponse(aiResponse);
+        if (extractedCode) {
+            aiCodeOutput.textContent = extractedCode;
+        }
+    } catch (error) {
+        debugLoading.style.display = 'none';
+        showMessage(`AI交互出错: ${error.message}`, 'user');
+        console.error('AI Query Error:', error);
     }
+}
+
+// 调用OpenAI API进行查询并实时显示（流式输出）
+async function callOpenAIApiForQueryWithDisplay(prompt, contentSpan) {
+    const response = await fetch(aiConfig.baseUrl + '/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+            model: aiConfig.model,
+            messages: [{ role: 'user', content: prompt }],
+            stream: true  // 使用流式输出
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status} ${await response.text()}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let aiResponse = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+                break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6); // 移除 'data: ' 前缀
+
+                    if (data === '[DONE]') {
+                        return aiResponse;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(data);
+
+                        if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                            const content = parsed.choices[0].delta.content;
+
+                            if (content) {
+                                aiResponse += content;
+                                // 更新显示的内容
+                                contentSpan.textContent = aiResponse;
+                                debugOutput.scrollTop = debugOutput.scrollHeight;
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略解析错误，但如果是正常的数据格式则继续
+                        if (data.trim() !== '') {
+                            console.warn('无法解析数据:', data, e);
+                        }
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    return aiResponse;
+}
+
+// 调用OpenAI API进行查询（流式输出）
+async function callOpenAIApiForQuery(prompt) {
+    const response = await fetch(aiConfig.baseUrl + '/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+            model: aiConfig.model,
+            messages: [{ role: 'user', content: prompt }],
+            stream: true  // 使用流式输出
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status} ${await response.text()}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let aiResponse = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+                break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6); // 移除 'data: ' 前缀
+
+                    if (data === '[DONE]') {
+                        return aiResponse;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(data);
+
+                        if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                            const content = parsed.choices[0].delta.content;
+
+                            if (content) {
+                                aiResponse += content;
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略解析错误，但如果是正常的数据格式则继续
+                        if (data.trim() !== '') {
+                            console.warn('无法解析数据:', data, e);
+                        }
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    return aiResponse;
+}
+
+// 开始AI调试
+async function startAiDebug() {
+    if (!aiConfig.apiKey || !aiConfig.baseUrl) {
+        showMessage('请先配置API信息', 'user');
+        return;
+    }
+
+    if (!problemDescInput.value || !sampleInputInput.value || !sampleOutputInput.value) {
+        showMessage('请填写完整的题目信息和样例', 'user');
+        return;
+    }
+
+    currentDebugStep = 3;
+    showDebugStep(currentDebugStep);
+
+    // 清空调试输出
+    debugOutput.innerHTML = '';
+
+    // 清空代码查看框
+    aiCodeOutput.textContent = '';
+
+    // 开始调试过程
+    isDebugging = true;
+    debugAttempts = 0;
+
+    // 初始调试，不传递错误信息
+    await performDebugIteration();
+}
+
+// 执行一次调试迭代
+async function performDebugIteration(lastError = null) {
+    if (!isDebugging || debugAttempts >= maxDebugAttempts) {
+        if (debugAttempts >= maxDebugAttempts) {
+            showMessage(`已达到最大调试次数 (${maxDebugAttempts})，调试结束`, 'user');
+        }
+        return;
+    }
+
+    debugAttempts++;
+    showMessage(`开始第 ${debugAttempts} 次调试...`, 'user');
+
+    try {
+        // 显示加载动画
+        debugLoading.style.display = 'block';
+
+        // 构造提示词，包含上次错误信息
+        const prompt = generateDebugPrompt(lastError);
+
+        // 调用AI API - 现在callOpenAIApi会直接处理流式输出和显示
+        const aiResponse = await callOpenAIApi(prompt);
+
+        // 隐藏加载动画
+        debugLoading.style.display = 'none';
+
+        if (!aiResponse) {
+            showMessage('AI响应为空，调试结束', 'user');
+            return;
+        }
+
+        // 从AI响应中提取代码
+        const extractedCode = extractCodeFromResponse(aiResponse);
+
+        if (!extractedCode) {
+            showMessage('未能从AI响应中提取到代码', 'user');
+            return;
+        }
+
+        // 更新代码查看框
+        aiCodeOutput.textContent = extractedCode;
+
+        // 测试提取的代码
+        const testResult = await testCodeWithSample(extractedCode);
+
+        if (testResult.success) {
+            showMessage('代码通过样例测试！调试完成。', 'user');
+            // 询问用户是否使用AI生成的代码
+            const useCode = confirm('AI生成的代码已通过测试！是否替换当前编辑器中的代码？');
+            if (useCode) {
+                globalText = extractedCode;
+                syncState();
+                showMessage('代码已更新到编辑器中', 'user');
+            } else {
+                showMessage('保留当前代码不变', 'user');
+            }
+        } else {
+            const errorMessage = testResult.error || '输出不匹配';
+            showMessage(`样例测试失败: ${errorMessage}`, 'user');
+
+            // 准备下一次迭代，传递错误信息
+            if (isDebugging && debugAttempts < maxDebugAttempts) {
+                setTimeout(() => {
+                    performDebugIteration(errorMessage); // 传递错误信息给下一次迭代
+                }, 1000);
+            }
+        }
+    } catch (error) {
+        debugLoading.style.display = 'none';
+        showMessage(`调试出错: ${error.message}`, 'user');
+        console.error('AI Debug Error:', error);
+    }
+}
+
+// 生成调试提示词
+function generateDebugPrompt(lastError = null) {
+    let prompt = `当前代码：\n${globalText}\n\n`;
+
+    if (problemDescInput.value) {
+        prompt += `题目描述：\n${problemDescInput.value}\n\n`;
+    }
+
+    if (sampleInputInput.value) {
+        prompt += `样例输入：\n${sampleInputInput.value}\n\n`;
+    }
+
+    if (sampleOutputInput.value) {
+        prompt += `样例输出：\n${sampleOutputInput.value}\n\n`;
+    }
+
+    if (lastError) {
+        prompt += `上次运行错误：\n${lastError}\n\n`;
+    }
+
+    prompt += `请根据题目要求和样例，修改当前代码，保持原有码风和变量名，做最少修改，最后用begin:->和<-end标记包裹完整代码，标记内只放代码，不要有其他说明。例如：\n\nbegin:->\n#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello World" << endl;\n    return 0;\n}\n<-end`;
+
+    return prompt;
+}
+
+// 调用OpenAI API（流式输出）
+async function callOpenAIApi(prompt) {
+    const response = await fetch(aiConfig.baseUrl + '/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${aiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+            model: aiConfig.model,
+            messages: [{ role: 'user', content: prompt }],
+            stream: true
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status} ${await response.text()}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let aiResponse = '';
+
+    // 创建一个用于显示流式输出的元素，使用唯一的ID避免冲突
+    const uniqueId = 'ai-response-content-' + Date.now() + Math.floor(Math.random() * 1000);
+    const aiMessageDiv = document.createElement('div');
+    aiMessageDiv.className = 'debug-message ai';
+    aiMessageDiv.innerHTML = '<strong>AI:</strong> <span id="' + uniqueId + '"></span>';
+    debugOutput.appendChild(aiMessageDiv);
+    debugOutput.scrollTop = debugOutput.scrollHeight;
+
+    const contentSpan = document.getElementById(uniqueId);
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+                break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6); // 移除 'data: ' 前缀
+
+                    if (data === '[DONE]') {
+                        return aiResponse;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(data);
+
+                        if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                            const content = parsed.choices[0].delta.content;
+
+                            if (content) {
+                                aiResponse += content;
+                                // 更新显示的内容
+                                contentSpan.textContent = aiResponse;
+                                debugOutput.scrollTop = debugOutput.scrollHeight;
+                            }
+                        }
+                    } catch (e) {
+                        // 忽略解析错误，但如果是正常的数据格式则继续
+                        if (data.trim() !== '') {
+                            console.warn('无法解析数据:', data, e);
+                        }
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    return aiResponse;
+}
+
+// 从AI响应中提取代码
+function extractCodeFromResponse(response) {
+    if (!response) return '';
+
+    // 首先尝试匹配新的标记格式 begin:-> 和 <-end
+    const newFormatRegex = /begin:->\s*\n([\s\S]*?)\n<-end/;
+    const newMatch = response.match(newFormatRegex);
+
+    if (newMatch && newMatch[1]) {
+        return newMatch[1].trim();
+    }
+
+    // 备用：查找代码块标记（为了兼容性）
+    const codeBlockRegex = /```(?:cpp|c\+\+)?\n([\s\S]*?)\n```/;
+    const match = response.match(codeBlockRegex);
+
+    if (match && match[1]) {
+        return match[1].trim();
+    }
+
+    // 再次尝试匹配没有语言标识的代码块
+    const plainCodeBlockRegex = /```\n([\s\S]*?)\n```/;
+    const plainMatch = response.match(plainCodeBlockRegex);
+
+    if (plainMatch && plainMatch[1]) {
+        return plainMatch[1].trim();
+    }
+
+    // 如果没有找到代码块，从后往前查找main函数作为代码开始的标志
+    const lines = response.split('\n');
+    let mainIndex = -1;
+
+    // 从后往前查找main函数
+    for (let i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].includes('int main') || lines[i].includes('void main')) {
+            mainIndex = i;
+            break;
+        }
+    }
+
+    // 如果找到了main函数，从那里开始提取代码
+    if (mainIndex !== -1) {
+        const extractedCode = lines.slice(mainIndex).join('\n');
+        return extractedCode.trim();
+    }
+
+    // 如果没有找到main函数，返回整个响应（可能AI没有使用代码块格式）
+    return response.trim();
+}
+
+// 使用样例测试代码
+async function testCodeWithSample(code) {
+    try {
+        const response = await fetch('/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: code,
+                input: sampleInputInput.value
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`运行请求失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 检查是否有错误
+        if (data.Errors) {
+            return { success: false, error: data.Errors };
+        }
+
+        if (data.Result) {
+            // 比较输出是否与期望输出匹配
+            const actualOutput = data.Result.trim();
+            const expectedOutput = sampleOutputInput.value.trim();
+
+            // 简单的字符串比较（可根据需要调整比较逻辑）
+            if (actualOutput === expectedOutput) {
+                return { success: true };
+            } else {
+                return {
+                    success: false,
+                    error: `输出不匹配。期望: "${expectedOutput}", 实际: "${actualOutput}"`
+                };
+            }
+        } else {
+            return { success: false, error: '代码没有输出' };
+        }
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+function highlight(code) {
+    let pMap = {}, pIdx = 0;
+    // --- [修正] 正则表达式修复 ---
+    // 之前是 ".?" (0或1个字符)，导致长字符串不高亮。改为 "[^"]*" (非引号的任意字符序列)
+    // 同时也修复了注释匹配
+    let safe = code.replace(/("[^"]*"|'[^']*'|\/\/.*$)/gm, (m) => { 
+        const k = `___P${pIdx++}_`; 
+        pMap[k]=m; 
+        return k; 
+    });
     
-    // 更新行号
-    if (lnPrev) lnPrev.textContent = (idx > 0) ? (idx) : "";
-    if (lnCurr) lnCurr.textContent = idx + 1;
-    if (lnNext) lnNext.textContent = (idx < lines.length - 1) ? (idx + 2) : "";
-
-    // 更新行内容
-    if (linePrev) linePrev.textContent = lines[idx-1]||(idx===0?"-- TOP --":"");
-    if (lineNext) lineNext.textContent = lines[idx+1]||(idx===lines.length-1?"-- END --":"");
-    if (lineCurr) {
-        const cT = lines[idx]; 
-        const rC = globalCursorPos - start;
-        lineCurr.innerHTML = escapeHtml(cT.substring(0, rC)) + '<span class="cursor"></span>' + escapeHtml(cT.substring(rC));
-        
-        setTimeout(() => {
-            const c = lineCurr.querySelector('.cursor');
-            if(c) c.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
-        }, 0);
-    }
+    safe = escapeHtml(safe);
+    
+    // 关键词高亮
+    safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
+    // 数字高亮
+    safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
+    // 预处理指令高亮
+    safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}</span>${r}`);
+    
+    // 还原字符串和注释
+    Object.keys(pMap).forEach(k => {
+        let o = pMap[k], r = '';
+        if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
+        else if(o.startsWith('//')) r = `<span class="hl-com">${escapeHtml(o)}</span>`;
+        safe = safe.replace(k, r);
+    });
+    return safe;
 }
 
-// 转义HTML函数
-function escapeHtml(text) {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+function updateHighlight() {
+    const txt = fullEditor.value;
+    // 确保最后一行也有换行符处理，防止正则漏掉
+    highlightLayer.innerHTML = highlight(txt.endsWith('\n')?txt+' ':txt);
+    updateGutter(); 
 }
+
+function updateGutter() {
+    const lineCount = fullEditor.value.split('\n').length;
+    gutter.innerText = Array.from({length: lineCount}, (_, i) => i + 1).join('\n');
+}
+
+function syncScroll() {
+    highlightLayer.scrollTop = fullEditor.scrollTop;
+    highlightLayer.scrollLeft = fullEditor.scrollLeft;
+    gutter.scrollTop = fullEditor.scrollTop; 
+}
+
+fullEditor.addEventListener('input', () => { 
+    updateHighlight(); 
+    globalText = fullEditor.value; 
+    globalCursorPos = fullEditor.selectionStart;
+    // 触发防抖保存
+    triggerSaveCode();
+});
+fullEditor.addEventListener('scroll', syncScroll);
 
 // Editor Logic
 function toggleLineComment() {
@@ -1434,7 +1651,7 @@ function toggleLineComment() {
     if (end === -1) end = globalText.length;
     const line = globalText.substring(start, end);
     let newLine = "", offset = 0;
-    if(line.trim().startsWith('//')) { newLine = line.replace('//', ''); offset = -2; }
+    if (line.trim().startsWith('//')) { newLine = line.replace('//', ''); offset = -2; }
     else { newLine = '//' + line; offset = 2; }
     globalText = globalText.substring(0, start) + newLine + globalText.substring(end);
     globalCursorPos += offset;
@@ -1464,6 +1681,29 @@ function handleAutoPair(char) {
     else insertTextAtCursor(char);
 }
 
+function renderThreeLines() {
+    if(isFullMode) return;
+    const lines = globalText.split('\n');
+    let accum = 0, idx = 0, start = 0;
+    for(let i=0; i<lines.length; i++) {
+        if(globalCursorPos >= accum && globalCursorPos <= accum + lines[i].length) { idx=i; start=accum; break; }
+        accum += lines[i].length + 1;
+    }
+    
+    lnPrev.textContent = (idx > 0) ? (idx) : "";
+    lnCurr.textContent = idx + 1;
+    lnNext.textContent = (idx < lines.length - 1) ? (idx + 2) : "";
+
+    linePrev.textContent = lines[idx-1]||(idx===0?"-- TOP --":"");
+    lineNext.textContent = lines[idx+1]||(idx===lines.length-1?"-- END --":"");
+    const cT = lines[idx]; const rC = globalCursorPos - start;
+    lineCurr.innerHTML = escapeHtml(cT.substring(0, rC)) + '<span class="cursor"></span>' + escapeHtml(cT.substring(rC));
+    setTimeout(() => {
+        const c = lineCurr.querySelector('.cursor');
+        if(c) c.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
+    }, 0);
+}
+
 function insertTextAtCursor(t, back=0) {
     globalText = globalText.slice(0, globalCursorPos) + t + globalText.slice(globalCursorPos);
     globalCursorPos += t.length - back;
@@ -1490,11 +1730,9 @@ function syncState() {
     triggerSaveCode();
 
     if(isFullMode) {
-        if (fullEditor) {
-            fullEditor.value=globalText;
-            fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
-            updateHighlight();
-        }
+        fullEditor.value=globalText;
+        fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
+        updateHighlight();
 
         // Also update the Monaco editor if it exists
         if(monacoEditor) {
@@ -1549,56 +1787,50 @@ function handleKeyInput(keyEl) {
     }
 }
 
-if (fullEditor) {
-    fullEditor.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); }
-        else if (e.key === 'Enter') {
-            e.preventDefault();
-            const val = fullEditor.value; const pos = fullEditor.selectionStart;
-            const prev = val[pos-1]; const next = val[pos];
-            const lastNL = val.lastIndexOf('\n', pos - 1);
-            const lineStart = lastNL === -1 ? 0 : lastNL + 1;
-            const currentLine = val.substring(lineStart, pos);
-            const indentMatch = currentLine.match(/^(\t*)/);
-            let indent = indentMatch ? indentMatch[1] : "";
-            if (prev === '{' && next === '}') {
-                document.execCommand('insertText', false, '\n' + indent + '\t' + '\n' + indent);
-                fullEditor.selectionStart = fullEditor.selectionEnd = pos + 1 + indent.length + 1;
-            } else {
-                if (prev === '{') indent += '\t';
-                document.execCommand('insertText', false, '\n' + indent);
-            }
+fullEditor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '\t'); }
+    else if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = fullEditor.value; const pos = fullEditor.selectionStart;
+        const prev = val[pos-1]; const next = val[pos];
+        const lastNL = val.lastIndexOf('\n', pos - 1);
+        const lineStart = lastNL === -1 ? 0 : lastNL + 1;
+        const currentLine = val.substring(lineStart, pos);
+        const indentMatch = currentLine.match(/^(\t*)/);
+        let indent = indentMatch ? indentMatch[1] : "";
+        if (prev === '{' && next === '}') {
+            document.execCommand('insertText', false, '\n' + indent + '\t' + '\n' + indent);
+            fullEditor.selectionStart = fullEditor.selectionEnd = pos + 1 + indent.length + 1;
+        } else {
+            if (prev === '{') indent += '\t';
+            document.execCommand('insertText', false, '\n' + indent);
         }
-        else if (['(','{','[','"',"'"].includes(e.key)) {
-            e.preventDefault();
-            const pairs = {'(':')', '{':'}', '[':']', '"':'"', "'":"'"};
-            document.execCommand('insertText', false, e.key + pairs[e.key]);
-            fullEditor.selectionStart = fullEditor.selectionEnd = fullEditor.selectionStart - 1;
-        }
-        else if (e.ctrlKey && e.key === '/') {
-            e.preventDefault();
-            globalText = fullEditor.value; globalCursorPos = fullEditor.selectionStart;
-            toggleLineComment();
-            fullEditor.value = globalText; fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); updateHighlight();
-        }
-    });
-}
+    }
+    else if (['(','{','[','"',"'"].includes(e.key)) {
+        e.preventDefault();
+        const pairs = {'(':')', '{':'}', '[':']', '"':'"', "'":"'"};
+        document.execCommand('insertText', false, e.key + pairs[e.key]);
+        fullEditor.selectionStart = fullEditor.selectionEnd = fullEditor.selectionStart - 1;
+    }
+    else if (e.ctrlKey && e.key === '/') {
+        e.preventDefault();
+        globalText = fullEditor.value; globalCursorPos = fullEditor.selectionStart;
+        toggleLineComment();
+        fullEditor.value = globalText; fullEditor.setSelectionRange(globalCursorPos, globalCursorPos); updateHighlight();
+    }
+});
 
-if (keys) {
-    keys.forEach(k => {
-        if(k.getAttribute('data-key')==='Shift'||k.getAttribute('data-key')==='Control'||k.classList.contains('spacer'))return;
-        const rep = k.classList.contains('repeat-key');
-        const tr=(e)=>{e.preventDefault();k.classList.add('active');if(navigator.vibrate)navigator.vibrate(10);handleKeyInput(k);
-        if(rep){keyDelayTimer=setTimeout(()=>{keyRepeatTimer=setInterval(()=>{if(navigator.vibrate)navigator.vibrate(5);handleKeyInput(k);},50)},400);}};
-        const rl=(e)=>{e.preventDefault();k.classList.remove('active');clearTimeout(keyDelayTimer);clearInterval(keyRepeatTimer);};
-        k.addEventListener('touchstart',tr,{passive:false}); k.addEventListener('touchend',rl);
-        k.addEventListener('mousedown',tr); k.addEventListener('mouseup',rl); k.addEventListener('mouseleave',rl);
-    });
-}
+keys.forEach(k => {
+    if(k.getAttribute('data-key')==='Shift'||k.getAttribute('data-key')==='Control'||k.classList.contains('spacer'))return;
+    const rep = k.classList.contains('repeat-key');
+    const tr=(e)=>{e.preventDefault();k.classList.add('active');if(navigator.vibrate)navigator.vibrate(10);handleKeyInput(k);
+    if(rep){keyDelayTimer=setTimeout(()=>{keyRepeatTimer=setInterval(()=>{if(navigator.vibrate)navigator.vibrate(5);handleKeyInput(k);},50)},400);}};
+    const rl=(e)=>{e.preventDefault();k.classList.remove('active');clearTimeout(keyDelayTimer);clearInterval(keyRepeatTimer);};
+    k.addEventListener('touchstart',tr,{passive:false}); k.addEventListener('touchend',rl);
+    k.addEventListener('mousedown',tr); k.addEventListener('mouseup',rl); k.addEventListener('mouseleave',rl);
+});
 
 function updateKeyboardVisuals() {
-    if (!keys) return; // 如果keys不存在则返回
-    
     keys.forEach(k => {
         const sVal = k.getAttribute('data-shift');
         const dKey = k.getAttribute('data-key');
@@ -1608,111 +1840,77 @@ function updateKeyboardVisuals() {
         else if(sVal){ const sup=k.querySelector('.sup');const main=k.querySelector('.main'); if(sup&&main) k.classList.toggle('shifted', isShiftActive); }
     });
 }
-if (shiftKeys) {
-    shiftKeys.forEach(k=>{
-        const s=(e)=>{e.preventDefault();isShiftHeld=true;shiftUsageFlag=false;isShiftActive=true;updateKeyboardVisuals();if(navigator.vibrate)navigator.vibrate(10);};
-        const e=(e)=>{e.preventDefault();isShiftHeld=false;if(shiftUsageFlag)isShiftActive=false;updateKeyboardVisuals();};
-        k.addEventListener('touchstart',s,{passive:false});k.addEventListener('touchend',e);
-        k.addEventListener('mousedown',s);k.addEventListener('mouseup',e);
-    });
-}
-if (ctrlKeys) {
-    ctrlKeys.forEach(k=>{
-        const s=(e)=>{e.preventDefault();k.classList.add('active');if(navigator.vibrate)navigator.vibrate(10);handleKeyInput(k);};
-        const e=(e)=>{e.preventDefault();k.classList.remove('active');};
-        k.addEventListener('touchstart',s,{passive:false});k.addEventListener('touchend',e);
-        k.addEventListener('mousedown',s);k.addEventListener('mouseup',e);
-    });
-}
+shiftKeys.forEach(k=>{
+    const s=(e)=>{e.preventDefault();isShiftHeld=true;shiftUsageFlag=false;isShiftActive=true;updateKeyboardVisuals();if(navigator.vibrate)navigator.vibrate(10);};
+    const e=(e)=>{e.preventDefault();isShiftHeld=false;if(shiftUsageFlag)isShiftActive=false;updateKeyboardVisuals();};
+    k.addEventListener('touchstart',s,{passive:false});k.addEventListener('touchend',e);
+    k.addEventListener('mousedown',s);k.addEventListener('mouseup',e);
+});
+ctrlKeys.forEach(k=>{
+    const s=(e)=>{e.preventDefault();k.classList.add('active');if(navigator.vibrate)navigator.vibrate(10);handleKeyInput(k);};
+    const e=(e)=>{e.preventDefault();k.classList.remove('active');};
+    k.addEventListener('touchstart',s,{passive:false});k.addEventListener('touchend',e);
+    k.addEventListener('mousedown',s);k.addEventListener('mouseup',e);
+});
 
-if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-        // 在切换前先保存当前编辑器的内容到globalText
-        if (isFullMode) {
-            // 当前是全屏模式，从fullEditor获取内容
-            if (fullEditor) {
-                globalText = fullEditor.value;
-                globalCursorPos = fullEditor.selectionStart;
-            }
-        } else {
-            // 当前是3行模式，从globalText获取内容（实际上不需要改变，因为3行模式就是显示globalText）
-            // 但我们需要确保globalText是最新的
-            // 由于3行模式只是显示globalText的一部分，所以不需要额外操作
+toggleBtn.addEventListener('click', () => {
+    // 在切换前先保存当前编辑器的内容到globalText
+    if (isFullMode) {
+        // 当前是全屏模式，从fullEditor获取内容
+        globalText = fullEditor.value;
+        globalCursorPos = fullEditor.selectionStart;
+    } else {
+        // 当前是3行模式，从globalText获取内容（实际上不需要改变，因为3行模式就是显示globalText）
+        // 但我们需要确保globalText是最新的
+        // 由于3行模式只是显示globalText的一部分，所以不需要额外操作
+    }
+
+    isFullMode = !isFullMode;
+    localStorage.setItem('phoi_isFullMode', isFullMode);
+
+    if (isFullMode) {
+        keyboardContainer.classList.add('hide-keyboard');
+        document.getElementById('lines-container').style.display = 'none';
+        editorWrapper.style.display = 'flex';
+        fullEditor.value=globalText; fullEditor.focus(); fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
+        updateHighlight();
+        syncScroll();
+        toggleBtn.textContent = '▲';
+
+        // 同时更新Monaco编辑器
+        if (monacoEditor) {
+            monacoEditor.setValue(globalText);
+        }
+    } else {
+        // Before switching to 3-line mode, get latest content from Monaco editor if it exists
+        if (monacoEditor) {
+            globalText = monacoEditor.getValue();
         }
 
-        isFullMode = !isFullMode;
-        localStorage.setItem('phoi_isFullMode', isFullMode);
+        globalCursorPos = globalText.length; // Set cursor to end of text
 
-        if (isFullMode) {
-            if (keyboardContainer) {
-                keyboardContainer.classList.add('hide-keyboard');
-            }
-            if (linesContainer) {
-                linesContainer.style.display = 'none';
-            }
-            if (editorWrapper) {
-                editorWrapper.style.display = 'flex';
-            }
-            if (fullEditor) {
-                fullEditor.value=globalText; 
-                fullEditor.focus(); 
-                fullEditor.setSelectionRange(globalCursorPos, globalCursorPos);
-            }
-            updateHighlight();
-            syncScroll();
-            toggleBtn.textContent = '▲';
+        keyboardContainer.classList.remove('hide-keyboard');
+        document.getElementById('lines-container').style.display = 'flex';
+        editorWrapper.style.display = 'none';
+        toggleBtn.textContent = '▼';
+        renderThreeLines();
+    }
 
-            // 同时更新Monaco编辑器
-            if (monacoEditor) {
-                monacoEditor.setValue(globalText);
-            }
-        } else {
-            // Before switching to 3-line mode, get latest content from Monaco editor if it exists
-            if (monacoEditor) {
-                globalText = monacoEditor.getValue();
-            }
-
-            globalCursorPos = globalText.length; // Set cursor to end of text
-
-            if (keyboardContainer) {
-                keyboardContainer.classList.remove('hide-keyboard');
-            }
-            if (linesContainer) {
-                linesContainer.style.display = 'flex';
-            }
-            if (editorWrapper) {
-                editorWrapper.style.display = 'none';
-            }
-            toggleBtn.textContent = '▼';
-            renderThreeLines();
-        }
-
-        // Show/hide Monaco Editor container based on mode
-        const editorContainer = document.getElementById('editor-container');
-        if (editorContainer) {
-            editorContainer.style.display = isFullMode ? 'block' : 'none';
-        }
-    });
-}
+    // Show/hide Monaco Editor container based on mode
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer) {
+        editorContainer.style.display = isFullMode ? 'block' : 'none';
+    }
+});
 
 // 初始化：根据保存的模式直接应用布局
 if (isFullMode) {
-    if (keyboardContainer) {
-        keyboardContainer.classList.add('hide-keyboard');
-    }
-    if (linesContainer) {
-        linesContainer.style.display = 'none';
-    }
-    if (editorWrapper) {
-        editorWrapper.style.display = 'flex';
-    }
-    if (toggleBtn) {
-        toggleBtn.textContent = '▲';
-    }
-    if (fullEditor) {
-        fullEditor.value = globalText;
-        updateHighlight();
-    }
+    keyboardContainer.classList.add('hide-keyboard');
+    document.getElementById('lines-container').style.display = 'none';
+    editorWrapper.style.display = 'flex';
+    toggleBtn.textContent = '▲';
+    fullEditor.value = globalText;
+    updateHighlight();
 
     // 如果Monaco编辑器已创建，也要更新它
     if (monacoEditor) {
@@ -1730,201 +1928,3 @@ if (editorContainer) {
 }
 
 updateKeyboardVisuals();
-
-// --- 事件监听器 ---
-// 顶部菜单栏事件 - 需要检查元素是否存在
-if (fileMenu) {
-    fileMenu.addEventListener('click', function() {
-        // 显示文件下拉菜单
-        if (fileDropdown) {
-            fileDropdown.style.display = 'block';
-        }
-    });
-}
-
-// 获取关于弹窗元素
-const aboutModal = document.getElementById('about-modal');
-const closeAbout = document.getElementById('close-about');
-
-if (aboutMenu) {
-    aboutMenu.addEventListener('click', function() {
-        // 显示关于弹窗
-        if (aboutModal) {
-            aboutModal.style.display = 'flex';
-        }
-    });
-}
-
-// 关闭关于弹窗
-if (closeAbout) {
-    closeAbout.addEventListener('click', function() {
-        if (aboutModal) {
-            aboutModal.style.display = 'none';
-        }
-    });
-}
-
-// 点击弹窗外部关闭弹窗
-window.addEventListener('click', function(event) {
-    if (event.target === aboutModal) {
-        if (aboutModal) {
-            aboutModal.style.display = 'none';
-        }
-    }
-});
-
-// 点击其他地方关闭下拉菜单
-document.addEventListener('click', function(event) {
-    if (fileMenu && fileDropdown && !fileMenu.contains(event.target) && !fileDropdown.contains(event.target)) {
-        fileDropdown.style.display = 'none';
-    }
-});
-
-// 文件操作按钮事件 - 需要检查元素是否存在
-if (uploadFileBtn) {
-    uploadFileBtn.addEventListener('click', uploadFile);
-}
-if (downloadFileBtn) {
-    downloadFileBtn.addEventListener('click', downloadCurrentFile);
-}
-if (saveAsBtn) {
-    saveAsBtn.addEventListener('click', saveCurrentFileAs);
-}
-if (newFileBtn) {
-    newFileBtn.addEventListener('click', newFile);
-}
-if (newFolderBtn) {
-    newFolderBtn.addEventListener('click', newFolder);
-}
-
-// 左侧边栏事件 - 需要检查元素是否存在
-if (sidebarToggle) {
-    sidebarToggle.addEventListener('click', toggleVFSPanel);
-}
-
-// 虚拟文件系统关闭按钮 - 需要检查元素是否存在
-if (vfsCloseBtn) {
-    vfsCloseBtn.addEventListener('click', function() {
-        if (vfsPanel) {
-            vfsPanel.style.display = 'none';
-        }
-        if (sidebarToggle) {
-            // 移除CSS类来表示面板关闭状态，而不是修改文本内容
-            sidebarToggle.classList.remove('vfs-open');
-        }
-    });
-}
-
-// 初始化虚拟文件系统
-initializeVFS();
-renderVFS();
-updateCurrentFileNameDisplay();
-
-// 初始化模式
-if (isFullMode) {
-    if (linesContainer) {
-        linesContainer.style.display = 'none';
-    }
-    if (keyboardContainer) {
-        keyboardContainer.style.display = 'flex';
-    }
-    if (toggleBtn) {
-        toggleBtn.textContent = '▲';
-    }
-    // 显示Monaco编辑器
-    const editorContainer = document.getElementById('editor-container');
-    if (editorContainer) {
-        editorContainer.style.display = 'block';
-    }
-} else {
-    if (linesContainer) {
-        linesContainer.style.display = 'flex';
-    }
-    if (keyboardContainer) {
-        keyboardContainer.style.display = 'flex'; // 在手机模式下也显示键盘
-        // 让键盘铺满屏幕，不留空白
-        keyboardContainer.style.position = 'fixed';
-        keyboardContainer.style.bottom = '0';
-        keyboardContainer.style.left = '0';
-        keyboardContainer.style.right = '0';
-        keyboardContainer.style.top = 'auto';
-    }
-    if (toggleBtn) {
-        toggleBtn.textContent = '▼';
-    }
-    // 隐藏Monaco编辑器
-    const editorContainer = document.getElementById('editor-container');
-    if (editorContainer) {
-        editorContainer.style.display = 'none';
-    }
-    // 渲染3行预览
-    renderThreeLines();
-}
-
-// 高亮函数
-function highlight(code) {
-    let pMap = {}, pIdx = 0;
-    // --- [修正] 正则表达式修复 ---
-    // 之前是 ".?" (0或1个字符)，导致长字符串不高亮。改为 "[^"]*" (非引号的任意字符序列)
-    // 同时也修复了注释匹配
-    let safe = code.replace(/("[^"]*"|'[^']*'|\/\/.*$)/gm, (m) => {
-        const k = `___P${pIdx++}_`;
-        pMap[k]=m;
-        return k;
-    });
-
-    safe = escapeHtml(safe);
-
-    // 关键词高亮
-    safe = safe.replace(/\b(int|float|double|char|void|if|else|for|while|do|return|class|struct|public|private|protected|virtual|static|const|namespace|using|template|typename|bool|true|false|new|delete|std|cin|cout|endl)\b/g, '<span class="hl-kw">$1</span>');
-    // 数字高亮
-    safe = safe.replace(/\b(\d+)\b/g, '<span class="hl-num">$1</span>');
-    // 预处理指令高亮
-    safe = safe.replace(/^(#\w+)(.*)$/gm, (m,d,r) => `<span class="hl-dir">${d}</span>${r}`);
-
-    // 还原字符串和注释
-    Object.keys(pMap).forEach(k => {
-        let o = pMap[k], r = '';
-        if(o.startsWith('"')||o.startsWith("'")) r = `<span class="hl-str">${escapeHtml(o)}</span>`;
-        else if(o.startsWith('//')) r = `<span class="hl-com">${escapeHtml(o)}</span>`;
-        safe = safe.replace(k, r);
-    });
-    return safe;
-}
-
-function updateHighlight() {
-    if (!fullEditor) return; // 如果fullEditor不存在则返回
-    
-    const txt = fullEditor.value;
-    // 确保最后一行也有换行符处理，防止正则漏掉
-    if (highlightLayer) {
-        highlightLayer.innerHTML = highlight(txt.endsWith('\n')?txt+' ':txt);
-    }
-    updateGutter();
-}
-
-function updateGutter() {
-    if (!fullEditor || !gutter) return; // 如果元素不存在则返回
-    
-    const lineCount = fullEditor.value.split('\n').length;
-    gutter.innerText = Array.from({length: lineCount}, (_, i) => i + 1).join('\n');
-}
-
-function syncScroll() {
-    if (!fullEditor || !highlightLayer || !gutter) return; // 如果元素不存在则返回
-    
-    highlightLayer.scrollTop = fullEditor.scrollTop;
-    highlightLayer.scrollLeft = fullEditor.scrollLeft;
-    gutter.scrollTop = fullEditor.scrollTop;
-}
-
-if (fullEditor) {
-    fullEditor.addEventListener('input', () => {
-        updateHighlight();
-        globalText = fullEditor.value;
-        globalCursorPos = fullEditor.selectionStart;
-        // 触发防抖保存
-        triggerSaveCode();
-    });
-    fullEditor.addEventListener('scroll', syncScroll);
-}
