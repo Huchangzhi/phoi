@@ -513,7 +513,6 @@
 
         // 添加输出面板调整大小功能
         let isResizing = false;
-        const outputPanel = document.getElementById('output-panel');
         const outputResizer = document.getElementById('output-resizer');
         const globalToolbar = document.getElementById('global-toolbar');
 
@@ -540,6 +539,7 @@
             // 应用边界限制
             const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
 
+            const outputPanel = document.getElementById('output-panel');
             outputPanel.style.height = `${clampedHeight}px`;
         });
 
