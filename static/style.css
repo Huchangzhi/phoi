@@ -115,6 +115,19 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     height: 20px;
 }
 
+#luogu-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    width: auto;
+    height: auto;
+}
+
+#luogu-btn img {
+    width: 20px;
+    height: 20px;
+}
+
 /* 下拉菜单样式 */
 .dropdown-menu {
     position: absolute;

@@ -1,0 +1,374 @@
+{
+  "types": {
+    "P": [
+      {
+        "file": "luogu_problems_p_000.ndjson",
+        "min_pid": "P1000",
+        "max_pid": "P1250",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_001.ndjson",
+        "min_pid": "P1251",
+        "max_pid": "P1500",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_002.ndjson",
+        "min_pid": "P1501",
+        "max_pid": "P1750",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_003.ndjson",
+        "min_pid": "P1751",
+        "max_pid": "P2003",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_004.ndjson",
+        "min_pid": "P2004",
+        "max_pid": "P2260",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_005.ndjson",
+        "min_pid": "P2261",
+        "max_pid": "P2516",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_006.ndjson",
+        "min_pid": "P2517",
+        "max_pid": "P2773",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_007.ndjson",
+        "min_pid": "P2774",
+        "max_pid": "P3027",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_008.ndjson",
+        "min_pid": "P3028",
+        "max_pid": "P3278",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_009.ndjson",
+        "min_pid": "P3279",
+        "max_pid": "P3531",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_010.ndjson",
+        "min_pid": "P3532",
+        "max_pid": "P3785",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_011.ndjson",
+        "min_pid": "P3786",
+        "max_pid": "P4037",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_012.ndjson",
+        "min_pid": "P4038",
+        "max_pid": "P4288",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_013.ndjson",
+        "min_pid": "P4289",
+        "max_pid": "P4538",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_014.ndjson",
+        "min_pid": "P4539",
+        "max_pid": "P4790",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_015.ndjson",
+        "min_pid": "P4791",
+        "max_pid": "P5045",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_016.ndjson",
+        "min_pid": "P5046",
+        "max_pid": "P5298",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_017.ndjson",
+        "min_pid": "P5299",
+        "max_pid": "P5550",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_018.ndjson",
+        "min_pid": "P5551",
+        "max_pid": "P5801",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_019.ndjson",
+        "min_pid": "P5802",
+        "max_pid": "P6054",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_020.ndjson",
+        "min_pid": "P6055",
+        "max_pid": "P6309",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_021.ndjson",
+        "min_pid": "P6310",
+        "max_pid": "P6564",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_022.ndjson",
+        "min_pid": "P6565",
+        "max_pid": "P6819",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_023.ndjson",
+        "min_pid": "P6820",
+        "max_pid": "P7069",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_024.ndjson",
+        "min_pid": "P7070",
+        "max_pid": "P7325",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_025.ndjson",
+        "min_pid": "P7326",
+        "max_pid": "P7580",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_026.ndjson",
+        "min_pid": "P7581",
+        "max_pid": "P7839",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_027.ndjson",
+        "min_pid": "P7840",
+        "max_pid": "P8091",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_028.ndjson",
+        "min_pid": "P8092",
+        "max_pid": "P8344",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_029.ndjson",
+        "min_pid": "P8345",
+        "max_pid": "P8605",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_030.ndjson",
+        "min_pid": "P8606",
+        "max_pid": "P8857",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_031.ndjson",
+        "min_pid": "P8858",
+        "max_pid": "P9112",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_032.ndjson",
+        "min_pid": "P9113",
+        "max_pid": "P9366",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_033.ndjson",
+        "min_pid": "P9367",
+        "max_pid": "P9618",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_034.ndjson",
+        "min_pid": "P9619",
+        "max_pid": "P9869",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_035.ndjson",
+        "min_pid": "P9870",
+        "max_pid": "P10125",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_036.ndjson",
+        "min_pid": "P10126",
+        "max_pid": "P10379",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_037.ndjson",
+        "min_pid": "P10380",
+        "max_pid": "P10633",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_038.ndjson",
+        "min_pid": "P10634",
+        "max_pid": "P10886",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_039.ndjson",
+        "min_pid": "P10887",
+        "max_pid": "P11142",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_040.ndjson",
+        "min_pid": "P11143",
+        "max_pid": "P11397",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_041.ndjson",
+        "min_pid": "P11398",
+        "max_pid": "P11655",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_042.ndjson",
+        "min_pid": "P11656",
+        "max_pid": "P11911",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_043.ndjson",
+        "min_pid": "P11912",
+        "max_pid": "P12162",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_044.ndjson",
+        "min_pid": "P12163",
+        "max_pid": "P12416",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_045.ndjson",
+        "min_pid": "P12417",
+        "max_pid": "P12670",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_046.ndjson",
+        "min_pid": "P12671",
+        "max_pid": "P12923",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_047.ndjson",
+        "min_pid": "P12925",
+        "max_pid": "P13174",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_048.ndjson",
+        "min_pid": "P13175",
+        "max_pid": "P13424",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_049.ndjson",
+        "min_pid": "P13425",
+        "max_pid": "P13675",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_050.ndjson",
+        "min_pid": "P13676",
+        "max_pid": "P13925",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_051.ndjson",
+        "min_pid": "P13926",
+        "max_pid": "P14176",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_052.ndjson",
+        "min_pid": "P14177",
+        "max_pid": "P14433",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_053.ndjson",
+        "min_pid": "P14434",
+        "max_pid": "P14685",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_054.ndjson",
+        "min_pid": "P14686",
+        "max_pid": "P14935",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_p_055.ndjson",
+        "min_pid": "P14936",
+        "max_pid": "P15134",
+        "count": 198
+      }
+    ],
+    "B": [
+      {
+        "file": "luogu_problems_b_000.ndjson",
+        "min_pid": "B2001",
+        "max_pid": "B3664",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_b_001.ndjson",
+        "min_pid": "B3665",
+        "max_pid": "B3916",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_b_002.ndjson",
+        "min_pid": "B3917",
+        "max_pid": "B4166",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_b_003.ndjson",
+        "min_pid": "B4167",
+        "max_pid": "B4419",
+        "count": 250
+      },
+      {
+        "file": "luogu_problems_b_004.ndjson",
+        "min_pid": "B4420",
+        "max_pid": "B4482",
+        "count": 63
+      }
+    ]
+  }
+}

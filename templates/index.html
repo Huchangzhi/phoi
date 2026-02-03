@@ -20,6 +20,7 @@
             <span id="current-file-name" class="current-file">new.cpp</span>
         </div>
         <div id="menu-bar-right">
+            <!-- <button id="luogu-btn" class="tool-btn" title="洛谷题目"><img src="{{ url_for('static', filename='Luogu.png') }}" alt="Luogu" class="icon-btn"></button> -->
             <button id="run-btn" class="tool-btn" title="运行"><img src="{{ url_for('static', filename='debug.png') }}" alt="Run" class="icon-btn"></button>
             <button id="copy-btn" class="tool-btn" title="复制">❐</button>
             <button id="mode-toggle-btn" class="tool-btn">▲</button>
@@ -226,6 +227,14 @@
             </div>
         </div>
     </div>
+
+    <!-- 引入 KaTeX CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/katex@0.16.9/dist/katex.min.css">
+
+    <!-- 引入 Marked.js 和 KaTeX JS -->
+    <script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
+    <script src="https://unpkg.com/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://unpkg.com/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
     <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>

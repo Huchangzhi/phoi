@@ -1997,6 +1997,401 @@ function registerCompletionProviders() {
     });
 }
 
+// 初始化洛谷题目功能
+function initLuoguFeature() {
+    // 根据插件设置决定是否显示洛谷按钮
+    updateLuoguButtonVisibility();
+
+    // 监听插件设置变化
+    const luoguThemeEnabledCheckbox = document.getElementById('luogu-theme-enabled');
+    if (luoguThemeEnabledCheckbox) {
+        luoguThemeEnabledCheckbox.addEventListener('change', function() {
+            luoguThemeEnabled = this.checked;
+            localStorage.setItem(LUOGU_THEME_ENABLED_KEY, luoguThemeEnabled);
+            updateLuoguButtonVisibility();
+
+            // 洛谷主题启用状态已更新，存储到本地
+            // 实际的主题功能将在后续实现
+            console.log('洛谷主题插件状态已更新:', luoguThemeEnabled);
+        });
+    }
+}
+
+// 更新洛谷按钮可见性
+function updateLuoguButtonVisibility() {
+    // 创建或获取洛谷按钮容器
+    let luoguContainer = document.getElementById('luogu-container');
+    if (!luoguContainer) {
+        // 创建容器
+        luoguContainer = document.createElement('div');
+        luoguContainer.id = 'luogu-container';
+        luoguContainer.style.display = 'flex';
+        luoguContainer.style.alignItems = 'center';
+
+        // 插入到menu-bar-right中，放在run-btn前面
+        const menuBarRight = document.getElementById('menu-bar-right');
+        const runBtn = document.getElementById('run-btn');
+        if (menuBarRight && runBtn) {
+            menuBarRight.insertBefore(luoguContainer, runBtn);
+        }
+    }
+
+    // 清空容器
+    luoguContainer.innerHTML = '';
+
+    // 如果启用了洛谷插件，则显示按钮
+    if (luoguThemeEnabled) {
+        // 创建洛谷按钮
+        const luoguBtn = document.createElement('button');
+        luoguBtn.id = 'luogu-btn';
+        luoguBtn.className = 'tool-btn';
+        luoguBtn.title = '洛谷题目';
+
+        // 创建洛谷图标
+        const luoguImg = document.createElement('img');
+        luoguImg.src = '/static/Luogu.png';
+        luoguImg.alt = 'Luogu';
+        luoguImg.className = 'icon-btn';
+
+        // 组装按钮
+        luoguBtn.appendChild(luoguImg);
+        luoguContainer.appendChild(luoguBtn);
+
+        // 添加点击事件
+        luoguBtn.addEventListener('click', showLuoguProblemDialog);
+    }
+}
+
+// 显示洛谷题目对话框
+function showLuoguProblemDialog() {
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.id = 'luogu-modal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+
+    // 创建模态框内容
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+    modalContent.style.width = '80%';
+    modalContent.style.maxWidth = '500px';
+
+    // 创建头部
+    const modalHeader = document.createElement('div');
+    modalHeader.className = 'modal-header';
+
+    const headerTitle = document.createElement('h2');
+    headerTitle.textContent = '洛谷题目查询';
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close-btn';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function() {
+        document.body.removeChild(modal);
+    });
+
+    modalHeader.appendChild(headerTitle);
+    modalHeader.appendChild(closeBtn);
+
+    // 创建主体
+    const modalBody = document.createElement('div');
+    modalBody.className = 'modal-body';
+    modalBody.style.padding = '20px';
+
+    // 创建输入提示
+    const inputLabel = document.createElement('label');
+    inputLabel.textContent = '请输入题号（例如：P1001 或 p1001）：';
+    inputLabel.style.display = 'block';
+    inputLabel.style.marginBottom = '10px';
+    inputLabel.style.color = '#ccc';
+
+    // 创建输入框
+    const inputField = document.createElement('input');
+    inputField.type = 'text';
+    inputField.placeholder = '例如：P1001';
+    inputField.style.width = '100%';
+    inputField.style.padding = '8px';
+    inputField.style.marginBottom = '15px';
+    inputField.style.backgroundColor = '#1e1e1e';
+    inputField.style.color = '#d4d4d4';
+    inputField.style.border = '1px solid #3c3c3c';
+    inputField.style.borderRadius = '4px';
+    inputField.style.fontSize = '14px';
+
+    // 创建确认按钮
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '查询';
+    confirmBtn.className = 'modal-btn';
+    confirmBtn.style.backgroundColor = '#0e639c';
+    confirmBtn.style.float = 'right';
+
+    // 添加回车键支持
+    inputField.addEventListener('keyup', function(e) {
+        if (e.key === 'Enter') {
+            confirmBtn.click();
+        }
+    });
+
+    // 添加确认按钮点击事件
+    confirmBtn.addEventListener('click', function() {
+        const problemId = inputField.value.trim();
+        if (problemId) {
+            // 处理题号，统一转换为大写
+            const normalizedId = problemId.toUpperCase();
+            loadLuoguProblem(normalizedId);
+            document.body.removeChild(modal);
+        }
+    });
+
+    // 组装模态框
+    modalBody.appendChild(inputLabel);
+    modalBody.appendChild(inputField);
+    modalBody.appendChild(confirmBtn);
+
+    modalContent.appendChild(modalHeader);
+    modalContent.appendChild(modalBody);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // 聚焦到输入框
+    inputField.focus();
+}
+
+// 加载洛谷题目
+function loadLuoguProblem(problemId) {
+    // 这里应该从数据文件中查找题目，但现在我们先显示一个加载提示
+    console.log('正在加载题目:', problemId);
+
+    // 创建题目显示区域
+    createProblemDisplayArea();
+
+    // 模拟加载过程
+    const problemDisplay = document.getElementById('problem-display');
+    if (problemDisplay) {
+        problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc;">正在加载题目...</div>';
+        problemDisplay.style.display = 'block';
+
+        // 异步加载题目数据
+        fetchLuoguProblemData(problemId).then(problemData => {
+            if (problemData) {
+                displayLuoguProblem(problemData);
+            } else {
+                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">未找到题目: ' + problemId + '</div>';
+            }
+        }).catch(error => {
+            problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">加载题目失败: ' + error.message + '</div>';
+        });
+    }
+}
+
+// 获取洛谷题目数据
+// 获取洛谷题目数据（支持 P/B 分离 + 二分查找）
+async function fetchLuoguProblemData(problemId) {
+    const normalized = problemId.toUpperCase();
+    const match = normalized.match(/^([BP])(\d+)$/);
+    if (!match) return null;
+
+    const type = match[1]; // 'P' 或 'B'
+    const indexRes = await fetch('/static/luogu_index.json');
+    if (!indexRes.ok) return null;
+    const index = await indexRes.json();
+    const chunks = index.types?.[type];
+    if (!chunks || chunks.length === 0) return null;
+
+    // 二分查找目标分片
+    let low = 0, high = chunks.length - 1;
+    let targetChunk = null;
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const chunk = chunks[mid];
+        const minNum = parseInt(chunk.min_pid.slice(1), 10);
+        const maxNum = parseInt(chunk.max_pid.slice(1), 10);
+        const targetNum = parseInt(match[2], 10);
+
+        if (targetNum >= minNum && targetNum <= maxNum) {
+            targetChunk = chunk;
+            break;
+        } else if (targetNum < minNum) {
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    if (!targetChunk) return null;
+
+    // 加载目标分片
+    const fileRes = await fetch(`/static/${targetChunk.file}`);
+    if (!fileRes.ok) return null;
+    const text = await fileRes.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    for (const line of lines) {
+        try {
+            const data = JSON.parse(line);
+            if (data.pid && data.pid.toUpperCase() === normalized) {
+                return data;
+            }
+        } catch (e) {
+            // 忽略解析错误
+        }
+    }
+    return null; // 题目不存在于该分片中（可能缺失）
+}
+// 创建题目显示区域
+function createProblemDisplayArea() {
+    // 检查是否已经存在题目显示区域
+    let problemDisplay = document.getElementById('problem-display');
+    if (!problemDisplay) {
+        // 创建题目显示区域
+        problemDisplay = document.createElement('div');
+        problemDisplay.id = 'problem-display';
+        problemDisplay.style.position = 'fixed';
+        problemDisplay.style.top = '36px';
+        problemDisplay.style.right = '0';
+        problemDisplay.style.width = '400px';
+        problemDisplay.style.height = 'calc(100vh - 36px)';
+        problemDisplay.style.backgroundColor = '#1e1e1e';
+        problemDisplay.style.borderLeft = '1px solid #333';
+        problemDisplay.style.zIndex = '100';
+        problemDisplay.style.overflowY = 'auto';
+        problemDisplay.style.display = 'none';
+        problemDisplay.style.boxShadow = '-5px 0 15px rgba(0,0,0,0.5)';
+
+        // 添加关闭按钮
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = '×';
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.top = '10px';
+        closeBtn.style.right = '10px';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.fontSize = '24px';
+        closeBtn.style.color = '#ccc';
+        closeBtn.style.zIndex = '101';
+        closeBtn.addEventListener('click', function() {
+            problemDisplay.style.display = 'none';
+        });
+
+        problemDisplay.appendChild(closeBtn);
+        document.body.appendChild(problemDisplay);
+    }
+
+    return problemDisplay;
+}
+
+// 显示洛谷题目
+function displayLuoguProblem(problemData) {
+    const problemDisplay = document.getElementById('problem-display');
+    if (!problemDisplay) return;
+
+    // 构建题目内容HTML
+    let content = `
+        <div style="padding: 20px;">
+            <h2 style="color: #ccc; margin-top: 30px;">${problemData.pid}. ${problemData.title}</h2>
+            <div style="margin: 20px 0;">
+                <h3 style="color: #569cd6;">题目描述</h3>
+                <div id="problem-description" style="color: #ccc; line-height: 1.6;"></div>
+            </div>
+            <div style="margin: 20px 0;">
+                <h3 style="color: #569cd6;">输入格式</h3>
+                <div id="problem-input-format" style="color: #ccc; line-height: 1.6;"></div>
+            </div>
+            <div style="margin: 20px 0;">
+                <h3 style="color: #569cd6;">输出格式</h3>
+                <div id="problem-output-format" style="color: #ccc; line-height: 1.6;"></div>
+            </div>
+    `;
+
+    // 添加样例
+    if (problemData.samples && problemData.samples.length > 0) {
+        content += `
+            <div style="margin: 20px 0;">
+                <h3 style="color: #569cd6;">样例</h3>
+        `;
+
+        problemData.samples.forEach((sample, index) => {
+            content += `
+                <div style="margin: 10px 0;">
+                    <div style="display: flex; margin-bottom: 10px;">
+                        <div style="flex: 1; margin-right: 10px;">
+                            <div style="color: #6a9955; font-weight: bold;">输入 #${index + 1}</div>
+                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap;">${sample[0]}</pre>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="color: #6a9955; font-weight: bold;">输出 #${index + 1}</div>
+                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap;">${sample[1]}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        content += `</div>`;
+    }
+
+    // 添加提示
+    if (problemData.hint) {
+        content += `
+            <div style="margin: 20px 0;">
+                <h3 style="color: #569cd6;">提示</h3>
+                <div id="problem-hint" style="color: #ccc; line-height: 1.6;"></div>
+            </div>
+        `;
+    }
+
+    content += `</div>`;
+
+    // 设置内容并显示
+    problemDisplay.innerHTML = content;
+    problemDisplay.style.display = 'block';
+
+    // 渲染Markdown和LaTeX内容
+    renderMarkdownAndLatex('problem-description', problemData.description || '');
+    renderMarkdownAndLatex('problem-input-format', problemData.inputFormat || '');
+    renderMarkdownAndLatex('problem-output-format', problemData.outputFormat || '');
+    if (problemData.hint) {
+        renderMarkdownAndLatex('problem-hint', problemData.hint);
+    }
+
+    // 添加关闭按钮
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '10px';
+    closeBtn.style.right = '10px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '24px';
+    closeBtn.style.color = '#ccc';
+    closeBtn.style.zIndex = '101';
+    closeBtn.addEventListener('click', function() {
+        problemDisplay.style.display = 'none';
+    });
+
+    problemDisplay.appendChild(closeBtn);
+}
+
+// 渲染Markdown和LaTeX内容
+function renderMarkdownAndLatex(elementId, content) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    // 使用Marked解析Markdown
+    const markdownContent = marked.parse(content);
+
+    // 设置HTML内容
+    element.innerHTML = markdownContent;
+
+    // 使用KaTeX渲染数学公式
+    renderMathInElement(element, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "$", right: "$", display: false},
+            {left: "\\(", right: "\\)", display: false},
+            {left: "\\[", right: "\\]", display: true}
+        ],
+        throwOnError: false
+    });
+}
+
 // 初始化虚拟文件系统
 initializeVFS();
 renderVFS();
@@ -2110,3 +2505,11 @@ if (fullEditor) {
     });
     fullEditor.addEventListener('scroll', syncScroll);
 }
+
+// 初始化洛谷题目功能
+initLuoguFeature();
+
+// 初始化虚拟文件系统
+initializeVFS();
+renderVFS();
+updateCurrentFileNameDisplay();
