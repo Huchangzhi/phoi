@@ -4,8 +4,8 @@ import os
 import re
 from collections import defaultdict
 
-INPUT_FILE = "luogu_problems.ndjson"
-CHUNK_SIZE = 250
+INPUT_FILE = "latest.ndjson"
+CHUNK_SIZE = 20
 OUTPUT_DIR = "."  # 当前目录
 
 def parse_pid(pid):
