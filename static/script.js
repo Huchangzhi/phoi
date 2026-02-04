@@ -2118,6 +2118,12 @@ function showLuoguProblemDialog() {
     inputField.style.borderRadius = '4px';
     inputField.style.fontSize = '14px';
 
+    // 从localStorage中恢复上次输入的题号
+    const savedProblemId = localStorage.getItem('phoi_last_luogu_problem_id');
+    if (savedProblemId) {
+        inputField.value = savedProblemId;
+    }
+
     // 创建确认按钮
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = '查询';
@@ -2138,6 +2144,8 @@ function showLuoguProblemDialog() {
         if (problemId) {
             // 处理题号，统一转换为大写
             const normalizedId = problemId.toUpperCase();
+            // 保存题号到localStorage
+            localStorage.setItem('phoi_last_luogu_problem_id', problemId);
             loadLuoguProblem(normalizedId);
             document.body.removeChild(modal);
         }
@@ -2245,17 +2253,38 @@ function createProblemDisplayArea() {
         // 创建题目显示区域
         problemDisplay = document.createElement('div');
         problemDisplay.id = 'problem-display';
-        problemDisplay.style.position = 'fixed';
-        problemDisplay.style.top = '36px';
-        problemDisplay.style.right = '0';
-        problemDisplay.style.width = '400px';
-        problemDisplay.style.height = 'calc(100vh - 36px)';
-        problemDisplay.style.backgroundColor = '#1e1e1e';
-        problemDisplay.style.borderLeft = '1px solid #333';
-        problemDisplay.style.zIndex = '100';
-        problemDisplay.style.overflowY = 'auto';
-        problemDisplay.style.display = 'none';
-        problemDisplay.style.boxShadow = '-5px 0 15px rgba(0,0,0,0.5)';
+
+        // 检测是否为移动设备
+        const isMobile = window.innerWidth <= 768;
+
+        if (isMobile) {
+            // 移动设备上的样式
+            problemDisplay.style.position = 'fixed';
+            problemDisplay.style.top = '36px';
+            problemDisplay.style.left = '0';
+            problemDisplay.style.right = '0';
+            problemDisplay.style.bottom = '0';
+            problemDisplay.style.width = 'auto';
+            problemDisplay.style.height = 'auto';
+            problemDisplay.style.backgroundColor = '#1e1e1e';
+            problemDisplay.style.zIndex = '100';
+            problemDisplay.style.overflowY = 'auto';
+            problemDisplay.style.display = 'none';
+            problemDisplay.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
+        } else {
+            // 桌面设备上的样式
+            problemDisplay.style.position = 'fixed';
+            problemDisplay.style.top = '36px';
+            problemDisplay.style.right = '0';
+            problemDisplay.style.width = '400px';
+            problemDisplay.style.height = 'calc(100vh - 36px)';
+            problemDisplay.style.backgroundColor = '#1e1e1e';
+            problemDisplay.style.borderLeft = '1px solid #333';
+            problemDisplay.style.zIndex = '100';
+            problemDisplay.style.overflowY = 'auto';
+            problemDisplay.style.display = 'none';
+            problemDisplay.style.boxShadow = '-5px 0 15px rgba(0,0,0,0.5)';
+        }
 
         // 添加关闭按钮
         const closeBtn = document.createElement('div');
@@ -2283,10 +2312,16 @@ function displayLuoguProblem(problemData) {
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
+    // 检测是否为移动设备
+    const isMobile = window.innerWidth <= 768;
+
     // 构建题目内容HTML
     let content = `
         <div style="padding: 20px;">
-            <h2 style="color: #ccc; margin-top: 30px;">${problemData.pid}. ${problemData.title}</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px;">
+                <h2 style="color: #ccc; margin: 0;">${problemData.pid}. ${problemData.title}</h2>
+                <a href="https://www.luogu.com.cn/problem/${problemData.pid}" target="_blank" style="background-color: #0e639c; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px;">跳转到洛谷</a>
+            </div>
             <div style="margin: 20px 0;">
                 <h3 style="color: #569cd6;">题目描述</h3>
                 <div id="problem-description" style="color: #ccc; line-height: 1.6;"></div>
@@ -2311,14 +2346,14 @@ function displayLuoguProblem(problemData) {
         problemData.samples.forEach((sample, index) => {
             content += `
                 <div style="margin: 10px 0;">
-                    <div style="display: flex; margin-bottom: 10px;">
-                        <div style="flex: 1; margin-right: 10px;">
+                    <div style="display: flex; margin-bottom: 10px; flex-direction: column;">
+                        <div style="margin-bottom: 10px;">
                             <div style="color: #6a9955; font-weight: bold;">输入 #${index + 1}</div>
-                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap;">${sample[0]}</pre>
+                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap; margin-top: 5px;">${sample[0]}</pre>
                         </div>
-                        <div style="flex: 1;">
+                        <div>
                             <div style="color: #6a9955; font-weight: bold;">输出 #${index + 1}</div>
-                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap;">${sample[1]}</pre>
+                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap; margin-top: 5px;">${sample[1]}</pre>
                         </div>
                     </div>
                 </div>
@@ -2344,6 +2379,40 @@ function displayLuoguProblem(problemData) {
     problemDisplay.innerHTML = content;
     problemDisplay.style.display = 'block';
 
+    // 在移动设备上，临时隐藏编辑器区域以显示题目详情
+    if (isMobile) {
+        const editorArea = document.getElementById('editor-area');
+        if (editorArea) {
+            editorArea.style.display = 'none';
+        }
+
+        // 添加一个返回编辑器的按钮
+        const backButton = document.createElement('div');
+        backButton.innerHTML = '返回编辑器';
+        backButton.style.position = 'fixed';
+        backButton.style.bottom = '20px';
+        backButton.style.left = '50%';
+        backButton.style.transform = 'translateX(-50%)';
+        backButton.style.backgroundColor = '#0e639c';
+        backButton.style.color = 'white';
+        backButton.style.padding = '10px 20px';
+        backButton.style.borderRadius = '20px';
+        backButton.style.cursor = 'pointer';
+        backButton.style.zIndex = '102';
+        backButton.style.textAlign = 'center';
+        backButton.id = 'back-to-editor-btn';
+
+        backButton.addEventListener('click', function() {
+            problemDisplay.style.display = 'none';
+            const editorArea = document.getElementById('editor-area');
+            if (editorArea) {
+                editorArea.style.display = 'flex';
+            }
+        });
+
+        problemDisplay.appendChild(backButton);
+    }
+
     // 渲染Markdown和LaTeX内容
     renderMarkdownAndLatex('problem-description', problemData.description || '');
     renderMarkdownAndLatex('problem-input-format', problemData.inputFormat || '');
@@ -2364,6 +2433,33 @@ function displayLuoguProblem(problemData) {
     closeBtn.style.zIndex = '101';
     closeBtn.addEventListener('click', function() {
         problemDisplay.style.display = 'none';
+
+        // 在移动设备上，关闭题目显示后恢复编辑器显示
+        if (isMobile) {
+            const editorArea = document.getElementById('editor-area');
+            if (editorArea) {
+                editorArea.style.display = 'flex';
+
+                // 检查当前是否为手机模式（通过检查lines-container的显示状态）
+                const linesContainer = document.getElementById('lines-container');
+                if (linesContainer && linesContainer.style.display !== 'none') {
+                    // 当前是手机模式，确保3行预览区域可见
+                    linesContainer.style.display = 'flex';
+
+                    // 隐藏Monaco编辑器（在手机模式下）
+                    const editorContainer = document.getElementById('editor-container');
+                    if (editorContainer) {
+                        editorContainer.style.display = 'none';
+                    }
+                }
+            }
+
+            // 移除返回编辑器按钮
+            const backButton = document.getElementById('back-to-editor-btn');
+            if (backButton && backButton.parentNode === problemDisplay) {
+                backButton.parentNode.removeChild(backButton);
+            }
+        }
     });
 
     problemDisplay.appendChild(closeBtn);
@@ -2508,6 +2604,33 @@ if (fullEditor) {
 
 // 初始化洛谷题目功能
 initLuoguFeature();
+
+// 监听窗口大小变化，调整题目显示区域样式
+window.addEventListener('resize', function() {
+    const problemDisplay = document.getElementById('problem-display');
+    if (problemDisplay && problemDisplay.style.display !== 'none') {
+        const isMobile = window.innerWidth <= 768;
+
+        if (isMobile) {
+            // 移动设备上的样式
+            problemDisplay.style.position = 'fixed';
+            problemDisplay.style.top = '36px';
+            problemDisplay.style.left = '0';
+            problemDisplay.style.right = '0';
+            problemDisplay.style.bottom = '0';
+            problemDisplay.style.width = 'auto';
+            problemDisplay.style.height = 'auto';
+        } else {
+            // 桌面设备上的样式
+            problemDisplay.style.position = 'fixed';
+            problemDisplay.style.top = '36px';
+            problemDisplay.style.right = '0';
+            problemDisplay.style.width = '400px';
+            problemDisplay.style.height = 'calc(100vh - 36px)';
+            problemDisplay.style.borderLeft = '1px solid #333';
+        }
+    }
+});
 
 // 初始化虚拟文件系统
 initializeVFS();
