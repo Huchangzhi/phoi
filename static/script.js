@@ -2069,12 +2069,28 @@ function showLuoguProblemDialog() {
     modal.id = 'luogu-modal';
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
+    modal.style.zIndex = '200'; // 确保在其他元素之上
 
     // 创建模态框内容
     const modalContent = document.createElement('div');
     modalContent.className = 'modal-content';
-    modalContent.style.width = '80%';
-    modalContent.style.maxWidth = '500px';
+
+    // 检测是否为移动设备 - 使用键盘显示状态作为参考
+    const keyboardContainer = document.getElementById('keyboard-container');
+    const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+
+    if (isMobile) {
+        // 移动端样式
+        modalContent.style.width = '90%';
+        modalContent.style.maxWidth = 'none';
+        modalContent.style.margin = '20px';
+        modalContent.style.maxHeight = '80vh';
+    } else {
+        // 桌面端样式
+        modalContent.style.width = '80%';
+        modalContent.style.maxWidth = '500px';
+        modalContent.style.margin = 'auto';
+    }
 
     // 创建头部
     const modalHeader = document.createElement('div');
@@ -2098,6 +2114,12 @@ function showLuoguProblemDialog() {
     modalBody.className = 'modal-body';
     modalBody.style.padding = '20px';
 
+    // 在移动端增加最大高度和滚动
+    if (isMobile) {
+        modalBody.style.maxHeight = '60vh';
+        modalBody.style.overflowY = 'auto';
+    }
+
     // 创建输入提示
     const inputLabel = document.createElement('label');
     inputLabel.textContent = '请输入题号（例如：P1001 或 p1001）：';
@@ -2110,13 +2132,18 @@ function showLuoguProblemDialog() {
     inputField.type = 'text';
     inputField.placeholder = '例如：P1001';
     inputField.style.width = '100%';
-    inputField.style.padding = '8px';
+    inputField.style.padding = '12px';
     inputField.style.marginBottom = '15px';
     inputField.style.backgroundColor = '#1e1e1e';
     inputField.style.color = '#d4d4d4';
     inputField.style.border = '1px solid #3c3c3c';
     inputField.style.borderRadius = '4px';
-    inputField.style.fontSize = '14px';
+    inputField.style.fontSize = '16px'; // 移动端更大的字体
+
+    // 在移动端增加触摸目标大小
+    if (isMobile) {
+        inputField.style.minHeight = '44px'; // 符合移动端触摸目标大小
+    }
 
     // 从localStorage中恢复上次输入的题号
     const savedProblemId = localStorage.getItem('phoi_last_luogu_problem_id');
@@ -2130,6 +2157,13 @@ function showLuoguProblemDialog() {
     confirmBtn.className = 'modal-btn';
     confirmBtn.style.backgroundColor = '#0e639c';
     confirmBtn.style.float = 'right';
+    confirmBtn.style.padding = '12px 24px';
+
+    // 在移动端增加触摸目标大小
+    if (isMobile) {
+        confirmBtn.style.minHeight = '44px';
+        confirmBtn.style.fontSize = '16px';
+    }
 
     // 添加回车键支持
     inputField.addEventListener('keyup', function(e) {
@@ -2163,6 +2197,13 @@ function showLuoguProblemDialog() {
 
     // 聚焦到输入框
     inputField.focus();
+
+    // 在移动端，确保输入框不会被虚拟键盘遮挡
+    if (isMobile) {
+        setTimeout(() => {
+            inputField.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }, 300);
+    }
 }
 
 // 加载洛谷题目
@@ -2176,7 +2217,15 @@ function loadLuoguProblem(problemId) {
     // 模拟加载过程
     const problemDisplay = document.getElementById('problem-display');
     if (problemDisplay) {
-        problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc;">正在加载题目...</div>';
+        // 检测是否为移动设备 - 使用键盘显示状态作为参考
+        const keyboardContainer = document.getElementById('keyboard-container');
+        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+
+        if (isMobile) {
+            problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc; text-align: center;">正在加载题目...</div>';
+        } else {
+            problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc;">正在加载题目...</div>';
+        }
         problemDisplay.style.display = 'block';
 
         // 异步加载题目数据
@@ -2184,10 +2233,18 @@ function loadLuoguProblem(problemId) {
             if (problemData) {
                 displayLuoguProblem(problemData);
             } else {
-                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">未找到题目: ' + problemId + '</div>';
+                if (isMobile) {
+                    problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771; text-align: center;">未找到题目: ' + problemId + '</div>';
+                } else {
+                    problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">未找到题目: ' + problemId + '</div>';
+                }
             }
         }).catch(error => {
-            problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">加载题目失败: ' + error.message + '</div>';
+            if (isMobile) {
+                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771; text-align: center;">加载题目失败: ' + error.message + '</div>';
+            } else {
+                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">加载题目失败: ' + error.message + '</div>';
+            }
         });
     }
 }
@@ -2254,8 +2311,9 @@ function createProblemDisplayArea() {
         problemDisplay = document.createElement('div');
         problemDisplay.id = 'problem-display';
 
-        // 检测是否为移动设备
-        const isMobile = window.innerWidth <= 768;
+        // 检测是否为移动设备 - 使用键盘显示状态作为参考
+        const keyboardContainer = document.getElementById('keyboard-container');
+        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
 
         if (isMobile) {
             // 移动设备上的样式
@@ -2269,6 +2327,8 @@ function createProblemDisplayArea() {
             problemDisplay.style.backgroundColor = '#1e1e1e';
             problemDisplay.style.zIndex = '100';
             problemDisplay.style.overflowY = 'auto';
+            problemDisplay.style.WebkitOverflowScrolling = 'touch'; // 启用硬件加速的滚动
+            problemDisplay.style.touchAction = 'pan-y'; // 确保可以垂直滚动
             problemDisplay.style.display = 'none';
             problemDisplay.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
         } else {
@@ -2282,6 +2342,7 @@ function createProblemDisplayArea() {
             problemDisplay.style.borderLeft = '1px solid #333';
             problemDisplay.style.zIndex = '100';
             problemDisplay.style.overflowY = 'auto';
+            problemDisplay.style.WebkitOverflowScrolling = 'touch'; // 启用硬件加速的滚动
             problemDisplay.style.display = 'none';
             problemDisplay.style.boxShadow = '-5px 0 15px rgba(0,0,0,0.5)';
         }
@@ -2312,72 +2373,202 @@ function displayLuoguProblem(problemData) {
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
-    // 检测是否为移动设备
-    const isMobile = window.innerWidth <= 768;
+    // 检测是否为移动设备 - 使用键盘显示状态作为参考
+    const keyboardContainer = document.getElementById('keyboard-container');
+    const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
 
-    // 构建题目内容HTML
-    let content = `
-        <div style="padding: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px;">
-                <h2 style="color: #ccc; margin: 0;">${problemData.pid}. ${problemData.title}</h2>
-                <a href="https://www.luogu.com.cn/problem/${problemData.pid}" target="_blank" style="background-color: #0e639c; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px;">跳转到洛谷</a>
-            </div>
-            <div style="margin: 20px 0;">
-                <h3 style="color: #569cd6;">题目描述</h3>
-                <div id="problem-description" style="color: #ccc; line-height: 1.6;"></div>
-            </div>
-            <div style="margin: 20px 0;">
-                <h3 style="color: #569cd6;">输入格式</h3>
-                <div id="problem-input-format" style="color: #ccc; line-height: 1.6;"></div>
-            </div>
-            <div style="margin: 20px 0;">
-                <h3 style="color: #569cd6;">输出格式</h3>
-                <div id="problem-output-format" style="color: #ccc; line-height: 1.6;"></div>
-            </div>
-    `;
+    // 清空并显示题目区域
+    problemDisplay.innerHTML = '';
+    problemDisplay.style.display = 'block';
 
-    // 添加样例
+    // 创建滚动容器
+    const scrollContainer = document.createElement('div');
+    scrollContainer.style.height = '100%';
+    scrollContainer.style.overflowY = 'auto';
+    scrollContainer.style.webkitOverflowScrolling = 'touch'; // 启用iOS弹性滚动
+    scrollContainer.style.padding = '20px';
+    scrollContainer.style.boxSizing = 'border-box';
+    scrollContainer.style.touchAction = 'pan-y'; // 允许垂直滚动
+
+    // 标题区域
+    const titleContainer = document.createElement('div');
+    titleContainer.style.display = 'flex';
+    titleContainer.style.justifyContent = 'space-between';
+    titleContainer.style.alignItems = 'center';
+    titleContainer.style.marginTop = '30px';
+    titleContainer.style.flexWrap = 'wrap';
+    titleContainer.style.gap = '10px';
+
+    const titleElement = document.createElement('h2');
+    titleElement.style.color = '#ccc';
+    titleElement.style.margin = '0';
+    titleElement.style.flex = '1';
+    titleElement.style.minWidth = '0';
+    titleElement.textContent = `${problemData.pid}. ${problemData.title}`;
+
+    const linkButton = document.createElement('a');
+    linkButton.href = `https://www.luogu.com.cn/problem/${problemData.pid}`;
+    linkButton.target = '_blank';
+    linkButton.style.backgroundColor = '#0e639c';
+    linkButton.style.color = 'white';
+    linkButton.style.padding = '8px 16px';
+    linkButton.style.textDecoration = 'none';
+    linkButton.style.borderRadius = '4px';
+    linkButton.style.fontSize = '14px';
+    linkButton.style.whiteSpace = 'nowrap';
+    linkButton.textContent = '跳转到洛谷';
+
+    titleContainer.appendChild(titleElement);
+    titleContainer.appendChild(linkButton);
+    scrollContainer.appendChild(titleContainer);
+
+    // 题目描述
+    const descSection = document.createElement('div');
+    descSection.style.margin = '20px 0';
+
+    const descHeading = document.createElement('h3');
+    descHeading.style.color = '#569cd6';
+    descHeading.textContent = '题目描述';
+
+    const descContent = document.createElement('div');
+    descContent.id = 'problem-description';
+    descContent.style.color = '#ccc';
+    descContent.style.lineHeight = '1.6';
+
+    descSection.appendChild(descHeading);
+    descSection.appendChild(descContent);
+    scrollContainer.appendChild(descSection);
+
+    // 输入格式
+    const inputSection = document.createElement('div');
+    inputSection.style.margin = '20px 0';
+
+    const inputHeading = document.createElement('h3');
+    inputHeading.style.color = '#569cd6';
+    inputHeading.textContent = '输入格式';
+
+    const inputContent = document.createElement('div');
+    inputContent.id = 'problem-input-format';
+    inputContent.style.color = '#ccc';
+    inputContent.style.lineHeight = '1.6';
+
+    inputSection.appendChild(inputHeading);
+    inputSection.appendChild(inputContent);
+    scrollContainer.appendChild(inputSection);
+
+    // 输出格式
+    const outputSection = document.createElement('div');
+    outputSection.style.margin = '20px 0';
+
+    const outputHeading = document.createElement('h3');
+    outputHeading.style.color = '#569cd6';
+    outputHeading.textContent = '输出格式';
+
+    const outputContent = document.createElement('div');
+    outputContent.id = 'problem-output-format';
+    outputContent.style.color = '#ccc';
+    outputContent.style.lineHeight = '1.6';
+
+    outputSection.appendChild(outputHeading);
+    outputSection.appendChild(outputContent);
+    scrollContainer.appendChild(outputSection);
+
+    // 样例
     if (problemData.samples && problemData.samples.length > 0) {
-        content += `
-            <div style="margin: 20px 0;">
-                <h3 style="color: #569cd6;">样例</h3>
-        `;
+        const samplesSection = document.createElement('div');
+        samplesSection.style.margin = '20px 0';
+
+        const samplesHeading = document.createElement('h3');
+        samplesHeading.style.color = '#569cd6';
+        samplesHeading.textContent = '样例';
+
+        samplesSection.appendChild(samplesHeading);
 
         problemData.samples.forEach((sample, index) => {
-            content += `
-                <div style="margin: 10px 0;">
-                    <div style="display: flex; margin-bottom: 10px; flex-direction: column;">
-                        <div style="margin-bottom: 10px;">
-                            <div style="color: #6a9955; font-weight: bold;">输入 #${index + 1}</div>
-                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap; margin-top: 5px;">${sample[0]}</pre>
-                        </div>
-                        <div>
-                            <div style="color: #6a9955; font-weight: bold;">输出 #${index + 1}</div>
-                            <pre style="background: #1e1e1e; padding: 10px; border: 1px solid #333; color: #ccc; white-space: pre-wrap; margin-top: 5px;">${sample[1]}</pre>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const sampleContainer = document.createElement('div');
+            sampleContainer.style.margin = '15px 0';
+            sampleContainer.style.border = '1px solid #333';
+            sampleContainer.style.borderRadius = '4px';
+            sampleContainer.style.overflow = 'hidden';
+
+            // 输入部分
+            const inputBlock = document.createElement('div');
+            inputBlock.style.padding = '10px';
+            inputBlock.style.backgroundColor = '#1a1a1a';
+
+            const inputLabel = document.createElement('div');
+            inputLabel.style.color = '#6a9955';
+            inputLabel.style.fontWeight = 'bold';
+            inputLabel.style.marginBottom = '5px';
+            inputLabel.textContent = `输入 #${index + 1}`;
+
+            const inputPre = document.createElement('pre');
+            inputPre.style.background = '#1e1e1e';
+            inputPre.style.padding = '10px';
+            inputPre.style.border = '1px solid #333';
+            inputPre.style.color = '#ccc';
+            inputPre.style.whiteSpace = 'pre-wrap';
+            inputPre.style.margin = '0';
+            inputPre.style.overflowX = 'auto';
+            inputPre.style.webkitOverflowScrolling = 'touch';
+            inputPre.textContent = sample[0];
+
+            inputBlock.appendChild(inputLabel);
+            inputBlock.appendChild(inputPre);
+
+            // 输出部分
+            const outputBlock = document.createElement('div');
+            outputBlock.style.padding = '10px';
+            outputBlock.style.backgroundColor = '#1a1a1a';
+
+            const outputLabel = document.createElement('div');
+            outputLabel.style.color = '#6a9955';
+            outputLabel.style.fontWeight = 'bold';
+            outputLabel.style.marginBottom = '5px';
+            outputLabel.textContent = `输出 #${index + 1}`;
+
+            const outputPre = document.createElement('pre');
+            outputPre.style.background = '#1e1e1e';
+            outputPre.style.padding = '10px';
+            outputPre.style.border = '1px solid #333';
+            outputPre.style.color = '#ccc';
+            outputPre.style.whiteSpace = 'pre-wrap';
+            outputPre.style.margin = '0';
+            outputPre.style.overflowX = 'auto';
+            outputPre.style.webkitOverflowScrolling = 'touch';
+            outputPre.textContent = sample[1];
+
+            outputBlock.appendChild(outputLabel);
+            outputBlock.appendChild(outputPre);
+
+            sampleContainer.appendChild(inputBlock);
+            sampleContainer.appendChild(outputBlock);
+            samplesSection.appendChild(sampleContainer);
         });
 
-        content += `</div>`;
+        scrollContainer.appendChild(samplesSection);
     }
 
-    // 添加提示
+    // 提示
     if (problemData.hint) {
-        content += `
-            <div style="margin: 20px 0;">
-                <h3 style="color: #569cd6;">提示</h3>
-                <div id="problem-hint" style="color: #ccc; line-height: 1.6;"></div>
-            </div>
-        `;
+        const hintSection = document.createElement('div');
+        hintSection.style.margin = '20px 0';
+
+        const hintHeading = document.createElement('h3');
+        hintHeading.style.color = '#569cd6';
+        hintHeading.textContent = '提示';
+
+        const hintContent = document.createElement('div');
+        hintContent.id = 'problem-hint';
+        hintContent.style.color = '#ccc';
+        hintContent.style.lineHeight = '1.6';
+
+        hintSection.appendChild(hintHeading);
+        hintSection.appendChild(hintContent);
+        scrollContainer.appendChild(hintSection);
     }
 
-    content += `</div>`;
-
-    // 设置内容并显示
-    problemDisplay.innerHTML = content;
-    problemDisplay.style.display = 'block';
+    problemDisplay.appendChild(scrollContainer);
 
     // 在移动设备上，临时隐藏编辑器区域以显示题目详情
     if (isMobile) {
@@ -2395,11 +2586,14 @@ function displayLuoguProblem(problemData) {
         backButton.style.transform = 'translateX(-50%)';
         backButton.style.backgroundColor = '#0e639c';
         backButton.style.color = 'white';
-        backButton.style.padding = '10px 20px';
-        backButton.style.borderRadius = '20px';
+        backButton.style.padding = '12px 24px';
+        backButton.style.borderRadius = '30px';
         backButton.style.cursor = 'pointer';
         backButton.style.zIndex = '102';
         backButton.style.textAlign = 'center';
+        backButton.style.fontSize = '16px';
+        backButton.style.fontWeight = 'bold';
+        backButton.style.boxSizing = 'border-box';
         backButton.id = 'back-to-editor-btn';
 
         backButton.addEventListener('click', function() {
@@ -2408,9 +2602,18 @@ function displayLuoguProblem(problemData) {
             if (editorArea) {
                 editorArea.style.display = 'flex';
             }
+
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
         });
 
         problemDisplay.appendChild(backButton);
+
+        // 确保在移动设备上可以滚动
+        document.body.style.overflow = 'hidden';  // 防止背景页面滚动
+    } else {
+        // 在桌面设备上，确保滚动正常
+        document.body.style.overflow = '';
     }
 
     // 渲染Markdown和LaTeX内容
@@ -2459,6 +2662,12 @@ function displayLuoguProblem(problemData) {
             if (backButton && backButton.parentNode === problemDisplay) {
                 backButton.parentNode.removeChild(backButton);
             }
+
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
+        } else {
+            // 在桌面设备上，确保滚动正常
+            document.body.style.overflow = '';
         }
     });
 
@@ -2609,7 +2818,8 @@ initLuoguFeature();
 window.addEventListener('resize', function() {
     const problemDisplay = document.getElementById('problem-display');
     if (problemDisplay && problemDisplay.style.display !== 'none') {
-        const isMobile = window.innerWidth <= 768;
+        const keyboardContainer = document.getElementById('keyboard-container');
+        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
 
         if (isMobile) {
             // 移动设备上的样式

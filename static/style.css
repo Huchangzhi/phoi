@@ -602,3 +602,38 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .modal-body a:hover {
     text-decoration: underline;
 }
+
+/* 自定义滚动条样式 */
+#problem-display::-webkit-scrollbar {
+    width: 8px;
+}
+
+#problem-display::-webkit-scrollbar-track {
+    background: #252526;
+}
+
+#problem-display::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+#problem-display::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* 桌面端滚动条样式（如果需要更宽的滚动条） */
+@media screen and (min-width: 769px) {
+    #problem-display::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    #problem-display::-webkit-scrollbar-thumb {
+        border-radius: 5px;
+    }
+}
+
+/* 确保移动端可以触摸滚动 */
+#problem-display {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
