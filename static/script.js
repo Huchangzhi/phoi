@@ -2325,9 +2325,8 @@ function createProblemDisplayArea() {
             problemDisplay.style.height = 'auto';
             problemDisplay.style.backgroundColor = '#1e1e1e';
             problemDisplay.style.zIndex = '100';
-            problemDisplay.style.overflowY = 'auto';
-            problemDisplay.style.WebkitOverflowScrolling = 'touch'; // 启用硬件加速的滚动
-            problemDisplay.style.touchAction = 'pan-y'; // 确保可以垂直滚动
+            problemDisplay.style.overflowY = 'hidden'; // 隐藏滚动条，使用按钮滚动
+            problemDisplay.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
             problemDisplay.style.display = 'none';
             problemDisplay.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
         } else {
@@ -2382,11 +2381,86 @@ function displayLuoguProblem(problemData) {
     // 创建滚动容器
     const scrollContainer = document.createElement('div');
     scrollContainer.style.height = '100%';
-    scrollContainer.style.overflowY = 'auto';
-    scrollContainer.style.webkitOverflowScrolling = 'touch'; // 启用iOS弹性滚动
+    scrollContainer.style.overflowY = 'auto'; // 启用滚动以便按钮可以控制
     scrollContainer.style.padding = '20px';
     scrollContainer.style.boxSizing = 'border-box';
-    scrollContainer.style.touchAction = 'pan-y'; // 允许垂直滚动
+    scrollContainer.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
+
+    // 为移动端隐藏滚动条
+    if (isMobile) {
+        // 隐藏滚动条的样式
+        scrollContainer.style.msOverflowStyle = 'none';  // IE 和 Edge
+        scrollContainer.style.scrollbarWidth = 'none';  // Firefox
+
+        // 为 Webkit 浏览器隐藏滚动条
+        const style = document.createElement('style');
+        style.textContent = `
+            #problem-display [data-scroll-container]::-webkit-scrollbar {
+                display: none;  /* Chrome, Safari, Opera*/
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    scrollContainer.setAttribute('data-scroll-container', 'true'); // 标记这个容器用于滚动
+
+    // 难度标签
+    const difficultyTag = document.createElement('div');
+    difficultyTag.style.display = 'inline-block';
+    difficultyTag.style.padding = '4px 8px';
+    difficultyTag.style.borderRadius = '4px';
+    difficultyTag.style.fontSize = '12px';
+    difficultyTag.style.fontWeight = 'bold';
+    difficultyTag.style.marginRight = '10px';
+    difficultyTag.style.verticalAlign = 'middle';
+
+    // 根据难度设置颜色
+    switch(problemData.difficulty) {
+        case 0: // 暂无评定
+            difficultyTag.style.backgroundColor = '#666';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '暂无评定';
+            break;
+        case 1: // 入门
+            difficultyTag.style.backgroundColor = '#ff4444';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '入门';
+            break;
+        case 2: // 普及-
+            difficultyTag.style.backgroundColor = '#ff8800';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '普及-';
+            break;
+        case 3: // 普及/提高-
+            difficultyTag.style.backgroundColor = '#ffbb00';
+            difficultyTag.style.color = 'black';
+            difficultyTag.textContent = '普及/提高-';
+            break;
+        case 4: // 普及+/提高
+            difficultyTag.style.backgroundColor = '#00aa00';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '普及+/提高';
+            break;
+        case 5: // 提高+/省选-
+            difficultyTag.style.backgroundColor = '#0066cc';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '提高+/省选-';
+            break;
+        case 6: // 省选/NOI-
+            difficultyTag.style.backgroundColor = '#8800cc';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '省选/NOI-';
+            break;
+        case 7: // NOI/NOI+/CTSC
+            difficultyTag.style.backgroundColor = '#220066';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = 'NOI/NOI+/CTSC';
+            break;
+        default:
+            difficultyTag.style.backgroundColor = '#666';
+            difficultyTag.style.color = 'white';
+            difficultyTag.textContent = '未知难度';
+    }
 
     // 标题区域
     const titleContainer = document.createElement('div');
@@ -2402,7 +2476,13 @@ function displayLuoguProblem(problemData) {
     titleElement.style.margin = '0';
     titleElement.style.flex = '1';
     titleElement.style.minWidth = '0';
-    titleElement.textContent = `${problemData.pid}. ${problemData.title}`;
+    titleElement.style.display = 'flex';
+    titleElement.style.alignItems = 'center';
+    titleElement.appendChild(difficultyTag);
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = `${problemData.pid}. ${problemData.title}`;
+    titleElement.appendChild(titleSpan);
 
     const linkButton = document.createElement('a');
     linkButton.href = `https://www.luogu.com.cn/problem/${problemData.pid}`;
@@ -2676,22 +2756,7 @@ function displayLuoguProblem(problemData) {
         // 上移按钮
         const upBtn = document.createElement('div');
         upBtn.innerHTML = '↑';
-        upBtn.style.position = 'fixed';
-        upBtn.style.top = '60px';
-        upBtn.style.right = '20px';
-        upBtn.style.width = '40px';
-        upBtn.style.height = '40px';
-        upBtn.style.backgroundColor = 'rgba(14, 99, 156, 0.8)';
-        upBtn.style.color = 'white';
-        upBtn.style.display = 'flex';
-        upBtn.style.alignItems = 'center';
-        upBtn.style.justifyContent = 'center';
-        upBtn.style.borderRadius = '50%';
-        upBtn.style.cursor = 'pointer';
-        upBtn.style.zIndex = '102';
-        upBtn.style.fontSize = '20px';
-        upBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
-        upBtn.style.userSelect = 'none';
+        upBtn.className = 'up-btn-mobile';
 
         // 上移按钮点击事件
         let upBtnInterval;
@@ -2727,22 +2792,7 @@ function displayLuoguProblem(problemData) {
         // 下移按钮
         const downBtn = document.createElement('div');
         downBtn.innerHTML = '↓';
-        downBtn.style.position = 'fixed';
-        downBtn.style.bottom = '80px';
-        downBtn.style.right = '20px';
-        downBtn.style.width = '40px';
-        downBtn.style.height = '40px';
-        downBtn.style.backgroundColor = 'rgba(14, 99, 156, 0.8)';
-        downBtn.style.color = 'white';
-        downBtn.style.display = 'flex';
-        downBtn.style.alignItems = 'center';
-        downBtn.style.justifyContent = 'center';
-        downBtn.style.borderRadius = '50%';
-        downBtn.style.cursor = 'pointer';
-        downBtn.style.zIndex = '102';
-        downBtn.style.fontSize = '20px';
-        downBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
-        downBtn.style.userSelect = 'none';
+        downBtn.className = 'down-btn-mobile';
 
         // 下移按钮点击事件
         let downBtnInterval;
