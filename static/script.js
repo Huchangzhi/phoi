@@ -2075,9 +2075,8 @@ function showLuoguProblemDialog() {
     const modalContent = document.createElement('div');
     modalContent.className = 'modal-content';
 
-    // 检测是否为移动设备 - 使用键盘显示状态作为参考
-    const keyboardContainer = document.getElementById('keyboard-container');
-    const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+    // 检测是否为移动设备 - 使用 isFullMode 变量作为参考
+    const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
     if (isMobile) {
         // 移动端样式
@@ -2219,7 +2218,7 @@ function loadLuoguProblem(problemId) {
     if (problemDisplay) {
         // 检测是否为移动设备 - 使用键盘显示状态作为参考
         const keyboardContainer = document.getElementById('keyboard-container');
-        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+        const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
         if (isMobile) {
             problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc; text-align: center;">正在加载题目...</div>';
@@ -2313,7 +2312,7 @@ function createProblemDisplayArea() {
 
         // 检测是否为移动设备 - 使用键盘显示状态作为参考
         const keyboardContainer = document.getElementById('keyboard-container');
-        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+        const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
         if (isMobile) {
             // 移动设备上的样式
@@ -2373,9 +2372,8 @@ function displayLuoguProblem(problemData) {
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
-    // 检测是否为移动设备 - 使用键盘显示状态作为参考
-    const keyboardContainer = document.getElementById('keyboard-container');
-    const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+    // 检测是否为移动设备 - 使用 isFullMode 变量作为参考
+    const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
     // 清空并显示题目区域
     problemDisplay.innerHTML = '';
@@ -2672,6 +2670,111 @@ function displayLuoguProblem(problemData) {
     });
 
     problemDisplay.appendChild(closeBtn);
+
+    // 在移动端添加滚动按钮
+    if (isMobile) {
+        // 上移按钮
+        const upBtn = document.createElement('div');
+        upBtn.innerHTML = '↑';
+        upBtn.style.position = 'fixed';
+        upBtn.style.top = '60px';
+        upBtn.style.right = '20px';
+        upBtn.style.width = '40px';
+        upBtn.style.height = '40px';
+        upBtn.style.backgroundColor = 'rgba(14, 99, 156, 0.8)';
+        upBtn.style.color = 'white';
+        upBtn.style.display = 'flex';
+        upBtn.style.alignItems = 'center';
+        upBtn.style.justifyContent = 'center';
+        upBtn.style.borderRadius = '50%';
+        upBtn.style.cursor = 'pointer';
+        upBtn.style.zIndex = '102';
+        upBtn.style.fontSize = '20px';
+        upBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+        upBtn.style.userSelect = 'none';
+
+        // 上移按钮点击事件
+        let upBtnInterval;
+        upBtn.addEventListener('mousedown', function() {
+            scrollContainer.scrollTop -= 50;
+            upBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop -= 50;
+            }, 100);
+        });
+
+        upBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            scrollContainer.scrollTop -= 50;
+            upBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop -= 50;
+            }, 100);
+        });
+
+        upBtn.addEventListener('mouseup', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        upBtn.addEventListener('touchend', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        upBtn.addEventListener('mouseleave', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        problemDisplay.appendChild(upBtn);
+
+        // 下移按钮
+        const downBtn = document.createElement('div');
+        downBtn.innerHTML = '↓';
+        downBtn.style.position = 'fixed';
+        downBtn.style.bottom = '80px';
+        downBtn.style.right = '20px';
+        downBtn.style.width = '40px';
+        downBtn.style.height = '40px';
+        downBtn.style.backgroundColor = 'rgba(14, 99, 156, 0.8)';
+        downBtn.style.color = 'white';
+        downBtn.style.display = 'flex';
+        downBtn.style.alignItems = 'center';
+        downBtn.style.justifyContent = 'center';
+        downBtn.style.borderRadius = '50%';
+        downBtn.style.cursor = 'pointer';
+        downBtn.style.zIndex = '102';
+        downBtn.style.fontSize = '20px';
+        downBtn.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+        downBtn.style.userSelect = 'none';
+
+        // 下移按钮点击事件
+        let downBtnInterval;
+        downBtn.addEventListener('mousedown', function() {
+            scrollContainer.scrollTop += 50;
+            downBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop += 50;
+            }, 100);
+        });
+
+        downBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            scrollContainer.scrollTop += 50;
+            downBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop += 50;
+            }, 100);
+        });
+
+        downBtn.addEventListener('mouseup', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        downBtn.addEventListener('touchend', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        downBtn.addEventListener('mouseleave', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        problemDisplay.appendChild(downBtn);
+    }
 }
 
 // 渲染Markdown和LaTeX内容
@@ -2819,7 +2922,7 @@ window.addEventListener('resize', function() {
     const problemDisplay = document.getElementById('problem-display');
     if (problemDisplay && problemDisplay.style.display !== 'none') {
         const keyboardContainer = document.getElementById('keyboard-container');
-        const isMobile = keyboardContainer && (keyboardContainer.style.display === 'flex' || keyboardContainer.style.display === '');
+        const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
         if (isMobile) {
             // 移动设备上的样式
