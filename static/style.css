@@ -607,6 +607,41 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     text-decoration: underline;
 }
 
+/* 移动端代码补全样式 */
+#mobile-autocomplete-container {
+    display: flex;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    height: 40px;
+    align-items: center;
+    padding: 0 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    border-top: 1px solid #333;
+    z-index: 99;
+    position: fixed;
+    bottom: 200px;  /* 键盘高度是200px，所以补全框在键盘上方 */
+    left: 40px;     /* 从侧边栏右边开始 */
+    right: 0;
+}
+
+/* 当键盘被隐藏时，补全框也应该隐藏 */
+#keyboard-container.hide-keyboard ~ #mobile-autocomplete-container {
+    display: none !important;
+}
+
+.mobile-autocomplete-item {
+    color: #d4d4d4;
+    margin: 0 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mobile-autocomplete-item:hover {
+    text-decoration: underline;
+}
+
 /* 移动端滚动按钮样式 */
 .up-btn-mobile, .down-btn-mobile {
     position: fixed;

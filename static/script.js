@@ -515,16 +515,29 @@ require(['vs/editor/editor.main'], function() {
     });
 
 
+    // 添加一个标志来跟踪程序化更新
+    window.isUpdatingProgrammatically = false;
+
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
-        globalText = monacoEditor.getValue();
-        triggerSaveCode();
+        if (!window.isUpdatingProgrammatically) {
+            globalText = monacoEditor.getValue();
+            triggerSaveCode();
+        } else {
+            // 重置标志
+            window.isUpdatingProgrammatically = false;
+        }
     });
 
     // Update editor when globalText changes
     window.addEventListener('codeUpdated', () => {
         if (monacoEditor && monacoEditor.getValue() !== globalText) {
             monacoEditor.setValue(globalText);
+            // Update Monaco editor cursor position if possible
+            if (typeof globalCursorPos !== 'undefined') {
+                const newPosition = monacoEditor.getModel().getPositionAt(globalCursorPos);
+                monacoEditor.setPosition(newPosition);
+            }
         }
     });
 
@@ -670,31 +683,38 @@ function escapeHtml(t) {
 // 3行预览功能函数
 function renderThreeLines() {
     if(isFullMode) return; // 只在手机模式下显示
-    
-    const lines = globalText.split('\n');
+
+    // 统一处理换行符，将\r\n替换为\n进行计算
+    const normalizedText = globalText.replace(/\r\n/g, '\n');
+    const lines = normalizedText.split('\n');
     let accum = 0, idx = 0, start = 0;
-    for(let i=0; i<lines.length; i++) {
-        if(globalCursorPos >= accum && globalCursorPos <= accum + lines[i].length) { 
-            idx=i; 
-            start=accum; 
-            break; 
-        }
-        accum += lines[i].length + 1;
-    }
     
+    // 寻找光标所在的行
+    for(let i=0; i<lines.length; i++) {
+        // 检查光标是否在当前行（包括行末的换行符位置）
+        if(globalCursorPos >= accum && globalCursorPos <= accum + lines[i].length) {
+            idx = i;
+            start = accum;
+            break;
+        }
+        accum += lines[i].length + 1; // +1 for the newline character
+    }
+
     // 更新行号
     if (lnPrev) lnPrev.textContent = (idx > 0) ? (idx) : "";
     if (lnCurr) lnCurr.textContent = idx + 1;
     if (lnNext) lnNext.textContent = (idx < lines.length - 1) ? (idx + 2) : "";
 
-    // 更新行内容
-    if (linePrev) linePrev.textContent = lines[idx-1]||(idx===0?"-- TOP --":"");
-    if (lineNext) lineNext.textContent = lines[idx+1]||(idx===lines.length-1?"-- END --":"");
+    // 更新行内容 - 使用原始文本以保持换行符的一致性
+    const originalLines = globalText.replace(/\r\n/g, '\n').split('\n'); // 保持一致的分割方式
+    if (linePrev) linePrev.textContent = originalLines[idx-1]||(idx===0?"-- TOP --":"");
+    if (lineNext) lineNext.textContent = originalLines[idx+1]||(idx===lines.length-1?"-- END --":"");
     if (lineCurr) {
-        const cT = lines[idx]; 
+        const cT = originalLines[idx];
+        // 计算光标在当前行中的相对位置
         const rC = globalCursorPos - start;
         lineCurr.innerHTML = escapeHtml(cT.substring(0, rC)) + '<span class="cursor"></span>' + escapeHtml(cT.substring(rC));
-        
+
         setTimeout(() => {
             const c = lineCurr.querySelector('.cursor');
             if(c) c.scrollIntoView({ behavior: "auto", block: "center", inline: "center" });
@@ -727,18 +747,20 @@ function toggleLineComment() {
 }
 
 function handleEnter() {
-    const prevChar = globalText[globalCursorPos-1];
-    const nextChar = globalText[globalCursorPos];
-    const lastNL = globalText.lastIndexOf('\n', globalCursorPos - 1);
+    // 统一处理换行符，将\r\n替换为\n进行计算
+    const normalizedText = globalText.replace(/\r\n/g, '\n');
+    const prevChar = normalizedText[globalCursorPos-1];
+    const nextChar = normalizedText[globalCursorPos];
+    const lastNL = normalizedText.lastIndexOf('\n', globalCursorPos - 1);
     const lineStart = lastNL === -1 ? 0 : lastNL + 1;
-    const currentLine = globalText.substring(lineStart, globalCursorPos);
+    const currentLine = normalizedText.substring(lineStart, globalCursorPos);
     const indentMatch = currentLine.match(/^(\t*)/);
     let indent = indentMatch ? indentMatch[1] : "";
-    
+
     if (prevChar === '{' && nextChar === '}') {
-        insertTextAtCursor('\n' + indent + '\t' + '\n' + indent, 1 + indent.length); 
+        insertTextAtCursor('\n' + indent + '\t' + '\n' + indent, 1 + indent.length);
         return;
-    } 
+    }
     if (prevChar === '{') indent += '\t';
     insertTextAtCursor('\n' + indent);
 }
@@ -755,17 +777,61 @@ function insertTextAtCursor(t, back=0) {
     syncState();
 }
 function deleteText(fw) {
-    if(fw) { if(globalCursorPos<globalText.length) globalText = globalText.slice(0,globalCursorPos)+globalText.slice(globalCursorPos+1); }
-    else { if(globalCursorPos>0) { globalText = globalText.slice(0,globalCursorPos-1)+globalText.slice(globalCursorPos); globalCursorPos--; } }
+    if(fw) { // 向前删除（Delete键）
+        if(globalCursorPos < globalText.length) {
+            globalText = globalText.slice(0, globalCursorPos) + globalText.slice(globalCursorPos+1);
+        }
+    }
+    else { // 向后删除（Backspace键）
+        if(globalCursorPos > 0) {
+            // 检查是否在行首（即前一个字符是换行符或Windows换行符的一部分）
+            let charsToDelete = 1; // 默认删除一个字符
+            
+            // 检查是否是Windows换行符（\r\n）的后半部分
+            if(globalCursorPos >= 2 && globalText[globalCursorPos-2] === '\r' && globalText[globalCursorPos-1] === '\n') {
+                // 删除\r\n这两个字符
+                globalText = globalText.slice(0, globalCursorPos-2) + globalText.slice(globalCursorPos);
+                globalCursorPos -= 2; // 光标向前移动两位
+            }
+            // 检查是否是普通换行符（\n）
+            else if(globalText[globalCursorPos-1] === '\n') {
+                // 删除\n这个字符
+                globalText = globalText.slice(0, globalCursorPos-1) + globalText.slice(globalCursorPos);
+                globalCursorPos -= 1; // 光标向前移动一位
+            }
+            else {
+                // 普通字符删除
+                globalText = globalText.slice(0, globalCursorPos-1) + globalText.slice(globalCursorPos);
+                globalCursorPos -= 1; // 光标向前移动一位
+            }
+        }
+    }
     syncState();
 }
 function moveCursor(d) {
     if(d==='left'&&globalCursorPos>0)globalCursorPos--;
     else if(d==='right'&&globalCursorPos<globalText.length)globalCursorPos++;
     else if(d==='up'||d==='down'){
-        const ls=[]; let a=0; globalText.split('\n').forEach(l=>{ls.push({s:a,l:l.length});a+=l.length+1});
-        const ci=ls.findIndex(l=>globalCursorPos>=l.s&&globalCursorPos<=l.s+l.l);
-        if(ci!==-1){ const ti=d==='up'?ci-1:ci+1; if(ti>=0&&ti<ls.length)globalCursorPos=ls[ti].s+Math.min(globalCursorPos-ls[ci].s,ls[ti].l); }
+        // 统一处理换行符，将\r\n替换为\n进行计算
+        const normalizedText = globalText.replace(/\r\n/g, '\n');
+        const lines = normalizedText.split('\n');
+        const lineStarts = [];
+        let accum = 0;
+        
+        for(const line of lines) {
+            lineStarts.push({s: accum, l: line.length});
+            accum += line.length + 1; // +1 for the newline character
+        }
+        
+        const ci = lineStarts.findIndex(l => globalCursorPos >= l.s && globalCursorPos <= l.s + l.l);
+        if(ci !== -1) { 
+            const ti = d === 'up' ? ci-1 : ci+1; 
+            if(ti >= 0 && ti < lineStarts.length) {
+                // 移动到上一行或下一行，保持相同的列位置（如果可能）
+                const currentCol = globalCursorPos - lineStarts[ci].s;
+                globalCursorPos = Math.min(lineStarts[ti].s + lineStarts[ti].l, lineStarts[ti].s + currentCol);
+            }
+        }
     }
     syncState();
 }
@@ -790,13 +856,18 @@ function syncState() {
 
     // Dispatch custom event to notify Monaco editor of content change
     window.dispatchEvent(new CustomEvent('codeUpdated'));
+    
+    // 触发移动代码补全更新（如果存在）
+    if (typeof updateMobileAutocomplete === 'function') {
+        setTimeout(updateMobileAutocomplete, 0); // 使用setTimeout确保在状态更新后执行
+    }
 }
 
 function handleKeyInput(keyEl) {
     const rawKey = keyEl.getAttribute('data-key');
     if (rawKey === 'Shift') return;
     if (rawKey === 'Control') { isCtrlActive = !isCtrlActive; updateKeyboardVisuals(); return; }
-    
+
     if (isCtrlActive) {
         if (rawKey === '/') { toggleLineComment(); isCtrlActive = false; updateKeyboardVisuals(); return; }
         isCtrlActive = false; updateKeyboardVisuals();
@@ -813,8 +884,8 @@ function handleKeyInput(keyEl) {
         char = (rawKey.length === 1 && /[a-z]/i.test(rawKey)) ? rawKey.toLowerCase() : (rawKey.length === 1 ? rawKey : null);
     }
 
-    if (char && ['(', '{', '[', '"', "'"].includes(char)) { handleAutoPair(char); return; }
-    if (char) insertTextAtCursor(char);
+    if (char && ['(', '{', '[', '"', "'"].includes(char)) { handleAutoPair(char); }
+    else if (char) insertTextAtCursor(char);
     else {
         switch(rawKey){
             case 'Enter': handleEnter(); break;
@@ -826,11 +897,52 @@ function handleKeyInput(keyEl) {
             case 'ArrowRight': moveCursor('right'); break;
             case 'ArrowUp': moveCursor('up'); break;
             case 'ArrowDown': moveCursor('down'); break;
-            case 'Home': globalCursorPos=globalText.lastIndexOf('\n',globalCursorPos-1)+1; syncState(); break;
-            case 'End': const n=globalText.indexOf('\n',globalCursorPos); globalCursorPos=n===-1?globalText.length:n; syncState(); break;
+            case 'Home': {
+                // 统一处理换行符，将\r\n替换为\n进行计算
+                const normalizedText = globalText.replace(/\r\n/g, '\n');
+                globalCursorPos = normalizedText.lastIndexOf('\n', globalCursorPos-1) + 1;
+                syncState(); 
+                break;
+            }
+            case 'End': {
+                // 找到当前行的开始位置
+                const currentLineStart = globalText.lastIndexOf('\n', globalCursorPos - 1) + 1;
+                // 找到当前行的结束位置（下一个换行符的位置）
+                let currentLineEnd;
+                
+                // 检查是否是Windows换行符 \r\n
+                let pos = currentLineStart;
+                while (pos < globalText.length) {
+                    if (pos < globalText.length - 1 && 
+                        globalText[pos] === '\r' && 
+                        globalText[pos + 1] === '\n') {
+                        currentLineEnd = pos; // 换行符前的位置
+                        break;
+                    } else if (globalText[pos] === '\n') {
+                        currentLineEnd = pos; // 换行符前的位置
+                        break;
+                    }
+                    pos++;
+                }
+                
+                // 如果当前行没有换行符（即在最后一行），则移动到文档末尾
+                // 否则移动到当前行的末尾（换行符前一个位置）
+                if (typeof currentLineEnd === 'undefined') {
+                    globalCursorPos = globalText.length;
+                } else {
+                    globalCursorPos = currentLineEnd;
+                }
+                syncState(); 
+                break;
+            }
             case 'PageUp': for(let i=0;i<5;i++)moveCursor('up'); break;
             case 'PageDown': for(let i=0;i<5;i++)moveCursor('down'); break;
         }
+    }
+    
+    // 触发移动代码补全更新（如果存在）
+    if (typeof updateMobileAutocomplete === 'function') {
+        setTimeout(updateMobileAutocomplete, 0); // 使用setTimeout确保在状态更新后执行
     }
 }
 
