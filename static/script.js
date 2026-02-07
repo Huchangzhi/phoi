@@ -2256,7 +2256,7 @@ async function fetchLuoguProblemData(problemId) {
     if (!match) return null;
 
     const type = match[1]; // 'P' 或 'B'
-    const indexRes = await fetch('/static/luogu_index.json');
+    const indexRes = await fetch('/static/data/luogu_index.json');
     if (!indexRes.ok) return null;
     const index = await indexRes.json();
     const chunks = index.types?.[type];
@@ -2285,7 +2285,7 @@ async function fetchLuoguProblemData(problemId) {
     if (!targetChunk) return null;
 
     // 加载目标分片
-    const fileRes = await fetch(`/static/${targetChunk.file}`);
+    const fileRes = await fetch(`/static/data/${targetChunk.file}`);
     if (!fileRes.ok) return null;
     const text = await fileRes.text();
     const lines = text.split('\n').filter(line => line.trim());
