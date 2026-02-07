@@ -509,7 +509,36 @@ function displayLuoguProblem(problemData) {
     linkButton.style.whiteSpace = 'nowrap';
     linkButton.textContent = '跳转到洛谷';
 
+    // 检查CPH插件是否启用，如果启用则显示"传送至cph"按钮
+    const cphTransferButton = document.createElement('button');
+    const cphPluginEnabled = localStorage.getItem('cph_plugin_enabled') === 'true';
+    
+    if (cphPluginEnabled) {
+        cphTransferButton.textContent = '传送至CPH';
+        cphTransferButton.style.backgroundColor = '#5a3fc0'; // 紫色背景，区别于洛谷的蓝色
+        cphTransferButton.style.color = 'white';
+        cphTransferButton.style.padding = '8px 16px';
+        cphTransferButton.style.textDecoration = 'none';
+        cphTransferButton.style.border = 'none';
+        cphTransferButton.style.borderRadius = '4px';
+        cphTransferButton.style.fontSize = '14px';
+        cphTransferButton.style.whiteSpace = 'nowrap';
+        cphTransferButton.style.marginRight = '10px';
+        cphTransferButton.style.cursor = 'pointer';
+        
+        // 添加点击事件，传输题目数据到CPH
+        cphTransferButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            transferProblemToCPH(problemData);
+        });
+    } else {
+        // 如果CPH插件未启用，隐藏按钮
+        cphTransferButton.style.display = 'none';
+    }
+
     titleContainer.appendChild(titleElement);
+    // 先添加CPH按钮，再添加洛谷按钮，这样CPH按钮会在左边
+    titleContainer.appendChild(cphTransferButton);
     titleContainer.appendChild(linkButton);
     scrollContainer.appendChild(titleContainer);
 
@@ -861,6 +890,105 @@ function renderMarkdownAndLatex(elementId, content) {
         ],
         throwOnError: false
     });
+}
+
+// 传输题目数据到CPH插件
+function transferProblemToCPH(problemData) {
+    try {
+        // 提取题目编号，移除特殊字符，只保留字母和数字
+        const problemId = problemData.pid.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        // 准备测试用例数据
+        const testCases = [];
+        if (problemData.samples && problemData.samples.length > 0) {
+            problemData.samples.forEach((sample, index) => {
+                testCases.push({
+                    stdin: sample[0],
+                    stdout: sample[1],
+                    name: `样例 ${index + 1}`
+                });
+            });
+        }
+        
+        const fileName = `${problemId}.cpp`;
+        
+        // 首先确保在编辑器中创建并打开对应的cpp文件
+        createAndOpenCppFile(fileName);
+        
+        // 然后发送消息到CPH插件
+        if (window.cphPlugin) {
+            // 如果当前不是目标文件，切换到目标文件
+            if (window.cphPlugin.currentFile !== fileName) {
+                // 保存当前文件的测试用例
+                if (window.cphPlugin.testCases) {
+                    window.cphPlugin.saveTestCases();
+                }
+                
+                // 切换到新文件
+                window.cphPlugin.currentFile = fileName;
+                // 加载新文件的测试用例（如果是新文件则为空）
+                window.cphPlugin.testCases = window.cphPlugin.loadTestCases();
+                
+                // 触发文件更改事件，通知编辑器
+                localStorage.setItem('phoi_currentFileName', fileName);
+            }
+            
+            // 添加测试用例
+            testCases.forEach(testCase => {
+                // 检查是否已存在相同的测试用例
+                const exists = window.cphPlugin.testCases.some(existingCase => 
+                    existingCase.stdin === testCase.stdin && existingCase.stdout === testCase.stdout
+                );
+                
+                if (!exists) {
+                    window.cphPlugin.testCases.push(testCase);
+                }
+            });
+            
+            // 保存测试用例
+            window.cphPlugin.saveTestCases();
+            
+            // 更新UI
+            window.cphPlugin.renderTestCases();
+            window.cphPlugin.renderTestCasesMain();
+            
+            // 安全地调用showMessage函数
+            if (typeof showMessage === 'function') {
+                showMessage(`成功传输 ${testCases.length} 个测试用例到CPH: ${fileName}`, 'success');
+            } else {
+                console.log(`成功传输 ${testCases.length} 个测试用例到CPH: ${fileName}`);
+            }
+        } else {
+            // 如果CPH插件未初始化，抛出异常
+            throw new Error('CPH插件未初始化');
+        }
+    } catch (error) {
+        console.error('传输题目到CPH失败:', error);
+        // 安全地调用showMessage函数
+        if (typeof showMessage === 'function') {
+            showMessage('传输题目到CPH失败: ' + error.message, 'error');
+        } else {
+            console.error('传输题目到CPH失败: ' + error.message);
+        }
+    }
+}
+
+// 创建并打开cpp文件
+function createAndOpenCppFile(fileName) {
+    // 使用PhoiAPI创建和打开文件
+    if (window.PhoiAPI) {
+        // 检查文件是否已存在
+        const fileList = window.PhoiAPI.getFileList();
+        if (fileList.includes(fileName)) {
+            // 文件已存在，直接打开
+            window.PhoiAPI.openFile(fileName);
+        } else {
+            // 文件不存在，创建新文件并打开
+            window.PhoiAPI.createNewFile(fileName);
+        }
+    } else {
+        console.error('PhoiAPI 未初始化');
+    }
 }
 
 // 初始化洛谷题目功能

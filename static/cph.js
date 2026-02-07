@@ -339,6 +339,13 @@ class CPHPlugin {
                 this.deleteTestCase(testCaseIndex);
             }
         });
+        
+        // 监听localStorage变化，以响应来自其他插件（如luogu）的文件切换请求
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'phoi_currentFileName') {
+                this.updateCurrentFile();
+            }
+        });
     }
 
     // 添加新测试用例

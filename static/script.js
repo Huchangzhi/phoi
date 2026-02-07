@@ -1981,10 +1981,7 @@ function registerCompletionProviders() {
 }
 
 
-// 初始化虚拟文件系统
-initializeVFS();
-renderVFS();
-updateCurrentFileNameDisplay();
+
 
 // 初始化模式
 if (isFullMode) {
@@ -2094,6 +2091,131 @@ if (fullEditor) {
     });
     fullEditor.addEventListener('scroll', syncScroll);
 }
+
+
+
+// 公共接口，供插件使用
+window.PhoiAPI = {
+    // 获取当前文件名
+    getCurrentFileName: function() {
+        return currentFileName;
+    },
+
+    // 获取当前文件内容
+    getCurrentFileContent: function() {
+        return globalText;
+    },
+
+    // 设置当前文件内容
+    setCurrentFileContent: function(content) {
+        globalText = content;
+        if (monacoEditor) {
+            monacoEditor.setValue(content);
+        }
+    },
+
+    // 打开文件
+    openFile: function(fileName) {
+        // 检查文件是否存在于VFS中
+        if (vfsStructure['/'].children[fileName] && vfsStructure['/'].children[fileName].type === 'file') {
+            // 更新全局文本为文件内容
+            globalText = vfsStructure['/'].children[fileName].content;
+            currentFileName = fileName; // 更新当前文件名
+
+            // 更新编辑器内容
+            if (monacoEditor) {
+                monacoEditor.setValue(globalText);
+            }
+
+            // 更新顶部菜单栏中显示的当前文件名
+            const currentFileNameElement = document.getElementById('current-file-name');
+            if (currentFileNameElement) {
+                currentFileNameElement.textContent = currentFileName;
+            }
+
+            // 保存当前文件名到本地存储
+            localStorage.setItem('phoi_currentFileName', currentFileName);
+
+            // 关闭虚拟文件系统面板
+            const vfsPanel = document.getElementById('vfs-panel');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            if (vfsPanel) {
+                vfsPanel.style.display = 'none';
+            }
+            if (sidebarToggle) {
+                sidebarToggle.classList.remove('vfs-open');
+            }
+
+            // 显示提示信息
+            if (typeof showMessage === 'function') {
+                showMessage(`已打开文件: ${fileName}`, 'user');
+            }
+            
+            return true;
+        } else {
+            // 文件不存在，检查是否在localStorage中有该文件
+            const fileKey = `phoi_file_${fileName}`;
+            const fileContent = localStorage.getItem(fileKey);
+            
+            if (fileContent !== null) {
+                // 文件存在于localStorage中，将其添加到VFS
+                vfsStructure['/'].children[fileName] = {
+                    type: 'file',
+                    name: fileName,
+                    content: fileContent
+                };
+                
+                // 保存VFS结构
+                saveVFS();
+                
+                // 打开文件
+                return this.openFile(fileName); // 递归调用
+            } else {
+                console.error(`文件 ${fileName} 不存在`);
+                return false;
+            }
+        }
+    },
+
+    // 创建新文件
+    createNewFile: function(fileName, content = '') {
+        // 检查文件是否已存在
+        if (vfsStructure['/'].children[fileName]) {
+            console.warn(`文件 ${fileName} 已存在`);
+            return false;
+        }
+
+        // 使用提供的内容或默认模板创建文件
+        const cppTemplate = `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+
+    return 0;
+}`;
+        const fileContent = content || cppTemplate;
+        
+        // 创建新文件
+        vfsStructure['/'].children[fileName] = {
+            type: 'file',
+            name: fileName,
+            content: fileContent
+        };
+
+        saveVFS();
+        renderVFS();
+
+        // 自动打开新创建的文件
+        return this.openFile(fileName);
+    },
+
+    // 获取所有文件列表
+    getFileList: function() {
+        return Object.keys(vfsStructure['/'].children).filter(key => {
+            return vfsStructure['/'].children[key].type === 'file';
+        });
+    }
+};
 
 
 
