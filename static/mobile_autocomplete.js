@@ -64,18 +64,45 @@ class MobileAutocomplete {
             'make_unique', 'make_shared', 'unique_ptr', 'shared_ptr', 'weak_ptr',
             'min', 'max', 'sqrt', 'pow'
         ];
-        
+
         // C++标准对象
         this.cppObjects = [
             'cin', 'cout', 'cerr', 'clog', 'endl', 'ws', 'flush',
             'setw', 'setprecision', 'setfill', 'setbase', 'hex', 'dec', 'oct', 'fixed', 'scientific'
         ];
-        
+
         // STL容器
         this.stlContainers = [
-            'vector', 'queue', 'stack', 'set', 'multiset', 'map', 'multimap', 
-            'unordered_set', 'unordered_map', 'priority_queue', 'deque', 'list', 
+            'vector', 'queue', 'stack', 'set', 'multiset', 'map', 'multimap',
+            'unordered_set', 'unordered_map', 'priority_queue', 'deque', 'list',
             'array', 'pair', 'string'
+        ];
+
+        // C++标准库头文件
+        this.cppHeaders = [
+            'iostream', 'ostream', 'istream', 'fstream', 'sstream',  // I/O
+            'vector', 'list', 'deque', 'array', 'forward_list', 'queue', 'stack',  // Containers
+            'map', 'set', 'unordered_map', 'unordered_set', 'multimap', 'multiset',  // Associative containers
+            'string', 'cstring', 'string_view',  // Strings
+            'algorithm', 'iterator', 'functional', 'utility',  // Algorithms and utilities
+            'memory', 'memory_resource',  // Memory management
+            'chrono', 'ratio', 'time',  // Time/date
+            'random', 'numeric', 'complex', 'valarray',  // Math
+            'exception', 'stdexcept', 'system_error',  // Error handling
+            'locale', 'codecvt',  // Localization
+            'regex', 'filesystem',  // Regex and filesystem
+            'atomic', 'thread', 'mutex', 'shared_mutex', 'future',  // Concurrency
+            'iostream', 'iomanip', 'iosfwd',  // I/O manipulation
+            'cstdio', 'cstdlib', 'cctype', 'cstring', 'cmath', 'ctime',
+            'cassert', 'cerrno', 'cfloat', 'ciso646', 'climits', 'clocale',
+            'cmplx', 'csignal', 'csetjmp', 'cstdarg', 'cstdbool', 'cstddef',
+            'cstdint', 'ctgmath', 'cuchar', 'cwchar', 'cwctype'
+        ];
+
+        // 预处理指令
+        this.preprocessorDirectives = [
+            'include', 'define', 'undef', 'ifdef', 'ifndef', 'if', 'elif', 'else', 'endif',
+            'pragma', 'error', 'line'
         ];
         
         this.init();
@@ -173,16 +200,47 @@ class MobileAutocomplete {
     calculateSuggestions() {
         // 获取光标前的文本，用于判断补全上下文
         const textBeforeCursor = this.globalText.substring(0, this.globalCursorPos);
+        
+        // 检查是否在预处理指令上下文中
+        if (textBeforeCursor.trim().endsWith('#')) {
+            // 提供预处理指令补全
+            return this.preprocessorDirectives.slice(0, 10);
+        }
+        
+        // 检查是否在#include语句中
+        if (/#include\s*$/.test(textBeforeCursor.trim())) {
+            // 提供头文件补全
+            return this.cppHeaders.map(header => `<${header}>`).slice(0, 10);
+        }
+        
+        // 检查是否在#include <...>中
+        if (/#include\s*<[^>]*$/.test(textBeforeCursor)) {
+            // 提取当前输入的部分
+            const match = textBeforeCursor.match(/#include\s*<([^>]*)$/);
+            if (match) {
+                const currentInput = match[1];
+                if (currentInput) {
+                    // 过滤出以当前输入开头的头文件
+                    return this.cppHeaders
+                        .filter(header => header.toLowerCase().startsWith(currentInput.toLowerCase()))
+                        .map(header => `<${header}>`)
+                        .slice(0, 10);
+                } else {
+                    return this.cppHeaders.map(header => `<${header}>`).slice(0, 10);
+                }
+            }
+        }
+        
         const lastWordMatch = textBeforeCursor.match(/[\w]+$/);
         const lastChar = textBeforeCursor.slice(-1);
-        
+
         // 如果当前输入的是字母或下划线，提供补全建议
         if (/[a-zA-Z_]/.test(lastChar)) {
             const currentWord = lastWordMatch ? lastWordMatch[0] : '';
-            
+
             // 根据上下文提供不同的补全建议
             let suggestions = [];
-            
+
             // 如果是在点号后面，提供成员函数/属性补全
             if (textBeforeCursor.endsWith('.')) {
                 suggestions = this.getMemberSuggestions(textBeforeCursor);
@@ -190,7 +248,7 @@ class MobileAutocomplete {
                 // 普通补全：关键字、函数、对象、容器等
                 suggestions = this.getGeneralSuggestions(currentWord);
             }
-            
+
             // 过滤出以当前输入开头的建议
             if (currentWord) {
                 suggestions = suggestions.filter(suggestion => 
@@ -213,26 +271,41 @@ class MobileAutocomplete {
      */
     getGeneralSuggestions(currentWord) {
         let suggestions = [];
+
+        // 获取光标前的文本，用于判断上下文
+        const textBeforeCursor = this.globalText.substring(0, this.globalCursorPos);
         
-        // 添加关键字
-        suggestions = suggestions.concat(this.cppKeywords);
-        
-        // 添加标准库函数
-        suggestions = suggestions.concat(this.cppFunctions.map(fn => fn + '()'));
-        
-        // 添加标准对象
-        suggestions = suggestions.concat(this.cppObjects);
-        
-        // 添加STL容器
-        suggestions = suggestions.concat(this.stlContainers);
-        
-        // 从当前代码中提取变量名和函数名
-        const codeSuggestions = this.extractIdentifiersFromCode();
-        suggestions = suggestions.concat(codeSuggestions);
-        
+        // 检查是否在#include语句中
+        if (textBeforeCursor.trim().endsWith('#include')) {
+            // 提供头文件补全
+            suggestions = suggestions.concat(this.cppHeaders.map(header => `<${header}>`));
+        }
+        // 检查是否在预处理指令中
+        else if (textBeforeCursor.trim().endsWith('#')) {
+            // 提供预处理指令补全
+            suggestions = suggestions.concat(this.preprocessorDirectives);
+        }
+        else {
+            // 添加关键字
+            suggestions = suggestions.concat(this.cppKeywords);
+
+            // 添加标准库函数
+            suggestions = suggestions.concat(this.cppFunctions.map(fn => fn + '()'));
+
+            // 添加标准对象
+            suggestions = suggestions.concat(this.cppObjects);
+
+            // 添加STL容器
+            suggestions = suggestions.concat(this.stlContainers);
+
+            // 从当前代码中提取变量名和函数名
+            const codeSuggestions = this.extractIdentifiersFromCode();
+            suggestions = suggestions.concat(codeSuggestions);
+        }
+
         // 去重并按长度排序
         suggestions = [...new Set(suggestions)];
-        
+
         return suggestions;
     }
     
