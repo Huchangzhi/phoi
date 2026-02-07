@@ -482,6 +482,10 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     transform: rotate(180deg); /* 当插件中心面板打开时旋转图标 */
 }
 
+.sidebar-button.cph-open img {
+    transform: rotate(180deg); /* 当CPH面板打开时旋转图标 */
+}
+
 /* 插件中心样式 */
 .plugin-item {
     margin-bottom: 15px;
@@ -629,4 +633,184 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .down-btn-mobile {
     bottom: 80px;
     right: 20px;
+}
+
+/* CPH插件样式 */
+.cph-controls {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+
+.cph-problem-set {
+    margin-bottom: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #2d2d30;
+}
+
+.cph-problem-set-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: #3c3c40;
+    border-bottom: 1px solid #444;
+    border-radius: 4px 4px 0 0;
+}
+
+.cph-problem-set-name {
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.cph-problem-set-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.cph-test-cases-container {
+    padding: 8px;
+}
+
+.cph-test-case {
+    margin-bottom: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #252526;
+}
+
+.cph-test-case-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background-color: #333335;
+    border-bottom: 1px solid #444;
+}
+
+.cph-test-case-name {
+    font-weight: bold;
+    color: #cccccc;
+}
+
+.cph-test-case-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.cph-test-case-content {
+    padding: 8px;
+}
+
+.cph-test-case-input, .cph-test-case-output {
+    margin-bottom: 8px;
+}
+
+.cph-test-case-input label, .cph-test-case-output label {
+    display: block;
+    margin-bottom: 4px;
+    color: #aaaaaa;
+    font-size: 13px;
+}
+
+.cph-test-case-textarea, .cph-test-case-textarea-main {
+    width: 100%;
+    height: 60px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    border-radius: 3px;
+    padding: 6px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.cph-test-case-actions-bottom {
+    padding: 8px;
+    border-top: 1px solid #444;
+    text-align: center;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-small:hover {
+    background-color: #1177bb;
+}
+
+.cph-empty-state, .cph-empty-test-cases {
+    padding: 10px;
+    color: #888888;
+    font-style: italic;
+    text-align: center;
+}
+
+.sidebar-button.active {
+    background-color: #007acc;
+}
+
+.plugin-description {
+    color: #aaaaaa;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+/* CPH管理所有题目样式 */
+.cph-all-files-container {
+    margin-top: 10px;
+    padding: 10px;
+    border-top: 1px solid #444;
+}
+
+.cph-all-files-container h3 {
+    margin: 0 0 10px 0;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.cph-all-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.cph-file-item {
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #252526;
+}
+
+.cph-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.cph-file-name {
+    font-weight: bold;
+    color: #cccccc;
+}
+
+.cph-file-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.cph-file-info {
+    font-size: 12px;
+    color: #888888;
+    padding-left: 20px;
 }

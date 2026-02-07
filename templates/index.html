@@ -40,6 +40,7 @@
     <div id="left-sidebar">
         <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="{{ url_for('static', filename='file.png') }}" alt="Files" class="icon-btn"></div>
         <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="{{ url_for('static', filename='ext.png') }}" alt="Plugins" class="icon-btn"></div>
+        <div id="cph-plugin-toggle" class="sidebar-button" title="CPH - 试题集管理"><img src="{{ url_for('static', filename='cph.png') }}" alt="CPH" class="icon-btn"></div>
     </div>
 
     <!-- 虚拟文件系统面板 -->
@@ -90,6 +91,20 @@
                     </div>
                 </div>
             </div>
+
+            <!-- CPH插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">CPH - 测试用例管理</div>
+                <div class="plugin-description">管理当前文件的测试用例，支持批量运行</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="cph-plugin-enabled"> 启用
+                        </label>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -239,5 +254,6 @@
 
     <script src="https://unpkg.com/monaco-editor@0.33.0/min/vs/loader.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='cph.js') }}"></script>
 </body>
 </html>
