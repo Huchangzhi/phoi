@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'  # 以v开头的标签触发构建
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      build_only:
+        description: '仅构建，不发布'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -95,21 +102,34 @@ jobs:
 
     - name: Create version info
       run: |
-        $version = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 1)
+        # 使用不同的方式确定版本号，以支持手动运行
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+        } else {
+          $version = "${{ github.ref_name }}"
+        }
         $info = @{
           version = $version
           build_date = (Get-Date).ToString()
           includes_mingw = $true
           platform = "windows"
+          trigger = "${{ github.event_name }}"
         } | ConvertTo-Json
         $info | Out-File -FilePath dist/PH_Code_Server/version.json -Encoding utf8
 
     - name: Create ZIP archive
       run: |
-        $version = $env:GITHUB_REF.Substring($env:GITHUB_REF.LastIndexOf('/') + 1)
+        # 确定版本号
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+        } else {
+          $version = "${{ github.ref_name }}"
+        }
         Compress-Archive -Path dist/PH_Code_Server/* -DestinationPath "PH_Code_Server_$version.zip"
 
+    # 条件性发布：仅在推送标签时发布，而不是手动运行时
     - name: Create Release
+      if: github.event_name == 'push'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -121,6 +141,7 @@ jobs:
         prerelease: false
 
     - name: Upload Release Asset
+      if: github.event_name == 'push'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -65,11 +65,9 @@ python build_tool.py --action both --version 1.0.0 --token YOUR_GITHUB_TOKEN
 3. 生成的可执行文件位于 `dist/PH_Code_Server` 目录
 
 ### 自动化发布
-项目配置了GitHub Actions工作流，当推送以`v`开头的标签时会自动：
-1. 构建可执行文件
-2. 集成MinGW
-3. 创建ZIP归档
-4. 发布到GitHub Releases
+项目配置了GitHub Actions工作流，支持两种触发方式：
+1. **推送标签**: 当推送以`v`开头的标签时会自动构建、集成MinGW、创建ZIP归档并发布到GitHub Releases
+2. **手动触发**: 在Actions页面可以手动运行工作流，仅执行构建过程而不发布
 
 ## 技术细节
 
