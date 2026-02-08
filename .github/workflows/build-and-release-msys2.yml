@@ -39,7 +39,6 @@ jobs:
         update: true
 
     - name: Create spec file
-      shell: msys2 {0}
       run: |
         echo "# -*- mode: python ; coding: utf-8 -*-" > ph_code.spec
         echo "" >> ph_code.spec
@@ -86,24 +85,23 @@ jobs:
         echo "    target_arch=None," >> ph_code.spec
         echo "    codesign_identity=None," >> ph_code.spec
         echo "    entitlements_file=None," >> ph_code.spec
-        echo "    icon='logo.png' if [ -f 'logo.png' ]; then echo 'logo.png'; else echo 'None'; fi," >> ph_code.spec
+        echo "    icon='logo.png' if os.path.exists('logo.png') else None," >> ph_code.spec
         echo ")" >> ph_code.spec
 
     - name: Build executable with PyInstaller
-      shell: msys2 {0}
       run: |
-        pyinstaller ph_code.spec --clean --noconfirm
+        python -m PyInstaller ph_code.spec --clean --noconfirm
 
     - name: Copy MinGW files
-      shell: msys2 {0}
       run: |
         mkdir -p dist/PH_Code_Server/mingw/bin
-        cp /mingw64/bin/g++.exe dist/PH_Code_Server/mingw/bin/
-        cp /mingw64/bin/gcc.exe dist/PH_Code_Server/mingw/bin/
-        cp /mingw64/bin/ld.exe dist/PH_Code_Server/mingw/bin/
-        cp /mingw64/bin/libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin/
-        cp /mingw64/bin/libstdc++-6.dll dist/PH_Code_Server/mingw/bin/
-        cp /mingw64/bin/libwinpthread-1.dll dist/PH_Code_Server/mingw/bin/
+        # 使用MSYS2环境变量来定位MinGW路径
+        cp C:/msys64/mingw64/bin/g++.exe dist/PH_Code_Server/mingw/bin/
+        cp C:/msys64/mingw64/bin/gcc.exe dist/PH_Code_Server/mingw/bin/
+        cp C:/msys64/mingw64/bin/ld.exe dist/PH_Code_Server/mingw/bin/
+        cp C:/msys64/mingw64/bin/libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin/
+        cp C:/msys64/mingw64/bin/libstdc++-6.dll dist/PH_Code_Server/mingw/bin/
+        cp C:/msys64/mingw64/bin/libwinpthread-1.dll dist/PH_Code_Server/mingw/bin/
 
     - name: Create version info
       run: |
