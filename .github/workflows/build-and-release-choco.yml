@@ -84,7 +84,7 @@ jobs:
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
-            icon='logo.png' if os.path.exists('logo.png') else None,
+            icon=None,
         )
         "@ | Out-File -FilePath ph_code.spec -Encoding utf8
 
