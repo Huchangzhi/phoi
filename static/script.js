@@ -486,7 +486,7 @@ function newFolder() {
 // Initialize Monaco Editor
 let monacoEditor = null; // Global reference to the Monaco editor instance
 
-require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor@0.33.0/min/vs' } });
+require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 require(['vs/editor/editor.main'], function() {
     // 根据设置确定初始的quickSuggestionsDelay值
     const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
