@@ -72,6 +72,12 @@ python build_tool.py --action both --version 1.0.0 --token YOUR_GITHUB_TOKEN
 **注意**: 如果GitHub Actions在下载MinGW时遇到网络问题，可以考虑以下替代方案：
 - 使用GitHub自带的MSYS2环境（在工作流中替换MinGW下载部分）
 - 构建时不集成MinGW，由用户自行安装
+- 使用Chocolatey包管理器安装MinGW
+
+项目提供了三种不同的构建工作流：
+1. **build-and-release.yml**: 直接下载MinGW
+2. **build-and-release-msys2.yml**: 使用MSYS2环境
+3. **build-and-release-choco.yml**: 使用Chocolatey安装MinGW
 
 ## 技术细节
 
