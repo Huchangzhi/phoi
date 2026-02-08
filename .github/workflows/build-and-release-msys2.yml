@@ -95,15 +95,16 @@ jobs:
         python -m PyInstaller ph_code.spec --clean --noconfirm
 
     - name: Copy MinGW files
+      shell: msys2 {0}
       run: |
         mkdir -p dist/PH_Code_Server/mingw/bin
-        # 使用MSYS2环境变量来定位MinGW路径
-        cp C:/msys64/mingw64/bin/g++.exe dist/PH_Code_Server/mingw/bin/
-        cp C:/msys64/mingw64/bin/gcc.exe dist/PH_Code_Server/mingw/bin/
-        cp C:/msys64/mingw64/bin/ld.exe dist/PH_Code_Server/mingw/bin/
-        cp C:/msys64/mingw64/bin/libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin/
-        cp C:/msys64/mingw64/bin/libstdc++-6.dll dist/PH_Code_Server/mingw/bin/
-        cp C:/msys64/mingw64/bin/libwinpthread-1.dll dist/PH_Code_Server/mingw/bin/
+        # 在MSYS2环境中复制文件
+        cp /mingw64/bin/g++.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/gcc.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/ld.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libstdc++-6.dll dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libwinpthread-1.dll dist/PH_Code_Server/mingw/bin/
 
     - name: Create version info
       run: |
