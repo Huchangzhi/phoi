@@ -144,19 +144,38 @@ class MobileAutocomplete {
                 }, 100); // 延迟执行，确保模式切换完成
             });
         }
+        
+        // 初始化时根据当前模式设置补全框可见性
+        this.adjustVisibility();
     }
     
     /**
      * 根据当前模式调整补全框可见性
      */
     adjustVisibility() {
-        const keyboardContainer = document.getElementById('keyboard-container');
-        if (keyboardContainer && this.suggestionsContainer) {
-            // 如果键盘被隐藏（在电脑模式下），也隐藏补全框
-            if (keyboardContainer.classList.contains('hide-keyboard')) {
-                this.suggestionsContainer.style.display = 'none';
+        // 使用全局的isFullMode变量来判断当前模式
+        if (typeof window.isFullMode !== 'undefined') {
+            if (window.isFullMode) {
+                // 在电脑模式下，隐藏补全框
+                if (this.suggestionsContainer) {
+                    this.suggestionsContainer.style.display = 'none';
+                }
             } else {
-                this.suggestionsContainer.style.display = 'flex';
+                // 在手机模式下，显示补全框
+                if (this.suggestionsContainer) {
+                    this.suggestionsContainer.style.display = 'flex';
+                }
+            }
+        } else {
+            // 如果无法获取模式信息，根据键盘容器的显示状态来判断
+            const keyboardContainer = document.getElementById('keyboard-container');
+            if (keyboardContainer && this.suggestionsContainer) {
+                // 如果键盘被隐藏（在电脑模式下），也隐藏补全框
+                if (keyboardContainer.classList.contains('hide-keyboard')) {
+                    this.suggestionsContainer.style.display = 'none';
+                } else {
+                    this.suggestionsContainer.style.display = 'flex';
+                }
             }
         }
     }
@@ -393,31 +412,66 @@ class MobileAutocomplete {
         this.suggestionsContainer.innerHTML = '';
 
         if (suggestions.length > 0) {
-            // 创建建议项
+            // 创建建议项容器
+            const suggestionsWrapper = document.createElement('div');
+            suggestionsWrapper.className = 'mobile-autocomplete-suggestions-wrapper';
+            suggestionsWrapper.style.cssText = 'display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; height: 100%; scrollbar-width: none; -ms-overflow-style: none;';
+            
+            // 隐藏滚动条的样式
+            suggestionsWrapper.style.msOverflowStyle = 'none';  // IE 和 Edge
+            suggestionsWrapper.style.scrollbarWidth = 'none';  // Firefox
+
             suggestions.forEach((suggestion, index) => {
                 const suggestionElement = document.createElement('span');
                 suggestionElement.className = 'mobile-autocomplete-item';
                 suggestionElement.textContent = suggestion;
 
-                // 添加点击事件 - 使用事件委托避免重复绑定
+                // 添加点击事件
                 suggestionElement.addEventListener('click', (e) => {
-                    console.log('Suggestion clicked:', suggestion);
                     e.stopPropagation();
                     this.handleSuggestionClick(suggestion);
                 });
 
                 // 如果不是最后一项，添加分隔空格
                 if (index < suggestions.length - 1) {
-                    this.suggestionsContainer.appendChild(suggestionElement);
+                    suggestionsWrapper.appendChild(suggestionElement);
 
                     // 添加两个空格作为分隔
                     const spacer = document.createElement('span');
                     spacer.innerHTML = '&nbsp;&nbsp;';
-                    this.suggestionsContainer.appendChild(spacer);
+                    suggestionsWrapper.appendChild(spacer);
                 } else {
-                    this.suggestionsContainer.appendChild(suggestionElement);
+                    suggestionsWrapper.appendChild(suggestionElement);
                 }
             });
+
+            // 创建左侧滚动按钮
+            const leftScrollBtn = document.createElement('span');
+            leftScrollBtn.className = 'mobile-autocomplete-scroll-btn';
+            leftScrollBtn.innerHTML = '&#8592;'; // ←
+            leftScrollBtn.style.cssText = 'margin: 0 5px; cursor: pointer; user-select: none; color: #888; font-weight: bold;';
+            leftScrollBtn.addEventListener('click', () => {
+                this.scrollSuggestions(-100); // 向左滚动100像素
+            });
+
+            // 创建右侧滚动按钮
+            const rightScrollBtn = document.createElement('span');
+            rightScrollBtn.className = 'mobile-autocomplete-scroll-btn';
+            rightScrollBtn.innerHTML = '&#8594;'; // →
+            rightScrollBtn.style.cssText = 'margin: 0 5px; cursor: pointer; user-select: none; color: #888; font-weight: bold;';
+            rightScrollBtn.addEventListener('click', () => {
+                this.scrollSuggestions(100); // 向右滚动100像素
+            });
+
+            // 添加滚动按钮和建议项容器到主容器
+            this.suggestionsContainer.appendChild(leftScrollBtn);
+            this.suggestionsContainer.appendChild(suggestionsWrapper);
+            this.suggestionsContainer.appendChild(rightScrollBtn);
+
+            // 检查是否需要显示滚动按钮
+            setTimeout(() => {
+                this.updateScrollButtonsVisibility(suggestionsWrapper, leftScrollBtn, rightScrollBtn);
+            }, 0);
         } else {
             // 即使没有建议，也要保持容器的高度，显示空白条
             this.suggestionsContainer.style.height = '40px';
@@ -428,49 +482,132 @@ class MobileAutocomplete {
     }
     
     /**
+     * 滚动建议列表
+     */
+    scrollSuggestions(offset) {
+        const suggestionsWrapper = this.suggestionsContainer.querySelector('.mobile-autocomplete-suggestions-wrapper');
+        if (suggestionsWrapper) {
+            suggestionsWrapper.scrollBy({ left: offset, behavior: 'smooth' });
+            
+            // 滚动后更新按钮可见性
+            setTimeout(() => {
+                const leftScrollBtn = this.suggestionsContainer.querySelector('.mobile-autocomplete-scroll-btn:first-child');
+                const rightScrollBtn = this.suggestionsContainer.querySelector('.mobile-autocomplete-scroll-btn:last-child');
+                if (leftScrollBtn && rightScrollBtn) {
+                    this.updateScrollButtonsVisibility(suggestionsWrapper, leftScrollBtn, rightScrollBtn);
+                }
+            }, 300); // 等待滚动动画完成
+        }
+    }
+    
+    /**
+     * 更新滚动按钮的可见性
+     */
+    updateScrollButtonsVisibility(suggestionsWrapper, leftBtn, rightBtn) {
+        if (suggestionsWrapper && leftBtn && rightBtn) {
+            // 检查是否可以向左滚动
+            if (suggestionsWrapper.scrollLeft > 0) {
+                leftBtn.style.visibility = 'visible';
+                leftBtn.style.opacity = '1';
+            } else {
+                leftBtn.style.visibility = 'hidden';
+                leftBtn.style.opacity = '0';
+            }
+            
+            // 检查是否可以向右滚动
+            const maxScroll = suggestionsWrapper.scrollWidth - suggestionsWrapper.clientWidth;
+            if (suggestionsWrapper.scrollLeft < maxScroll) {
+                rightBtn.style.visibility = 'visible';
+                rightBtn.style.opacity = '1';
+            } else {
+                rightBtn.style.visibility = 'hidden';
+                rightBtn.style.opacity = '0';
+            }
+        }
+    }
+    
+    /**
      * 处理建议点击事件
      */
     handleSuggestionClick(suggestion) {
-        console.log('Handling suggestion click:', suggestion);
-        console.log('Current globalText:', this.globalText);
-        console.log('Current globalCursorPos:', this.globalCursorPos);
-        
         // 获取当前光标前后的文本
         const textBeforeCursor = this.globalText.substring(0, this.globalCursorPos);
         const textAfterCursor = this.globalText.substring(this.globalCursorPos);
 
-        // 找到最后一个单词
-        const lastWordMatch = textBeforeCursor.match(/[\w]+$/);
         let newText = this.globalText;
         let newCursorPos = this.globalCursorPos;
 
-        console.log('lastWordMatch:', lastWordMatch);
-
-        if (lastWordMatch) {
-            // 替换最后一个单词为选中的建议
-            const lastWord = lastWordMatch[0];
-            const wordStartPos = this.globalCursorPos - lastWord.length;
-
+        // 检查是否是预处理指令上下文，如 #include 或其他以 # 开头的
+        // 三种情况：
+        // 1. #include 后面直接跟内容：#include|
+        // 2. #include 后有空格：#include |
+        // 3. #include <...> 中：#include <iostream|
+        const includeMatch = textBeforeCursor.match(/(#include\s*<?)[^<>\s]*$/);
+        const preprocessorMatch = textBeforeCursor.match(/(#)[\w]*$/);
+        
+        if (includeMatch) {
+            // 处理 #include 语境
+            const prefix = includeMatch[1]; // '#include' 或 '#include ' 或 '#include <'
+            const wordStartPos = this.globalCursorPos - includeMatch[0].length;
+            
             // 构建新文本
             newText = this.globalText.substring(0, wordStartPos) +
-                     suggestion +
+                     prefix + suggestion +
                      textAfterCursor;
 
             // 更新光标位置
-            newCursorPos = wordStartPos + suggestion.length;
-        } else {
-            // 如果没有找到单词，直接在当前位置插入
-            newText = textBeforeCursor + suggestion + textAfterCursor;
-            newCursorPos = this.globalCursorPos + suggestion.length;
-        }
+            newCursorPos = wordStartPos + prefix.length + suggestion.length;
+        } else if (textBeforeCursor.endsWith('#include')) {
+            // 特殊处理：光标在 #include 后面，没有空格或 <>
+            const prefix = '#include ';
+            const wordStartPos = this.globalCursorPos - '#include'.length;
+            
+            // 构建新文本
+            newText = this.globalText.substring(0, wordStartPos) +
+                     prefix + suggestion +
+                     textAfterCursor;
 
-        console.log('New text:', newText);
-        console.log('New cursor position:', newCursorPos);
+            // 更新光标位置
+            newCursorPos = wordStartPos + prefix.length + suggestion.length;
+        } else if (preprocessorMatch) {
+            // 处理其他预处理指令语境
+            const prefix = preprocessorMatch[1]; // '#'
+            const wordStartPos = this.globalCursorPos - preprocessorMatch[0].length;
+            
+            // 构建新文本
+            newText = this.globalText.substring(0, wordStartPos) +
+                     prefix + suggestion +
+                     textAfterCursor;
+
+            // 更新光标位置
+            newCursorPos = wordStartPos + prefix.length + suggestion.length;
+        } else {
+            // 找到最后一个单词
+            const lastWordMatch = textBeforeCursor.match(/[\w]+$/);
+
+            if (lastWordMatch) {
+                // 替换最后一个单词为选中的建议
+                const lastWord = lastWordMatch[0];
+                const wordStartPos = this.globalCursorPos - lastWord.length;
+
+                // 构建新文本
+                newText = this.globalText.substring(0, wordStartPos) +
+                         suggestion +
+                         textAfterCursor;
+
+                // 更新光标位置
+                newCursorPos = wordStartPos + suggestion.length;
+            } else {
+                // 如果没有找到单词，直接在当前位置插入
+                newText = textBeforeCursor + suggestion + textAfterCursor;
+                newCursorPos = this.globalCursorPos + suggestion.length;
+            }
+        }
 
         // 更新全局文本和光标位置（直接更新全局变量）
         globalText = newText;
         globalCursorPos = newCursorPos;
-        
+
         // 同步更新实例变量
         this.globalText = newText;
         this.globalCursorPos = newCursorPos;
@@ -486,7 +623,7 @@ class MobileAutocomplete {
 
         // 清空建议
         this.showSuggestions([]);
-        
+
         // 确保界面同步更新
         // 直接调用syncState来确保所有界面组件同步更新
         setTimeout(() => {
@@ -494,12 +631,6 @@ class MobileAutocomplete {
                 window.syncState();
             }
         }, 10); // 稍微延迟以确保其他更新已完成
-        
-        // 添加延迟日志以确认更新
-        setTimeout(() => {
-            console.log('After suggestion update - globalText:', globalText);
-            console.log('After suggestion update - globalCursorPos:', globalCursorPos);
-        }, 1000); // 1秒后输出日志
     }
     
     /**
