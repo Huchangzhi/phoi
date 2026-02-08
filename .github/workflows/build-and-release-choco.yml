@@ -33,8 +33,25 @@ jobs:
       run: |
         # 使用Chocolatey安装mingw
         choco install mingw -y
-        # 添加到PATH
-        echo "C:\tools\mingw64\bin" >> $env:GITHUB_PATH
+        # 查找mingw安装路径
+        $mingwPath = choco list mingw --local-only | Select-String -Pattern "mingw" | ForEach-Object { $_.ToString().Split(' ')[0] }
+        Write-Host "Found MinGW at: $mingwPath"
+        # 通常安装在C:\tools\msys64 或 C:\msys64
+        $installPath = "C:\tools\msys64\mingw64\bin"
+        if (Test-Path $installPath) {
+          Write-Host "Adding $installPath to PATH"
+          echo "$installPath" >> $env:GITHUB_PATH
+        } else {
+          Write-Host "Alternative path C:\tools\msys64\mingw64\bin not found"
+          # 尝试其他可能的路径
+          $altPath = "C:\msys64\mingw64\bin"
+          if (Test-Path $altPath) {
+            Write-Host "Adding $altPath to PATH"
+            echo "$altPath" >> $env:GITHUB_PATH
+          } else {
+            Write-Host "MinGW path not found in expected locations"
+          }
+        }
 
     - name: Create spec file
       run: |
@@ -95,36 +112,37 @@ jobs:
     - name: Copy MinGW files
       run: |
         New-Item -ItemType Directory -Force -Path "dist/PH_Code_Server/mingw/bin"
-        # 检查文件是否存在后再复制
-        if (Test-Path "C:\tools\mingw64\bin\g++.exe") {
-            Copy-Item "C:\tools\mingw64\bin\g++.exe" -Destination "dist/PH_Code_Server/mingw/bin/"
-        } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\g++.exe not found"
+        # 检查Chocolatey安装的MinGW文件是否存在并复制
+        $possiblePaths = @("C:\tools\msys64\mingw64\bin", "C:\msys64\mingw64\bin")
+        $mingwPath = $null
+        
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            $mingwPath = $path
+            Write-Host "Found MinGW at: $mingwPath"
+            break
+          }
         }
-        if (Test-Path "C:\tools\mingw64\bin\gcc.exe") {
-            Copy-Item "C:\tools\mingw64\bin\gcc.exe" -Destination "dist/PH_Code_Server/mingw/bin/"
+        
+        if ($mingwPath) {
+          $filesToCopy = @(
+            "g++.exe", "gcc.exe", "ld.exe",
+            "libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll"
+          )
+          
+          foreach ($file in $filesToCopy) {
+            $srcPath = Join-Path $mingwPath $file
+            $dstPath = Join-Path "dist/PH_Code_Server/mingw/bin" $file
+            
+            if (Test-Path $srcPath) {
+              Copy-Item $srcPath -Destination $dstPath
+              Write-Host "Copied $file"
+            } else {
+              Write-Host "Warning: $srcPath not found"
+            }
+          }
         } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\gcc.exe not found"
-        }
-        if (Test-Path "C:\tools\mingw64\bin\ld.exe") {
-            Copy-Item "C:\tools\mingw64\bin\ld.exe" -Destination "dist/PH_Code_Server/mingw/bin/"
-        } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\ld.exe not found"
-        }
-        if (Test-Path "C:\tools\mingw64\bin\libgcc_s_seh-1.dll") {
-            Copy-Item "C:\tools\mingw64\bin\libgcc_s_seh-1.dll" -Destination "dist/PH_Code_Server/mingw/bin/"
-        } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\libgcc_s_seh-1.dll not found"
-        }
-        if (Test-Path "C:\tools\mingw64\bin\libstdc++-6.dll") {
-            Copy-Item "C:\tools\mingw64\bin\libstdc++-6.dll" -Destination "dist/PH_Code_Server/mingw/bin/"
-        } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\libstdc++-6.dll not found"
-        }
-        if (Test-Path "C:\tools\mingw64\bin\libwinpthread-1.dll") {
-            Copy-Item "C:\tools\mingw64\bin\libwinpthread-1.dll" -Destination "dist/PH_Code_Server/mingw/bin/"
-        } else {
-            Write-Host "Warning: C:\tools\mingw64\bin\libwinpthread-1.dll not found"
+          Write-Host "Warning: No MinGW installation found in expected paths"
         }
 
     - name: Create version info
