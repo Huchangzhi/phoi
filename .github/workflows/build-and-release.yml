@@ -29,63 +29,58 @@ jobs:
         7z x mingw.7z -oC:\mingw
         echo "C:\mingw\mingw64\bin" >> $env:GITHUB_PATH
 
+    - name: Create spec file
+      run: |
+        echo "# -*- mode: python ; coding: utf-8 -*-" > ph_code.spec
+        echo "" >> ph_code.spec
+        echo "block_cipher = None" >> ph_code.spec
+        echo "" >> ph_code.spec
+        echo "a = Analysis([" >> ph_code.spec
+        echo "    ['app_gui.py']," >> ph_code.spec
+        echo "    pathex=[]," >> ph_code.spec
+        echo "    binaries=[]," >> ph_code.spec
+        echo "    datas=[" >> ph_code.spec
+        echo "        ('templates', 'templates')," >> ph_code.spec
+        echo "        ('static', 'static')," >> ph_code.spec
+        echo "    ]," >> ph_code.spec
+        echo "    hiddenimports=['tkinter', 'subprocess', 'socket', 'urllib.parse', 're', 'tempfile', 'shutil', 'time']," >> ph_code.spec
+        echo "    hookspath=[]," >> ph_code.spec
+        echo "    hooksconfig={}," >> ph_code.spec
+        echo "    runtime_hooks=[]," >> ph_code.spec
+        echo "    excludes=[]," >> ph_code.spec
+        echo "    win_no_prefer_redirects=False," >> ph_code.spec
+        echo "    win_private_assemblies=False," >> ph_code.spec
+        echo "    cipher=block_cipher," >> ph_code.spec
+        echo "    noarchive=False," >> ph_code.spec
+        echo ")" >> ph_code.spec
+        echo "" >> ph_code.spec
+        echo "pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)" >> ph_code.spec
+        echo "" >> ph_code.spec
+        echo "exe = EXE(" >> ph_code.spec
+        echo "    pyz," >> ph_code.spec
+        echo "    a.scripts," >> ph_code.spec
+        echo "    a.binaries," >> ph_code.spec
+        echo "    a.zipfiles," >> ph_code.spec
+        echo "    a.datas," >> ph_code.spec
+        echo "    []," >> ph_code.spec
+        echo "    name='PH_Code_Server'," >> ph_code.spec
+        echo "    debug=False," >> ph_code.spec
+        echo "    bootloader_ignore_signals=False," >> ph_code.spec
+        echo "    strip=False," >> ph_code.spec
+        echo "    upx=True," >> ph_code.spec
+        echo "    upx_exclude=[]," >> ph_code.spec
+        echo "    runtime_tmpdir=None," >> ph_code.spec
+        echo "    console=True," >> ph_code.spec
+        echo "    disable_windowed_traceback=False," >> ph_code.spec
+        echo "    argv_emulation=False," >> ph_code.spec
+        echo "    target_arch=None," >> ph_code.spec
+        echo "    codesign_identity=None," >> ph_code.spec
+        echo "    entitlements_file=None," >> ph_code.spec
+        echo "    icon='logo.png' if os.path.exists('logo.png') else None," >> ph_code.spec
+        echo ")" >> ph_code.spec
+
     - name: Build executable with PyInstaller
       run: |
-        python -c "
-        import PyInstaller.__main__
-        import os
-        spec_content = '''
-# -*- mode: python ; coding: utf-8 -*-
-
-block_cipher = None
-
-a = Analysis(
-    ['app_gui.py'],
-    pathex=[],
-    binaries=[],
-    datas=[
-        ('templates', 'templates'),
-        ('static', 'static'),
-    ],
-    hiddenimports=['tkinter', 'subprocess', 'socket', 'urllib.parse', 're', 'tempfile', 'shutil', 'time'],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='PH_Code_Server',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon='logo.png' if os.path.exists('logo.png') else None,
-)
-'''
-        with open('ph_code.spec', 'w') as f:
-            f.write(spec_content)
-        "
         pyinstaller ph_code.spec --clean --noconfirm
 
     - name: Copy MinGW files
