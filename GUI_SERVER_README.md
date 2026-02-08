@@ -74,9 +74,14 @@ python build_tool.py --action both --version 1.0.0 --token YOUR_GITHUB_TOKEN
 - 构建时不集成MinGW，由用户自行安装
 - 使用Chocolatey包管理器安装MinGW
 
-项目提供了两种不同的构建工作流：
+项目提供了一种主要的构建工作流：
 1. **build-and-release-msys2.yml**: 使用MSYS2环境安装MinGW
-2. **build-and-release-choco.yml**: 使用Chocolatey包管理器安装MinGW
+
+该工作流支持两种触发方式：
+- 推送以`v`开头的标签时自动构建和发布
+- 手动触发时可以选择：
+  - 仅构建不发布
+  - 输入版本号进行构建和发布
 
 ## 技术细节
 

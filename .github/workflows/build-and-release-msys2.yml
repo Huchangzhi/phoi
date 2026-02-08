@@ -9,8 +9,13 @@ on:
       build_only:
         description: '仅构建，不发布'
         required: false
-        default: false
+        default: true
         type: boolean
+      version_number:
+        description: '发布版本号 (例如 1.0.0)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   build:
@@ -108,9 +113,13 @@ jobs:
 
     - name: Create version info
       run: |
-        # 使用不同的方式确定版本号，以支持手动运行
+        # 使用不同的方式确定版本号，以支持手动运行和版本输入
         if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-          $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+          if ("${{ github.event.inputs.version_number }}") {
+            $version = "v${{ github.event.inputs.version_number }}"
+          } else {
+            $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+          }
         } else {
           $version = "${{ github.ref_name }}"
         }
@@ -128,32 +137,36 @@ jobs:
       run: |
         # 确定版本号
         if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-          $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+          if ("${{ github.event.inputs.version_number }}") {
+            $version = "v${{ github.event.inputs.version_number }}"
+          } else {
+            $version = "manual_build_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+          }
         } else {
           $version = "${{ github.ref_name }}"
         }
         Compress-Archive -Path dist/PH_Code_Server/* -DestinationPath "PH_Code_Server_$version.zip"
 
-    # 条件性发布：仅在推送标签时发布，而不是手动运行时
+    # 条件性发布：当推送标签或手动输入版本号时发布
     - name: Create Release
-      if: github.event_name == 'push'
+      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.version_number != '')
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: PH Code Server ${{ github.ref }}
+        tag_name: ${{ github.event_name == 'push' && github.ref || format('v{0}', github.event.inputs.version_number) }}
+        release_name: PH Code Server ${{ github.event_name == 'push' && github.ref_name || format('v{0}', github.event.inputs.version_number) }}
         draft: false
         prerelease: false
 
     - name: Upload Release Asset
-      if: github.event_name == 'push'
+      if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.version_number != '')
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./PH_Code_Server_${{ github.ref_name }}.zip
-        asset_name: PH_Code_Server_${{ github.ref_name }}.zip
+        asset_path: ./PH_Code_Server_${{ github.event_name == 'push' && github.ref_name || format('v{0}', github.event.inputs.version_number) }}.zip
+        asset_name: PH_Code_Server_${{ github.event_name == 'push' && github.ref_name || format('v{0}', github.event.inputs.version_number) }}.zip
         asset_content_type: application/zip
