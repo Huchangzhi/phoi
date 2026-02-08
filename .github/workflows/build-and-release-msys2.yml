@@ -1,4 +1,4 @@
-name: Build and Release PH Code
+name: Build and Release PH Code (with MSYS2)
 
 on:
   push:
@@ -29,16 +29,17 @@ jobs:
       run: |
         pip install pyinstaller flask requests
 
-    - name: Download and setup MinGW
-      run: |
-        # 下载MinGW-w64
-        $url = "https://github.com/brechtsanders/winlibs_x64/releases/download/12.2.0-15.0.6-11.0.1-ucrt-r1/winlibs-x86_64-posix-seh-gcc-12.2.0-mingw-w64msvcrt-11.0.1-r1.7z"
-        $output = "mingw.7z"
-        Invoke-WebRequest -Uri $url -OutFile $output
-        7z x $output -oC:\mingw
-        echo "C:\mingw\mingw64\bin" >> $env:GITHUB_PATH
+    - name: Setup MSYS2 and install MinGW
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-gdb
+        update: true
 
     - name: Create spec file
+      shell: msys2 {0}
       run: |
         echo "# -*- mode: python ; coding: utf-8 -*-" > ph_code.spec
         echo "" >> ph_code.spec
@@ -85,22 +86,24 @@ jobs:
         echo "    target_arch=None," >> ph_code.spec
         echo "    codesign_identity=None," >> ph_code.spec
         echo "    entitlements_file=None," >> ph_code.spec
-        echo "    icon='logo.png' if os.path.exists('logo.png') else None," >> ph_code.spec
+        echo "    icon='logo.png' if [ -f 'logo.png' ]; then echo 'logo.png'; else echo 'None'; fi," >> ph_code.spec
         echo ")" >> ph_code.spec
 
     - name: Build executable with PyInstaller
+      shell: msys2 {0}
       run: |
         pyinstaller ph_code.spec --clean --noconfirm
 
     - name: Copy MinGW files
+      shell: msys2 {0}
       run: |
-        mkdir dist/PH_Code_Server/mingw/bin
-        copy C:\mingw\mingw64\bin\g++.exe dist/PH_Code_Server/mingw/bin\
-        copy C:\mingw\mingw64\bin\gcc.exe dist/PH_Code_Server/mingw/bin\
-        copy C:\mingw\mingw64\bin\ld.exe dist/PH_Code_Server/mingw/bin\
-        copy C:\mingw\mingw64\bin\libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin\
-        copy C:\mingw\mingw64\bin\libstdc++-6.dll dist/PH_Code_Server/mingw/bin\
-        copy C:\mingw\mingw64\bin\libwinpthread-1.dll dist/PH_Code_Server/mingw/bin\
+        mkdir -p dist/PH_Code_Server/mingw/bin
+        cp /mingw64/bin/g++.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/gcc.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/ld.exe dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libgcc_s_seh-1.dll dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libstdc++-6.dll dist/PH_Code_Server/mingw/bin/
+        cp /mingw64/bin/libwinpthread-1.dll dist/PH_Code_Server/mingw/bin/
 
     - name: Create version info
       run: |
@@ -116,6 +119,7 @@ jobs:
           includes_mingw = $true
           platform = "windows"
           trigger = "${{ github.event_name }}"
+          build_method = "msys2"
         } | ConvertTo-Json
         $info | Out-File -FilePath dist/PH_Code_Server/version.json -Encoding utf8
 

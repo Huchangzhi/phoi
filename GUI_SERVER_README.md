@@ -69,6 +69,10 @@ python build_tool.py --action both --version 1.0.0 --token YOUR_GITHUB_TOKEN
 1. **推送标签**: 当推送以`v`开头的标签时会自动构建、集成MinGW、创建ZIP归档并发布到GitHub Releases
 2. **手动触发**: 在Actions页面可以手动运行工作流，仅执行构建过程而不发布
 
+**注意**: 如果GitHub Actions在下载MinGW时遇到网络问题，可以考虑以下替代方案：
+- 使用GitHub自带的MSYS2环境（在工作流中替换MinGW下载部分）
+- 构建时不集成MinGW，由用户自行安装
+
 ## 技术细节
 
 ### 安全措施
