@@ -5,7 +5,7 @@ import subprocess
 import webbrowser
 import requests
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, filedialog
 import socket
 from flask import Flask, render_template, request, jsonify
 import urllib.parse
@@ -48,6 +48,7 @@ class PHCodeServer:
         ]
         
         self.setup_routes()
+        self.compiler_path = "g++"  # 默认编译器路径
 
     def setup_routes(self):
         """设置Flask路由"""
@@ -92,7 +93,7 @@ class PHCodeServer:
 
             if self.use_local_compiler:
                 # 使用本地编译器
-                return self._run_locally(code, stdin)
+                return self._run_locally(code, stdin, getattr(self, 'compiler_path', 'g++'))
             else:
                 # 使用Rextester API
                 return self._run_with_rextester(code, stdin)
@@ -125,7 +126,7 @@ class PHCodeServer:
         except Exception as e:
             return jsonify({"Errors": f"Request Error: {str(e)}"}), 500
 
-    def _run_locally(self, code, stdin):
+    def _run_locally(self, code, stdin, compiler_path="g++"):
         """本地运行代码"""
         temp_dir = tempfile.mkdtemp()
         source_path = os.path.join(temp_dir, 'source.cpp')
@@ -144,9 +145,9 @@ class PHCodeServer:
             with open(source_path, 'w', encoding='utf-8') as f:
                 f.write(code)
 
-            # 编译 - 使用gcc命令，适用于MinGW
+            # 编译 - 使用指定的编译器路径
             start_time = time.time()
-            compile_cmd = ['g++', source_path, '-o', executable_path, '-O2', '-Wall', '-std=c++14']
+            compile_cmd = [compiler_path, source_path, '-o', executable_path, '-O2', '-Wall', '-std=c++14']
 
             compile_proc = subprocess.run(
                 compile_cmd,
@@ -165,7 +166,7 @@ class PHCodeServer:
                 # 运行程序 (带时间与内存限制)
                 try:
                     run_start = time.time()
-                    
+
                     # 在Windows上可能需要不同的处理方式
                     if os.name == 'nt':  # Windows
                         run_proc = subprocess.run(
@@ -199,7 +200,7 @@ class PHCodeServer:
                     response_data["Errors"] += f"\n[Error] Execution Failed: {str(e)}"
 
         except FileNotFoundError:
-            response_data["Errors"] = "g++ 编译器未找到，请确保已安装MinGW或GCC编译器"
+            response_data["Errors"] = f"{compiler_path} 编译器未找到，请确保已正确设置编译器路径"
             response_data["Stats"] = "Compilation Failed."
         except Exception as e:
             response_data["Errors"] = f"Server Internal Error: {str(e)}"
@@ -236,7 +237,7 @@ class PHCodeServer:
 
             if self.use_local_compiler:
                 # 使用本地编译器
-                return self._run_locally(code, stdin)
+                return self._run_locally(code, stdin, getattr(self, 'compiler_path', 'g++'))
             else:
                 # 使用Rextester API
                 return self._run_with_rextester(code, stdin)
@@ -265,6 +266,12 @@ class PHCodeServer:
             if self.server_thread:
                 self.server_thread.join(timeout=1)  # 等待最多1秒让线程结束
 
+    def restart_server(self, host='127.0.0.1', port=5000):
+        """重启服务器"""
+        self.stop_server()
+        time.sleep(1)  # 等待服务器完全停止
+        self.start_server(host=host, port=port)
+
 
 class PHCodeGUIClient:
     def __init__(self):
@@ -288,50 +295,60 @@ class PHCodeGUIClient:
         # 端口设置
         ttk.Label(server_control_frame, text="端口:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         self.port_var = tk.StringVar(value="5000")
-        port_entry = ttk.Entry(server_control_frame, textvariable=self.port_var, width=10)
-        port_entry.grid(row=0, column=1, sticky=tk.W)
-        
+        self.port_var_entry = ttk.Entry(server_control_frame, textvariable=self.port_var, width=10)
+        self.port_var_entry.grid(row=0, column=1, sticky=tk.W)
+
         # 网络访问设置
         self.network_var = tk.BooleanVar()
-        network_check = ttk.Checkbutton(
-            server_control_frame, 
-            text="对外公开 (0.0.0.0)", 
+        self.network_check = ttk.Checkbutton(
+            server_control_frame,
+            text="对外公开 (0.0.0.0)",
             variable=self.network_var
         )
-        network_check.grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
-        
+        self.network_check.grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
+
         # 本地编译器设置
         self.local_compiler_var = tk.BooleanVar()
-        local_compiler_check = ttk.Checkbutton(
-            server_control_frame, 
-            text="使用本地MinGW", 
-            variable=self.local_compiler_var
+        self.compiler_path = tk.StringVar(value="g++")  # 默认编译器路径
+        self.local_compiler_check = ttk.Checkbutton(
+            server_control_frame,
+            text="使用本地MinGW",
+            variable=self.local_compiler_var,
+            command=self.on_local_compiler_toggle
         )
-        local_compiler_check.grid(row=0, column=3, sticky=tk.W, padx=(20, 0))
+        self.local_compiler_check.grid(row=0, column=3, sticky=tk.W, padx=(20, 0))
         
         # 控制按钮
         self.start_btn = ttk.Button(
-            server_control_frame, 
-            text="启动服务器", 
+            server_control_frame,
+            text="启动服务器",
             command=self.start_server
         )
         self.start_btn.grid(row=1, column=0, pady=10)
-        
+
+        self.restart_btn = ttk.Button(
+            server_control_frame,
+            text="重启服务器",
+            command=self.restart_server,
+            state=tk.DISABLED
+        )
+        self.restart_btn.grid(row=1, column=1, pady=10, padx=5)
+
         self.stop_btn = ttk.Button(
-            server_control_frame, 
-            text="停止服务器", 
+            server_control_frame,
+            text="停止服务器",
             command=self.stop_server,
             state=tk.DISABLED
         )
-        self.stop_btn.grid(row=1, column=1, pady=10, padx=5)
-        
+        self.stop_btn.grid(row=1, column=2, pady=10, padx=5)
+
         self.open_browser_btn = ttk.Button(
-            server_control_frame, 
-            text="在浏览器中打开", 
+            server_control_frame,
+            text="在浏览器中打开",
             command=self.open_in_browser,
             state=tk.DISABLED
         )
-        self.open_browser_btn.grid(row=1, column=2, pady=10, padx=5)
+        self.open_browser_btn.grid(row=1, column=3, pady=10, padx=5)
         
         # 状态显示
         status_frame = ttk.Frame(main_frame)
@@ -355,7 +372,37 @@ class PHCodeGUIClient:
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(2, weight=1)
         server_control_frame.columnconfigure(4, weight=1)
-    
+
+    def on_local_compiler_toggle(self):
+        """处理本地编译器复选框切换事件"""
+        if self.local_compiler_var.get():  # 如果选中了本地编译器
+            # 显示警告弹窗
+            warning_msg = (
+                "警告：使用本地g++编译器存在安全风险！\n\n"
+                "1. 本地编译器可以直接访问系统资源\n"
+                "2. 恶意代码可能对系统造成损害\n"
+                "3. 建议仅在受信任的环境下使用\n\n"
+                "请确认您了解这些风险，并且不会将此服务对外开放。\n\n"
+                "点击“确定”继续并选择g++.exe的位置。"
+            )
+            
+            if messagebox.askokcancel("安全警告", warning_msg):
+                # 用户确认后，弹出文件选择对话框
+                compiler_path = filedialog.askopenfilename(
+                    title="选择g++.exe的位置",
+                    filetypes=[("Executable files", "*.exe"), ("All files", "*.*")]
+                )
+                
+                if compiler_path:  # 如果用户选择了文件
+                    self.compiler_path.set(compiler_path)
+                    self.log_message(f"已选择编译器路径: {compiler_path}")
+                else:  # 如果用户取消了选择
+                    self.local_compiler_var.set(False)  # 取消勾选
+                    self.log_message("未选择编译器，已取消本地编译器选项")
+            else:  # 如果用户取消了警告对话框
+                self.local_compiler_var.set(False)  # 取消勾选
+                self.log_message("用户取消了本地编译器选项")
+
     def log_message(self, message):
         """在日志区域添加消息"""
         self.log_text.config(state=tk.NORMAL)
@@ -364,27 +411,44 @@ class PHCodeGUIClient:
         self.log_text.config(state=tk.DISABLED)
     
     def start_server(self):
-        """启动服务器"""
+        """启动或重启服务器"""
         try:
             port = int(self.port_var.get())
             if not (1 <= port <= 65535):
                 raise ValueError("端口号必须在1-65535之间")
-                
+
             host = '0.0.0.0' if self.network_var.get() else '127.0.0.1'
             self.server.use_local_compiler = self.local_compiler_var.get()
-            
-            self.server.start_server(host=host, port=port)
+
+            # 如果使用本地编译器，则设置编译器路径
+            if self.local_compiler_var.get():
+                self.server.compiler_path = self.compiler_path.get()
+
+            # 如果服务器已经在运行，则重启；否则启动新服务器
+            if self.server.is_running:
+                self.server.restart_server(host=host, port=port)
+                self.log_message("服务器已重启")
+            else:
+                self.server.start_server(host=host, port=port)
+
+            # 禁用所有设置项
+            self.port_var_entry.config(state=tk.DISABLED)
+            self.network_check.config(state=tk.DISABLED)
+            self.local_compiler_check.config(state=tk.DISABLED)
             
             self.start_btn.config(state=tk.DISABLED)
+            self.restart_btn.config(state=tk.NORMAL)
             self.stop_btn.config(state=tk.NORMAL)
             self.open_browser_btn.config(state=tk.NORMAL)
             self.status_var.set(f"运行中 - {host}:{port}")
             self.status_label.config(foreground="green")
-            
+
             self.log_message(f"服务器已在 {host}:{port} 启动")
             self.log_message(f"{'对外公开' if self.network_var.get() else '仅本地访问'}")
             self.log_message(f"{'使用本地编译器' if self.local_compiler_var.get() else '使用Rextester API'}")
-            
+            if self.local_compiler_var.get():
+                self.log_message(f"编译器路径: {self.compiler_path.get()}")
+
         except ValueError as e:
             messagebox.showerror("错误", str(e))
         except Exception as e:
@@ -393,14 +457,55 @@ class PHCodeGUIClient:
     def stop_server(self):
         """停止服务器"""
         self.server.stop_server()
-        
+
+        # 重新启用所有设置项
+        self.port_var_entry.config(state=tk.NORMAL)
+        self.network_check.config(state=tk.NORMAL)
+        self.local_compiler_check.config(state=tk.NORMAL)
+
         self.start_btn.config(state=tk.NORMAL)
+        self.restart_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.DISABLED)
         self.open_browser_btn.config(state=tk.DISABLED)
         self.status_var.set("已停止")
         self.status_label.config(foreground="red")
-        
+
         self.log_message("服务器已停止")
+
+    def restart_server(self):
+        """重启服务器"""
+        if self.server.is_running:
+            try:
+                port = int(self.port_var.get())
+                if not (1 <= port <= 65535):
+                    raise ValueError("端口号必须在1-65535之间")
+
+                host = '0.0.0.0' if self.network_var.get() else '127.0.0.1'
+                self.server.use_local_compiler = self.local_compiler_var.get()
+
+                # 如果使用本地编译器，则设置编译器路径
+                if self.local_compiler_var.get():
+                    self.server.compiler_path = self.compiler_path.get()
+
+                self.server.restart_server(host=host, port=port)
+
+                # 禁用所有设置项
+                self.port_var_entry.config(state=tk.DISABLED)
+                self.network_check.config(state=tk.DISABLED)
+                self.local_compiler_check.config(state=tk.DISABLED)
+
+                self.log_message(f"服务器已在 {host}:{port} 重启")
+                self.log_message(f"{'对外公开' if self.network_var.get() else '仅本地访问'}")
+                self.log_message(f"{'使用本地编译器' if self.local_compiler_var.get() else '使用Rextester API'}")
+                if self.local_compiler_var.get():
+                    self.log_message(f"编译器路径: {self.compiler_path.get()}")
+
+            except ValueError as e:
+                messagebox.showerror("错误", str(e))
+            except Exception as e:
+                messagebox.showerror("错误", f"重启服务器失败: {str(e)}")
+        else:
+            self.log_message("服务器未运行，无法重启。请先启动服务器。")
     
     def open_in_browser(self):
         """在浏览器中打开"""

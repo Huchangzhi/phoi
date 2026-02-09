@@ -1,0 +1,61 @@
+name: Build and Release PH Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (leave empty for build only)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt || echo "No requirements.txt found, installing common packages"
+        pip install flask requests pyinstaller
+
+    - name: Run build script
+      run: |
+        python build.py --version "${{ inputs.version }}" || python build.py
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: phcode-build
+        path: |
+          *.zip
+          dist/phcode.exe
+
+    - name: Create Release
+      if: ${{ inputs.version != '' }}
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ inputs.version }}
+        release_name: Release v${{ inputs.version }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      if: ${{ inputs.version != '' }}
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: phcode-v${{ inputs.version }}.zip
+        asset_name: phcode-v${{ inputs.version }}.zip
+        asset_content_type: application/zip

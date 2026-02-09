@@ -163,6 +163,34 @@ function showLuoguProblemDialog() {
         inputField.value = savedProblemId;
     }
 
+    // 创建"从剪切板读取Markdown格式题目"按钮
+    const readMarkdownBtn = document.createElement('button');
+    readMarkdownBtn.textContent = '从剪切板读取Markdown格式题目（实验性）';
+    readMarkdownBtn.className = 'modal-btn';
+    readMarkdownBtn.style.backgroundColor = '#3e3e42';
+    readMarkdownBtn.style.marginRight = '10px';
+    readMarkdownBtn.style.padding = '12px 24px';
+    
+    // 在移动端增加触摸目标大小
+    if (isMobile) {
+        readMarkdownBtn.style.minHeight = '44px';
+        readMarkdownBtn.style.fontSize = '16px';
+    }
+
+    // 创建"打开上次读取的题目"按钮
+    const openLastProblemBtn = document.createElement('button');
+    openLastProblemBtn.textContent = '打开上次读取的题目';
+    openLastProblemBtn.className = 'modal-btn';
+    openLastProblemBtn.style.backgroundColor = '#3e3e42';
+    openLastProblemBtn.style.marginRight = '10px';
+    openLastProblemBtn.style.padding = '12px 24px';
+    
+    // 在移动端增加触摸目标大小
+    if (isMobile) {
+        openLastProblemBtn.style.minHeight = '44px';
+        openLastProblemBtn.style.fontSize = '16px';
+    }
+
     // 创建确认按钮
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = '查询';
@@ -176,6 +204,50 @@ function showLuoguProblemDialog() {
         confirmBtn.style.minHeight = '44px';
         confirmBtn.style.fontSize = '16px';
     }
+
+    // 添加"从剪切板读取Markdown格式题目"按钮点击事件
+    readMarkdownBtn.addEventListener('click', async function() {
+        try {
+            // 尝试从剪贴板读取文本
+            const text = await navigator.clipboard.readText();
+            
+            // 验证是否为有效的Markdown格式题目
+            if (isValidMarkdownProblem(text)) {
+                // 保存到localStorage
+                localStorage.setItem('phoi_last_markdown_problem', text);
+                
+                // 显示成功消息
+                showMessage('Markdown题目已读取并保存', 'system');
+                
+                // 解析并显示Markdown题目
+                parseAndDisplayMarkdownProblem(text);
+                
+                // 关闭当前模态框
+                document.body.removeChild(modal);
+            } else {
+                showMessage('剪贴板内容不是有效的Markdown格式题目', 'system');
+            }
+        } catch (err) {
+            console.error('无法读取剪贴板:', err);
+            showMessage('无法读取剪贴板，请确保使用HTTPS或本地环境', 'system');
+        }
+    });
+
+    // 添加"打开上次读取的题目"按钮点击事件
+    openLastProblemBtn.addEventListener('click', function() {
+        const lastProblem = localStorage.getItem('phoi_last_markdown_problem');
+        if (lastProblem) {
+            // 解析并显示上次保存的Markdown题目
+            parseAndDisplayMarkdownProblem(lastProblem);
+            
+            // 关闭当前模态框
+            document.body.removeChild(modal);
+            
+            showMessage('已打开上次读取的题目', 'system');
+        } else {
+            showMessage('没有找到上次读取的题目', 'system');
+        }
+    });
 
     // 添加回车键支持
     inputField.addEventListener('keyup', function(e) {
@@ -197,9 +269,11 @@ function showLuoguProblemDialog() {
         }
     });
 
-    // 组装模态框
+    // 组装模态框 - 将按钮按要求的顺序添加
     modalBody.appendChild(inputLabel);
     modalBody.appendChild(inputField);
+    modalBody.appendChild(readMarkdownBtn);  // 在确认按钮之前添加
+    modalBody.appendChild(openLastProblemBtn);  // 在确认按钮之前添加
     modalBody.appendChild(confirmBtn);
 
     modalContent.appendChild(modalHeader);
@@ -594,7 +668,7 @@ function displayLuoguProblem(problemData) {
     scrollContainer.appendChild(outputSection);
 
     // 样例
-    if (problemData.samples && problemData.samples.length > 0) {
+    if (problemData.samples && Array.isArray(problemData.samples) && problemData.samples.length > 0) {
         const samplesSection = document.createElement('div');
         samplesSection.style.margin = '20px 0';
 
@@ -897,10 +971,10 @@ function transferProblemToCPH(problemData) {
     try {
         // 提取题目编号，移除特殊字符，只保留字母和数字
         const problemId = problemData.pid.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        
+
         // 准备测试用例数据
         const testCases = [];
-        if (problemData.samples && problemData.samples.length > 0) {
+        if (problemData.samples && Array.isArray(problemData.samples) && problemData.samples.length > 0) {
             problemData.samples.forEach((sample, index) => {
                 testCases.push({
                     stdin: sample[0],
@@ -909,7 +983,7 @@ function transferProblemToCPH(problemData) {
                 });
             });
         }
-        
+
         const fileName = `${problemId}.cpp`;
         
         // 首先确保在编辑器中创建并打开对应的cpp文件
@@ -991,6 +1065,877 @@ function createAndOpenCppFile(fileName) {
     }
 }
 
+// 验证是否为有效的Markdown格式题目
+function isValidMarkdownProblem(text) {
+    // 检查是否包含基本的题目标识，如标题以#开头
+    const lines = text.split('\n');
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+        if (lines[i].trim().startsWith('#')) {
+            // 检查是否包含常见的题目部分
+            if (text.includes('题目描述') || text.includes('输入格式') || text.includes('输出格式')) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// 解析并显示Markdown题目
+function parseAndDisplayMarkdownProblem(markdownText) {
+    // 提取题目标题
+    const titleMatch = markdownText.match(/^#\s*(.+)$/m);
+    const title = titleMatch ? titleMatch[1].trim() : '未命名题目';
+    
+    // 提取题号（从标题中提取P或B开头的题号）
+    const pidMatch = title.match(/^[PBU]\d+/i);
+    const pid = pidMatch ? pidMatch[0].toUpperCase() : 'MD'; // 标识这是Markdown导入的题目
+    
+    // 创建模拟的题目对象，用于显示
+    const mockProblemData = {
+        pid: pid,
+        title: title,
+        // 不包含difficulty和link字段，因为Markdown导入的题目不显示这些
+    };
+    
+    // 分离各个板块
+    const sections = separateMarkdownSections(markdownText);
+    
+    // 将分离的板块添加到模拟题目对象
+    if (sections.description) mockProblemData.description = sections.description;
+    if (sections.inputFormat) mockProblemData.inputFormat = sections.inputFormat;
+    if (sections.outputFormat) mockProblemData.outputFormat = sections.outputFormat;
+    if (sections.samples) mockProblemData.samples = sections.samples;
+    if (sections.hint) mockProblemData.hint = sections.hint;
+    
+    // 创建题目显示区域
+    createProblemDisplayArea();
+    
+    // 显示题目
+    displayMarkdownProblem(mockProblemData);
+}
+
+// 分离Markdown题目各板块
+function separateMarkdownSections(markdownText) {
+    const sections = {};
+    const lines = markdownText.split('\n');
+    
+    // 先按标题分割整个文档
+    const sectionsByTitle = {};
+    let currentTitle = '';
+    let currentContent = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        if (line.trim().startsWith('#')) {
+            // 保存上一个section
+            if (currentTitle) {
+                sectionsByTitle[currentTitle] = currentContent.join('\n');
+            }
+            
+            // 设置新的标题
+            currentTitle = line.trim();
+            currentContent = [];
+        } else {
+            currentContent.push(line);
+        }
+    }
+    
+    // 保存最后一个section
+    if (currentTitle) {
+        sectionsByTitle[currentTitle] = currentContent.join('\n');
+    }
+    
+    // 处理各个section
+    for (const title in sectionsByTitle) {
+        const content = sectionsByTitle[title];
+        
+        if (title.includes('题目描述') || title.includes('题目叙述')) {
+            sections.description = content;
+        } else if (title.includes('输入格式') || title.includes('输入说明')) {
+            sections.inputFormat = content;
+        } else if (title.includes('输出格式') || title.includes('输出说明')) {
+            sections.outputFormat = content;
+        } else if (title.includes('输入输出样例') || title.includes('样例') || title.includes('Sample')) {
+            // 解析样例部分
+            const samples = parseSamplesFromSection(content);
+            if (samples.length > 0) {
+                sections.samples = samples;
+            } else {
+                // 如果按常规方法没找到样例，尝试从整个内容中解析
+                const fallbackSamples = parseSamplesFromContent(markdownText);
+                if (fallbackSamples.length > 0) {
+                    sections.samples = fallbackSamples;
+                }
+            }
+        } else if (title.includes('提示') || title.includes('Hint') || title.includes('说明')) {
+            sections.hint = content;
+        }
+    }
+    
+    return sections;
+}
+
+// 从整个内容中解析样例（备用方法）
+function parseSamplesFromContent(markdownText) {
+    const samples = [];
+    
+    // 使用正则表达式匹配输入输出样例
+    // 匹配格式：### 输入 #1 ... ``` ... ``` ... ### 输出 #1 ... ``` ... ```
+    const sampleRegex = /###\s*输入\s*#(\d+)[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```[\s\S]*?###\s*输出\s*#(\d+)[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```/g;
+    
+    let match;
+    while ((match = sampleRegex.exec(markdownText)) !== null) {
+        const input = match[2].trim();
+        const output = match[4].trim();
+        
+        if (input && output) {
+            samples.push([input, output]);
+        }
+    }
+    
+    // 如果上面的正则表达式没有匹配到，尝试另一种格式
+    if (samples.length === 0) {
+        // 匹配格式：## 输入输出样例 ... ### 输入 #1 ... ``` ... ``` ... ### 输出 #1 ... ``` ... ```
+        const altSampleRegex = /##\s*输入输出样例[\s\S]*?###\s*输入\s*#(\d+)[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```[\s\S]*?###\s*输出\s*#(\d+)[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```/g;
+        
+        while ((match = altSampleRegex.exec(markdownText)) !== null) {
+            const input = match[2].trim();
+            const output = match[4].trim();
+            
+            if (input && output) {
+                samples.push([input, output]);
+            }
+        }
+    }
+    
+    // 如果还是没有匹配到，尝试更宽松的匹配
+    if (samples.length === 0) {
+        // 匹配任何"输入"和"输出"标题之间的代码块对
+        const looseRegex = /(##|#)?\s*#*\s*输入[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```[\s\S]*?(##|#)?\s*#*\s*输出[\s\S]*?```(?:\w+)?\s*\n([\s\S]*?)\s*```/g;
+        
+        while ((match = looseRegex.exec(markdownText)) !== null) {
+            const input = match[2].trim();
+            const output = match[4].trim();
+            
+            if (input && output) {
+                samples.push([input, output]);
+            }
+        }
+    }
+    
+    return samples;
+}
+
+// 从样例部分解析输入输出样例
+function parseSamplesFromSection(sectionContent) {
+    const samples = [];
+    const lines = sectionContent.split('\n');
+    
+    let currentInput = '';
+    let currentOutput = '';
+    let inInputSection = false;
+    let inOutputSection = false;
+    let insideCodeBlock = false;
+    let currentCodeBlock = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        // 检查是否是子标题（如"输入 #1"、"输出 #1"等）
+        if ((line.trim().startsWith('### ') || line.trim().startsWith('## ')) && 
+            (line.includes('输入') || line.includes('输出'))) {
+            // 如果当前正在处理输入或输出，并且已经收集到了内容，保存当前样例
+            if ((inInputSection || inOutputSection) && currentInput && currentOutput) {
+                samples.push([currentInput.trim(), currentOutput.trim()]);
+                currentInput = '';
+                currentOutput = '';
+            }
+            
+            if (line.includes('输入')) {
+                inInputSection = true;
+                inOutputSection = false;
+                currentInput = '';
+            } else if (line.includes('输出')) {
+                inOutputSection = true;
+                inInputSection = false;
+                currentOutput = '';
+            }
+        } 
+        // 检查是否是代码块标记
+        else if (line.trim() === '```') {
+            if (insideCodeBlock) {
+                // 代码块结束
+                if (inInputSection) {
+                    currentInput += currentCodeBlock;
+                } else if (inOutputSection) {
+                    currentOutput += currentCodeBlock;
+                }
+                currentCodeBlock = '';
+                insideCodeBlock = false;
+            } else {
+                // 代码块开始
+                insideCodeBlock = true;
+                currentCodeBlock = '';
+            }
+        } 
+        // 如果在代码块内
+        else if (insideCodeBlock) {
+            currentCodeBlock += line + '\n';
+        }
+        // 如果在输入或输出区域内，但不在代码块内
+        else if (inInputSection && !insideCodeBlock) {
+            // 忽略非代码块内容，因为我们主要关心代码块内的样例
+        } else if (inOutputSection && !insideCodeBlock) {
+            // 忽略非代码块内容，因为我们主要关心代码块内的样例
+        }
+    }
+    
+    // 保存最后一个样例
+    if (currentInput && currentOutput) {
+        samples.push([currentInput.trim(), currentOutput.trim()]);
+    }
+    
+    return samples;
+}
+
+// 从代码块解析输入输出样例
+function parseSampleFromCodeBlock(codeBlock) {
+    const samples = [];
+    
+    // 按 ``` 分割，获取代码块内容
+    const codeBlocks = codeBlock.split('```');
+    
+    // 遍历每个代码块
+    for (let i = 1; i < codeBlocks.length; i += 2) { // 奇数索引是代码内容
+        const blockContent = codeBlocks[i].trim();
+        
+        // 检查是否在代码块前后有输入/输出标识
+        const prevBlock = codeBlocks[i - 1] || '';
+        const nextBlock = codeBlocks[i + 1] || '';
+        
+        // 检查前一个块是否包含"输入"字样
+        const hasInputBefore = /(#?\s*输入[^\n]*|Input[^\n]*)/i.test(prevBlock);
+        // 检查后一个块是否包含"输出"字样
+        const hasOutputAfter = /(#?\s*输出[^\n]*|Output[^\n]*)/i.test(nextBlock);
+        
+        if (hasInputBefore && hasOutputAfter) {
+            // 这种情况下，当前块是输入，下一个代码块是输出
+            if (i + 2 < codeBlocks.length) {
+                const outputBlock = codeBlocks[i + 2].trim();
+                samples.push([blockContent, outputBlock]);
+            }
+        } else if (hasInputBefore) {
+            // 当前块是输入，下一个代码块是输出
+            if (i + 2 < codeBlocks.length) {
+                const outputBlock = codeBlocks[i + 2].trim();
+                samples.push([blockContent, outputBlock]);
+            }
+        } else {
+            // 尝试检测当前代码块是否包含多个输入输出对
+            // 按"输入"和"输出"关键词分割
+            const splitByInOut = prevBlock.split(/(#?\s*输入[^\n]*|##?\s*输出[^\n]*|Input[^\n]*|Output[^\n]*)/gi);
+            
+            let currentInput = '';
+            let currentOutput = '';
+            let isReadingInput = false;
+            
+            for (let j = 0; j < splitByInOut.length; j++) {
+                const segment = splitByInOut[j];
+                
+                if (/输入|Input/i.test(segment)) {
+                    isReadingInput = true;
+                    // 下一个片段是输入内容
+                    if (j + 1 < splitByInOut.length) {
+                        currentInput = splitByInOut[j + 1].trim();
+                    }
+                } else if (/输出|Output/i.test(segment)) {
+                    isReadingInput = false;
+                    // 下一个片段是输出内容
+                    if (j + 1 < splitByInOut.length) {
+                        currentOutput = splitByInOut[j + 1].trim();
+                    }
+                    
+                    // 如果同时有输入和输出，添加为样例
+                    if (currentInput && currentOutput) {
+                        samples.push([currentInput, currentOutput]);
+                        currentInput = '';
+                        currentOutput = '';
+                    }
+                }
+            }
+        }
+    }
+    
+    // 如果还没有找到样例，尝试另一种方法：查找"输入 #1"、"输出 #1"等模式
+    if (samples.length === 0) {
+        const lines = codeBlock.split('\n');
+        let currentInput = '';
+        let currentOutput = '';
+        let inInputSection = false;
+        let inOutputSection = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            if (/输入\s*#[^0-9]*(\d+)/i.test(line) || /Input/i.test(line)) {
+                // 开始新的输入部分
+                if (currentInput && currentOutput) {
+                    // 保存之前的样例
+                    samples.push([currentInput.trim(), currentOutput.trim()]);
+                }
+                
+                inInputSection = true;
+                inOutputSection = false;
+                currentInput = '';
+            } else if (/输出\s*#[^0-9]*(\d+)/i.test(line) || /Output/i.test(line)) {
+                // 开始新的输出部分
+                inInputSection = false;
+                inOutputSection = true;
+                currentOutput = '';
+            } else if (line.startsWith('```') && line.endsWith('```')) {
+                // 单行代码块
+                const codeContent = line.substring(3, line.length - 3);
+                if (inInputSection) {
+                    currentInput += codeContent + '\n';
+                } else if (inOutputSection) {
+                    currentOutput += codeContent + '\n';
+                }
+            } else if (inInputSection) {
+                currentInput += line + '\n';
+            } else if (inOutputSection) {
+                currentOutput += line + '\n';
+            }
+        }
+        
+        // 添加最后一个样例
+        if (currentInput && currentOutput) {
+            samples.push([currentInput.trim(), currentOutput.trim()]);
+        }
+    }
+    
+    return samples;
+}
+
+// 显示Markdown题目
+function displayMarkdownProblem(problemData) {
+    const problemDisplay = document.getElementById('problem-display');
+    if (!problemDisplay) return;
+
+    // 检测是否为移动设备 - 使用 isFullMode 变量作为参考
+    const isMobile = !isFullMode; // 非全屏模式视为移动设备
+
+    // 清空并显示题目区域
+    problemDisplay.innerHTML = '';
+    problemDisplay.style.display = 'block';
+
+    // 创建滚动容器
+    const scrollContainer = document.createElement('div');
+    scrollContainer.style.height = '100%';
+    scrollContainer.style.overflowY = 'auto'; // 启用滚动以便按钮可以控制
+    scrollContainer.style.padding = '20px';
+    scrollContainer.style.boxSizing = 'border-box';
+    scrollContainer.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
+
+    // 为移动端隐藏滚动条
+    if (isMobile) {
+        // 隐藏滚动条的样式
+        scrollContainer.style.msOverflowStyle = 'none';  // IE 和 Edge
+        scrollContainer.style.scrollbarWidth = 'none';  // Firefox
+
+        // 为 Webkit 浏览器隐藏滚动条
+        const style = document.createElement('style');
+        style.textContent = `
+            #problem-display [data-scroll-container]::-webkit-scrollbar {
+                display: none;  /* Chrome, Safari, Opera*/
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    scrollContainer.setAttribute('data-scroll-container', 'true'); // 标记这个容器用于滚动
+
+    // 标题区域 - Markdown导入的题目不显示难度
+    const titleContainer = document.createElement('div');
+    titleContainer.style.display = 'flex';
+    titleContainer.style.justifyContent = 'space-between';
+    titleContainer.style.alignItems = 'center';
+    titleContainer.style.marginTop = '30px';
+    titleContainer.style.flexWrap = 'wrap';
+    titleContainer.style.gap = '10px';
+
+    const titleElement = document.createElement('h2');
+    titleElement.style.color = '#ccc';
+    titleElement.style.margin = '0';
+    titleElement.style.flex = '1';
+    titleElement.style.minWidth = '0';
+    titleElement.style.display = 'flex';
+    titleElement.style.alignItems = 'center';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = `${problemData.pid}. ${problemData.title}`;
+    titleElement.appendChild(titleSpan);
+
+    // Markdown导入的题目不显示跳转到洛谷的链接
+    // 检查CPH插件是否启用，如果启用则显示"传送至cph"按钮
+    const cphTransferButton = document.createElement('button');
+    const cphPluginEnabled = localStorage.getItem('cph_plugin_enabled') === 'true';
+
+    if (cphPluginEnabled) {
+        cphTransferButton.textContent = '传送至CPH';
+        cphTransferButton.style.backgroundColor = '#5a3fc0'; // 紫色背景，区别于洛谷的蓝色
+        cphTransferButton.style.color = 'white';
+        cphTransferButton.style.padding = '8px 16px';
+        cphTransferButton.style.textDecoration = 'none';
+        cphTransferButton.style.border = 'none';
+        cphTransferButton.style.borderRadius = '4px';
+        cphTransferButton.style.fontSize = '14px';
+        cphTransferButton.style.whiteSpace = 'nowrap';
+        cphTransferButton.style.marginRight = '10px';
+        cphTransferButton.style.cursor = 'pointer';
+
+        // 添加点击事件，传输题目数据到CPH
+        cphTransferButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            transferMarkdownProblemToCPH(problemData);
+        });
+    } else {
+        // 如果CPH插件未启用，隐藏按钮
+        cphTransferButton.style.display = 'none';
+    }
+
+    titleContainer.appendChild(titleElement);
+    // 只添加CPH按钮，不添加洛谷链接
+    titleContainer.appendChild(cphTransferButton);
+    scrollContainer.appendChild(titleContainer);
+
+    // 题目描述
+    if (problemData.description) {
+        const descSection = document.createElement('div');
+        descSection.style.margin = '20px 0';
+
+        const descHeading = document.createElement('h3');
+        descHeading.style.color = '#569cd6';
+        descHeading.textContent = '题目描述';
+
+        const descContent = document.createElement('div');
+        descContent.id = 'problem-description';
+        descContent.style.color = '#ccc';
+        descContent.style.lineHeight = '1.6';
+
+        descSection.appendChild(descHeading);
+        descSection.appendChild(descContent);
+        scrollContainer.appendChild(descSection);
+    }
+
+    // 输入格式
+    if (problemData.inputFormat) {
+        const inputSection = document.createElement('div');
+        inputSection.style.margin = '20px 0';
+
+        const inputHeading = document.createElement('h3');
+        inputHeading.style.color = '#569cd6';
+        inputHeading.textContent = '输入格式';
+
+        const inputContent = document.createElement('div');
+        inputContent.id = 'problem-input-format';
+        inputContent.style.color = '#ccc';
+        inputContent.style.lineHeight = '1.6';
+
+        inputSection.appendChild(inputHeading);
+        inputSection.appendChild(inputContent);
+        scrollContainer.appendChild(inputSection);
+    }
+
+    // 输出格式
+    if (problemData.outputFormat) {
+        const outputSection = document.createElement('div');
+        outputSection.style.margin = '20px 0';
+
+        const outputHeading = document.createElement('h3');
+        outputHeading.style.color = '#569cd6';
+        outputHeading.textContent = '输出格式';
+
+        const outputContent = document.createElement('div');
+        outputContent.id = 'problem-output-format';
+        outputContent.style.color = '#ccc';
+        outputContent.style.lineHeight = '1.6';
+
+        outputSection.appendChild(outputHeading);
+        outputSection.appendChild(outputContent);
+        scrollContainer.appendChild(outputSection);
+    }
+
+    // 样例
+    if (problemData.samples && Array.isArray(problemData.samples) && problemData.samples.length > 0) {
+        const samplesSection = document.createElement('div');
+        samplesSection.style.margin = '20px 0';
+
+        const samplesHeading = document.createElement('h3');
+        samplesHeading.style.color = '#569cd6';
+        samplesHeading.textContent = '样例';
+
+        samplesSection.appendChild(samplesHeading);
+
+        problemData.samples.forEach((sample, index) => {
+            const sampleContainer = document.createElement('div');
+            sampleContainer.style.margin = '15px 0';
+            sampleContainer.style.border = '1px solid #333';
+            sampleContainer.style.borderRadius = '4px';
+            sampleContainer.style.overflow = 'hidden';
+
+            // 输入部分
+            const inputBlock = document.createElement('div');
+            inputBlock.style.padding = '10px';
+            inputBlock.style.backgroundColor = '#1a1a1a';
+
+            const inputLabel = document.createElement('div');
+            inputLabel.style.color = '#6a9955';
+            inputLabel.style.fontWeight = 'bold';
+            inputLabel.style.marginBottom = '5px';
+            inputLabel.textContent = `输入 #${index + 1}`;
+
+            const inputPre = document.createElement('pre');
+            inputPre.style.background = '#1e1e1e';
+            inputPre.style.padding = '10px';
+            inputPre.style.border = '1px solid #333';
+            inputPre.style.color = '#ccc';
+            inputPre.style.whiteSpace = 'pre-wrap';
+            inputPre.style.margin = '0';
+            inputPre.style.overflowX = 'auto';
+            inputPre.style.webkitOverflowScrolling = 'touch';
+            inputPre.textContent = sample[0];
+
+            inputBlock.appendChild(inputLabel);
+            inputBlock.appendChild(inputPre);
+
+            // 输出部分
+            const outputBlock = document.createElement('div');
+            outputBlock.style.padding = '10px';
+            outputBlock.style.backgroundColor = '#1a1a1a';
+
+            const outputLabel = document.createElement('div');
+            outputLabel.style.color = '#6a9955';
+            outputLabel.style.fontWeight = 'bold';
+            outputLabel.style.marginBottom = '5px';
+            outputLabel.textContent = `输出 #${index + 1}`;
+
+            const outputPre = document.createElement('pre');
+            outputPre.style.background = '#1e1e1e';
+            outputPre.style.padding = '10px';
+            outputPre.style.border = '1px solid #333';
+            outputPre.style.color = '#ccc';
+            outputPre.style.whiteSpace = 'pre-wrap';
+            outputPre.style.margin = '0';
+            outputPre.style.overflowX = 'auto';
+            outputPre.style.webkitOverflowScrolling = 'touch';
+            outputPre.textContent = sample[1];
+
+            outputBlock.appendChild(outputLabel);
+            outputBlock.appendChild(outputPre);
+
+            sampleContainer.appendChild(inputBlock);
+            sampleContainer.appendChild(outputBlock);
+            samplesSection.appendChild(sampleContainer);
+        });
+
+        scrollContainer.appendChild(samplesSection);
+    }
+
+    // 提示
+    if (problemData.hint) {
+        const hintSection = document.createElement('div');
+        hintSection.style.margin = '20px 0';
+
+        const hintHeading = document.createElement('h3');
+        hintHeading.style.color = '#569cd6';
+        hintHeading.textContent = '提示';
+
+        const hintContent = document.createElement('div');
+        hintContent.id = 'problem-hint';
+        hintContent.style.color = '#ccc';
+        hintContent.style.lineHeight = '1.6';
+
+        hintSection.appendChild(hintHeading);
+        hintSection.appendChild(hintContent);
+        scrollContainer.appendChild(hintSection);
+    }
+
+    problemDisplay.appendChild(scrollContainer);
+
+    // 在移动设备上，临时隐藏编辑器区域以显示题目详情
+    if (isMobile) {
+        const editorArea = document.getElementById('editor-area');
+        if (editorArea) {
+            editorArea.style.display = 'none';
+        }
+
+        // 添加一个返回编辑器的按钮
+        const backButton = document.createElement('div');
+        backButton.innerHTML = '返回编辑器';
+        backButton.style.position = 'fixed';
+        backButton.style.bottom = '20px';
+        backButton.style.left = '50%';
+        backButton.style.transform = 'translateX(-50%)';
+        backButton.style.backgroundColor = '#0e639c';
+        backButton.style.color = 'white';
+        backButton.style.padding = '12px 24px';
+        backButton.style.borderRadius = '30px';
+        backButton.style.cursor = 'pointer';
+        backButton.style.zIndex = '102';
+        backButton.style.textAlign = 'center';
+        backButton.style.fontSize = '16px';
+        backButton.style.fontWeight = 'bold';
+        backButton.style.boxSizing = 'border-box';
+        backButton.id = 'back-to-editor-btn';
+
+        backButton.addEventListener('click', function() {
+            problemDisplay.style.display = 'none';
+            const editorArea = document.getElementById('editor-area');
+            if (editorArea) {
+                editorArea.style.display = 'flex';
+            }
+
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
+        });
+
+        problemDisplay.appendChild(backButton);
+
+        // 确保在移动设备上可以滚动
+        document.body.style.overflow = 'hidden';  // 防止背景页面滚动
+    } else {
+        // 在桌面设备上，确保滚动正常
+        document.body.style.overflow = '';
+    }
+
+    // 渲染Markdown和LaTeX内容
+    if (problemData.description) {
+        renderMarkdownAndLatex('problem-description', problemData.description);
+    }
+    if (problemData.inputFormat) {
+        renderMarkdownAndLatex('problem-input-format', problemData.inputFormat);
+    }
+    if (problemData.outputFormat) {
+        renderMarkdownAndLatex('problem-output-format', problemData.outputFormat);
+    }
+    if (problemData.hint) {
+        renderMarkdownAndLatex('problem-hint', problemData.hint);
+    }
+
+    // 添加关闭按钮
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '10px';
+    closeBtn.style.right = '10px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '24px';
+    closeBtn.style.color = '#ccc';
+    closeBtn.style.zIndex = '101';
+    closeBtn.addEventListener('click', function() {
+        problemDisplay.style.display = 'none';
+
+        // 在移动设备上，关闭题目显示后恢复编辑器显示
+        if (isMobile) {
+            const editorArea = document.getElementById('editor-area');
+            if (editorArea) {
+                editorArea.style.display = 'flex';
+
+                // 检查当前是否为手机模式（通过检查lines-container的显示状态）
+                const linesContainer = document.getElementById('lines-container');
+                if (linesContainer && linesContainer.style.display !== 'none') {
+                    // 当前是手机模式，确保3行预览区域可见
+                    linesContainer.style.display = 'flex';
+
+                    // 隐藏Monaco编辑器（在手机模式下）
+                    const editorContainer = document.getElementById('editor-container');
+                    if (editorContainer) {
+                        editorContainer.style.display = 'none';
+                    }
+                }
+            }
+
+            // 移除返回编辑器按钮
+            const backButton = document.getElementById('back-to-editor-btn');
+            if (backButton && backButton.parentNode === problemDisplay) {
+                backButton.parentNode.removeChild(backButton);
+            }
+
+            // 恢复背景页面滚动
+            document.body.style.overflow = '';
+        } else {
+            // 在桌面设备上，确保滚动正常
+            document.body.style.overflow = '';
+        }
+    });
+
+    problemDisplay.appendChild(closeBtn);
+
+    // 在移动端添加滚动按钮
+    if (isMobile) {
+        // 上移按钮
+        const upBtn = document.createElement('div');
+        upBtn.innerHTML = '↑';
+        upBtn.className = 'up-btn-mobile';
+
+        // 上移按钮点击事件
+        let upBtnInterval;
+        upBtn.addEventListener('mousedown', function() {
+            scrollContainer.scrollTop -= 50;
+            upBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop -= 50;
+            }, 100);
+        });
+
+        upBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            scrollContainer.scrollTop -= 50;
+            upBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop -= 50;
+            }, 100);
+        });
+
+        upBtn.addEventListener('mouseup', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        upBtn.addEventListener('touchend', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        upBtn.addEventListener('mouseleave', function() {
+            clearInterval(upBtnInterval);
+        });
+
+        problemDisplay.appendChild(upBtn);
+
+        // 下移按钮
+        const downBtn = document.createElement('div');
+        downBtn.innerHTML = '↓';
+        downBtn.className = 'down-btn-mobile';
+
+        // 下移按钮点击事件
+        let downBtnInterval;
+        downBtn.addEventListener('mousedown', function() {
+            scrollContainer.scrollTop += 50;
+            downBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop += 50;
+            }, 100);
+        });
+
+        downBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            scrollContainer.scrollTop += 50;
+            downBtnInterval = setInterval(() => {
+                scrollContainer.scrollTop += 50;
+            }, 100);
+        });
+
+        downBtn.addEventListener('mouseup', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        downBtn.addEventListener('touchend', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        downBtn.addEventListener('mouseleave', function() {
+            clearInterval(downBtnInterval);
+        });
+
+        problemDisplay.appendChild(downBtn);
+    }
+}
+
+// 传输Markdown题目数据到CPH插件
+function transferMarkdownProblemToCPH(problemData) {
+    try {
+        // 提取题目编号，优先使用PID，如果没有则从标题中提取
+        let problemId = problemData.pid;
+        if (!problemId || problemId === 'MD') {
+            // 从标题中提取题号（P或B开头的题号）
+            const pidMatch = problemData.title.match(/^[PBU]\d+/i);
+            problemId = pidMatch ? pidMatch[0].toLowerCase() : 'markdown';
+        } else {
+            problemId = problemId.toLowerCase();
+        }
+
+        // 准备测试用例数据
+        const testCases = [];
+        if (problemData.samples && Array.isArray(problemData.samples) && problemData.samples.length > 0) {
+            problemData.samples.forEach((sample, index) => {
+                testCases.push({
+                    stdin: sample[0],
+                    stdout: sample[1],
+                    name: `样例 ${index + 1}`
+                });
+            });
+        }
+
+        const fileName = `${problemId}.cpp`;
+
+        // 首先确保在编辑器中创建并打开对应的cpp文件
+        createAndOpenCppFile(fileName);
+
+        // 然后发送消息到CPH插件
+        if (window.cphPlugin) {
+            // 如果当前不是目标文件，切换到目标文件
+            if (window.cphPlugin.currentFile !== fileName) {
+                // 保存当前文件的测试用例
+                if (window.cphPlugin.testCases) {
+                    window.cphPlugin.saveTestCases();
+                }
+
+                // 切换到新文件
+                window.cphPlugin.currentFile = fileName;
+                // 加载新文件的测试用例（如果是新文件则为空）
+                window.cphPlugin.testCases = window.cphPlugin.loadTestCases();
+
+                // 触发文件更改事件，通知编辑器
+                localStorage.setItem('phoi_currentFileName', fileName);
+            }
+
+            // 添加测试用例
+            testCases.forEach(testCase => {
+                // 检查是否已存在相同的测试用例
+                const exists = window.cphPlugin.testCases.some(existingCase =>
+                    existingCase.stdin === testCase.stdin && existingCase.stdout === testCase.stdout
+                );
+
+                if (!exists) {
+                    window.cphPlugin.testCases.push(testCase);
+                }
+            });
+
+            // 保存测试用例
+            window.cphPlugin.saveTestCases();
+
+            // 更新UI
+            window.cphPlugin.renderTestCases();
+            window.cphPlugin.renderTestCasesMain();
+
+            // 安全地调用showMessage函数
+            if (typeof showMessage === 'function') {
+                showMessage(`成功传输 ${testCases.length} 个测试用例到CPH: ${fileName}`, 'success');
+            } else {
+                console.log(`成功传输 ${testCases.length} 个测试用例到CPH: ${fileName}`);
+            }
+        } else {
+            // 如果CPH插件未初始化，抛出异常
+            throw new Error('CPH插件未初始化');
+        }
+    } catch (error) {
+        console.error('传输题目到CPH失败:', error);
+        // 安全地调用showMessage函数
+        if (typeof showMessage === 'function') {
+            showMessage('传输题目到CPH失败: ' + error.message, 'error');
+        } else {
+            console.error('传输题目到CPH失败: ' + error.message);
+        }
+    }
+}
+
 // 初始化洛谷题目功能
 initLuoguFeature();
 
@@ -1031,3 +1976,29 @@ window.addEventListener('storage', function(e) {
         }
     }
 });
+
+// 显示消息
+function showMessage(content, sender) {
+    // 创建消息元素
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `debug-message ${sender}`;
+    messageDiv.innerHTML = `<strong>${sender === 'user' ? '用户:' : '系统:'}</strong> ${content}`;
+
+    // 添加到输出面板
+    const outputContent = document.getElementById('output-content');
+    if (outputContent) {
+        outputContent.appendChild(messageDiv);
+        outputContent.scrollTop = outputContent.scrollHeight;
+
+        // 显示输出面板
+        const outputPanel = document.getElementById('output-panel');
+        if (outputPanel) {
+            outputPanel.style.display = 'flex';
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                outputPanel.style.display = 'none';
+            }, 3000);
+        }
+    }
+}
