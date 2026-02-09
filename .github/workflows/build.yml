@@ -28,16 +28,79 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt || echo "No requirements.txt found, installing common packages"
-        pip install flask requests pyinstaller
+        pip install -r requirements.txt
+        pip install pyinstaller
 
-    - name: Verify PyInstaller installation
+    - name: Create spec file for PyInstaller
       run: |
-        python -c "import PyInstaller; print('PyInstaller version:', PyInstaller.__version__)"
+        # 创建PyInstaller spec文件
+        cat > phcode.spec << EOF
+        # -*- mode: python ; coding: utf-8 -*-
+        
+        block_cipher = None
+        
+        a = Analysis(
+            ['app_gui.py'],
+            pathex=[],
+            binaries=[],
+            datas=[
+                ('templates', 'templates'),
+                ('static', 'static'),
+            ],
+            hiddenimports=[],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            win_no_prefer_redirects=False,
+            win_private_assemblies=False,
+            cipher=block_cipher,
+            noarchive=False,
+        )
+        pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+        
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.zipfiles,
+            a.datas,
+            [],
+            name='phcode',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=True,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=True,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+            icon=None,
+        )
+        EOF
 
-    - name: Run build script
+    - name: Build executable with PyInstaller
       run: |
-        python -u build.py --skip-install --version "${{ inputs.version }}" || python -u build.py --skip-install
+        # 使用spec文件构建可执行文件
+        python -m PyInstaller phcode.spec
+
+    - name: Create ZIP archive
+      run: |
+        # 创建包含可执行文件和资源的ZIP归档
+        if ("${{ inputs.version }}" -ne "") {
+          $zipFileName = "phcode-v${{ inputs.version }}.zip"
+        } else {
+          $zipFileName = "phcode-build.zip"
+        }
+        
+        # 使用PowerShell创建ZIP归档
+        Compress-Archive -Path "dist\phcode.exe", "templates\*", "static\*" -DestinationPath $zipFileName -Force
+        
+        Write-Host "Created ZIP archive: $zipFileName"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -49,22 +112,12 @@ jobs:
 
     - name: Create Release
       if: ${{ inputs.version != '' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ inputs.version }}
         release_name: Release v${{ inputs.version }}
         draft: false
         prerelease: false
-
-    - name: Upload Release Asset
-      if: ${{ inputs.version != '' }}
-      uses: actions/upload-release-asset@v1
+        files: phcode-v${{ inputs.version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: phcode-v${{ inputs.version }}.zip
-        asset_name: phcode-v${{ inputs.version }}.zip
-        asset_content_type: application/zip
