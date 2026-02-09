@@ -70,7 +70,7 @@ const VFS_STORAGE_KEY = 'phoi_vfs_structure';
 let currentFileName = localStorage.getItem('phoi_currentFileName') || 'new.cpp'; // 当前正在编辑的文件名
 
 // --- 恢复保存的代码 ---
-const defaultDefaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Phoi" << endl;\n\treturn 0;\n}`;
+const defaultDefaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`;
 // 从本地存储获取用户自定义的默认代码，如果没有则使用系统默认代码
 const defaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
 // 如果本地没有保存过，才使用默认代码
