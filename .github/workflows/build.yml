@@ -31,64 +31,13 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
-    - name: Create spec file for PyInstaller
-      run: |
-        # 创建PyInstaller spec文件
-        cat > phcode.spec << EOF
-        # -*- mode: python ; coding: utf-8 -*-
-        
-        block_cipher = None
-        
-        a = Analysis(
-            ['app_gui.py'],
-            pathex=[],
-            binaries=[],
-            datas=[
-                ('templates', 'templates'),
-                ('static', 'static'),
-            ],
-            hiddenimports=[],
-            hookspath=[],
-            hooksconfig={},
-            runtime_hooks=[],
-            excludes=[],
-            win_no_prefer_redirects=False,
-            win_private_assemblies=False,
-            cipher=block_cipher,
-            noarchive=False,
-        )
-        pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-        
-        exe = EXE(
-            pyz,
-            a.scripts,
-            a.binaries,
-            a.zipfiles,
-            a.datas,
-            [],
-            name='phcode',
-            debug=False,
-            bootloader_ignore_signals=False,
-            strip=False,
-            upx=True,
-            upx_exclude=[],
-            runtime_tmpdir=None,
-            console=True,
-            disable_windowed_traceback=False,
-            argv_emulation=False,
-            target_arch=None,
-            codesign_identity=None,
-            entitlements_file=None,
-            icon=None,
-        )
-        EOF
-
     - name: Build executable with PyInstaller
       run: |
-        # 使用spec文件构建可执行文件
-        python -m PyInstaller phcode.spec
+        # 直接使用PyInstaller命令行构建可执行文件
+        python -m PyInstaller --onefile --add-data "templates;templates" --add-data "static;static" --name phcode app_gui.py
 
     - name: Create ZIP archive
+      shell: pwsh
       run: |
         # 创建包含可执行文件和资源的ZIP归档
         if ("${{ inputs.version }}" -ne "") {
@@ -97,8 +46,14 @@ jobs:
           $zipFileName = "phcode-build.zip"
         }
         
+        # 创建临时目录并将所有文件复制进去
+        New-Item -ItemType Directory -Name "temp_package" -Force
+        Copy-Item "dist\phcode.exe" -Destination "temp_package\"
+        Copy-Item "templates" -Recurse -Destination "temp_package\"
+        Copy-Item "static" -Recurse -Destination "temp_package\"
+        
         # 使用PowerShell创建ZIP归档
-        Compress-Archive -Path "dist\phcode.exe", "templates\*", "static\*" -DestinationPath $zipFileName -Force
+        Compress-Archive -Path "temp_package\*" -DestinationPath $zipFileName -Force
         
         Write-Host "Created ZIP archive: $zipFileName"
 
