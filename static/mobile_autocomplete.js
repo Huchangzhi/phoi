@@ -80,7 +80,7 @@ class MobileAutocomplete {
 
         // C++标准库头文件
         this.cppHeaders = [
-            'iostream', 'ostream', 'istream', 'fstream', 'sstream',  // I/O
+            'bits/stdc++.h', 'iostream', 'ostream', 'istream', 'fstream', 'sstream',  // I/O
             'vector', 'list', 'deque', 'array', 'forward_list', 'queue', 'stack',  // Containers
             'map', 'set', 'unordered_map', 'unordered_set', 'multimap', 'multiset',  // Associative containers
             'string', 'cstring', 'string_view',  // Strings
