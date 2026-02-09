@@ -21,7 +21,7 @@ def install_pyinstaller():
 
 def build_executable(script_path, output_dir="dist"):
     """使用PyInstaller构建可执行文件"""
-    print(f"正在构建可执行文件 from {script_path}...")
+    print(f"Building executable from {script_path}...")
     
     # 创建spec文件以自定义构建过程
     spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
@@ -84,17 +84,17 @@ exe = EXE(
         "--add-data", "static;static",      # 包含static目录
         "--name", "phcode",
         spec_file
-    ], check=True)
+    ], check=True, encoding='utf-8')
     
     # 清理spec文件
     os.remove(spec_file)
     
-    print("构建完成！")
+    print("Build completed!")
 
 
 def create_zip_archive(output_dir="dist", version=None):
     """创建包含可执行文件和相关资源的zip归档"""
-    print("正在创建ZIP归档...")
+    print("Creating ZIP archive...")
     
     if version:
         zip_filename = f"phcode-v{version}.zip"
@@ -120,14 +120,14 @@ def create_zip_archive(output_dir="dist", version=None):
                 arc_path = os.path.join(root, file)
                 zipf.write(file_path, arc_path)
     
-    print(f"ZIP归档已创建: {zip_filename}")
+    print(f"ZIP archive created: {zip_filename}")
     return zip_filename
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PH Code构建工具')
-    parser.add_argument('--version', type=str, help='版本号 (如果提供则发布新版本)')
-    parser.add_argument('--skip-install', action='store_true', help='跳过PyInstaller安装')
+    parser = argparse.ArgumentParser(description='PH Code Build Tool')
+    parser.add_argument('--version', type=str, help='Version number (if provided, create release)')
+    parser.add_argument('--skip-install', action='store_true', help='Skip PyInstaller installation')
     
     args = parser.parse_args()
     
@@ -138,7 +138,7 @@ def main():
         if not args.skip_install:
             install_pyinstaller()
         else:
-            print("错误: PyInstaller未安装，请先安装或使用--skip-install参数")
+            print("Error: PyInstaller is not installed, please install or use --skip-install flag")
             sys.exit(1)
     
     # 构建可执行文件
@@ -147,10 +147,10 @@ def main():
     # 创建ZIP归档
     zip_filename = create_zip_archive(version=args.version)
     
-    print(f"构建完成! 输出文件: {zip_filename}")
+    print(f"Build completed! Output file: {zip_filename}")
     
     if args.version:
-        print(f"已为版本 v{args.version} 创建发布包")
+        print(f"Release package created for version v{args.version}")
 
 
 if __name__ == "__main__":
