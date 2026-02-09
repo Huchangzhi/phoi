@@ -506,6 +506,28 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     padding-left: 10px;
 }
 
+.plugin-actions {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plugin-btn {
+    padding: 6px 12px;
+    background-color: #0e639c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.plugin-btn:hover {
+    background-color: #1177bb;
+}
+
 .setting-item {
     margin: 8px 0;
     display: flex;
@@ -547,9 +569,9 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     align-items: center;
 }
 
-.about-modal {
+.about-modal, .preferences-modal {
     width: 80%;
-    max-width: 500px;
+    max-width: 600px;
     background-color: #252526;
     border: 1px solid #444;
     border-radius: 6px;
@@ -605,6 +627,54 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 .modal-body a:hover {
     text-decoration: underline;
+}
+
+/* 首选项弹窗特殊样式 */
+.preferences-modal .modal-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.preferences-modal .setting-item {
+    margin-bottom: 15px;
+}
+
+.preferences-modal .setting-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #ddd;
+}
+
+.preferences-modal textarea#default-code-editor {
+    width: 100%;
+    height: 200px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    padding: 8px;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+/* 首选项弹窗按钮样式 */
+.preferences-modal .modal-footer .modal-btn {
+    color: #ffffff; /* 白色文字 */
+}
+
+.preferences-modal .modal-footer #reset-default-code {
+    background-color: #3e3e42; /* 灰色背景 */
+}
+
+.preferences-modal .modal-footer #cancel-preferences {
+    background-color: #3e3e42; /* 灰色背景 */
+}
+
+.preferences-modal .modal-footer #save-preferences {
+    background-color: #0e639c; /* 蓝色背景 */
 }
 
 /* 移动端代码补全样式 */

@@ -38,8 +38,17 @@ const fileDropdown = document.getElementById('file-dropdown');
 const uploadFileBtn = document.getElementById('upload-file');
 const downloadFileBtn = document.getElementById('download-file');
 const saveAsBtn = document.getElementById('save-as');
+const preferencesBtn = document.getElementById('preferences');
 const newFileBtn = document.getElementById('new-file');
 const newFolderBtn = document.getElementById('new-folder');
+
+// 首选项弹窗相关元素
+const preferencesModal = document.getElementById('preferences-modal');
+const closePreferences = document.getElementById('close-preferences');
+const cancelPreferences = document.getElementById('cancel-preferences');
+const savePreferences = document.getElementById('save-preferences');
+const resetDefaultCode = document.getElementById('reset-default-code');
+const defaultCodeEditor = document.getElementById('default-code-editor');
 
 const leftSidebar = document.getElementById('left-sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
@@ -61,7 +70,9 @@ const VFS_STORAGE_KEY = 'phoi_vfs_structure';
 let currentFileName = localStorage.getItem('phoi_currentFileName') || 'new.cpp'; // 当前正在编辑的文件名
 
 // --- 恢复保存的代码 ---
-const defaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Phoi" << endl;\n\treturn 0;\n}`;
+const defaultDefaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Phoi" << endl;\n\treturn 0;\n}`;
+// 从本地存储获取用户自定义的默认代码，如果没有则使用系统默认代码
+const defaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
 // 如果本地没有保存过，才使用默认代码
 let globalText = localStorage.getItem('phoi_savedCode') || defaultCode;
 let globalCursorPos = globalText.length;
@@ -446,11 +457,14 @@ function newFile() {
         return;
     }
 
+    // 获取当前的默认代码（可能是用户自定义的）
+    const currentDefaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
+    
     // 创建新文件
     vfsStructure['/'].children[fileName] = {
         type: 'file',
         name: fileName,
-        content: defaultCode
+        content: currentDefaultCode
     };
 
     saveVFS();
@@ -1554,16 +1568,10 @@ window.PhoiAPI = {
             return false;
         }
 
-        // 使用提供的内容或默认模板创建文件
-        const cppTemplate = `#include <iostream>
-using namespace std;
+        // 使用提供的内容或默认代码创建文件
+        const currentDefaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
+        const fileContent = content || currentDefaultCode;
 
-int main() {
-
-    return 0;
-}`;
-        const fileContent = content || cppTemplate;
-        
         // 创建新文件
         vfsStructure['/'].children[fileName] = {
             type: 'file',
@@ -1587,6 +1595,87 @@ int main() {
 };
 
 
+
+// 首选项功能相关函数
+function showPreferencesModal() {
+    // 加载当前默认代码到编辑器
+    const currentDefaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
+    if (defaultCodeEditor) {
+        defaultCodeEditor.value = currentDefaultCode;
+    }
+    
+    // 显示弹窗
+    if (preferencesModal) {
+        preferencesModal.style.display = 'flex';
+    }
+}
+
+function hidePreferencesModal() {
+    // 隐藏弹窗
+    if (preferencesModal) {
+        preferencesModal.style.display = 'none';
+    }
+}
+
+function savePreferencesChanges() {
+    // 保存默认代码到本地存储
+    if (defaultCodeEditor) {
+        const newDefaultCode = defaultCodeEditor.value;
+        localStorage.setItem('phoi_defaultCode', newDefaultCode);
+        
+        // 更新当前的defaultCode变量
+        // 注意：这不会影响当前已打开的文件，只会影响新创建的文件
+        showMessage('默认代码已保存！', 'system');
+        
+        // 隐藏弹窗
+        hidePreferencesModal();
+    }
+}
+
+function resetToDefaultCode() {
+    if (defaultCodeEditor) {
+        defaultCodeEditor.value = defaultDefaultCode;
+    }
+}
+
+// 首选项弹窗事件监听器
+if (preferencesBtn) {
+    preferencesBtn.addEventListener('click', function() {
+        showPreferencesModal();
+    });
+}
+
+// 关闭首选项弹窗事件监听器
+if (closePreferences) {
+    closePreferences.addEventListener('click', function() {
+        hidePreferencesModal();
+    });
+}
+
+if (cancelPreferences) {
+    cancelPreferences.addEventListener('click', function() {
+        hidePreferencesModal();
+    });
+}
+
+if (savePreferences) {
+    savePreferences.addEventListener('click', function() {
+        savePreferencesChanges();
+    });
+}
+
+if (resetDefaultCode) {
+    resetDefaultCode.addEventListener('click', function() {
+        resetToDefaultCode();
+    });
+}
+
+// 点击弹窗外部关闭弹窗
+window.addEventListener('click', function(event) {
+    if (event.target === preferencesModal) {
+        hidePreferencesModal();
+    }
+});
 
 // 初始化虚拟文件系统
 initializeVFS();

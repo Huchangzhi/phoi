@@ -33,6 +33,8 @@
         <div class="dropdown-item" id="download-file">下载文件</div>
         <div class="dropdown-item" id="save-as">另存为</div>
         <div class="dropdown-divider"></div>
+        <div class="dropdown-item" id="preferences">首选项</div>
+        <div class="dropdown-divider"></div>
         <div class="dropdown-item" id="new-file">新建文件</div>
     </div>
 
@@ -135,6 +137,27 @@
             <div class="modal-footer">
                 <button id="modal-cancel" class="modal-btn">取消</button>
                 <button id="modal-run" class="modal-btn">运行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首选项弹窗 -->
+    <div id="preferences-modal" class="modal-overlay">
+        <div class="modal-content preferences-modal">
+            <div class="modal-header">
+                <h2>首选项</h2>
+                <span id="close-preferences" class="close-btn">×</span>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <label for="default-code-editor">默认代码:</label>
+                    <textarea id="default-code-editor" placeholder="在此输入默认代码..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="reset-default-code" class="modal-btn">重置为默认</button>
+                <button id="cancel-preferences" class="modal-btn">取消</button>
+                <button id="save-preferences" class="modal-btn">保存</button>
             </div>
         </div>
     </div>
