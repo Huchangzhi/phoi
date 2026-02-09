@@ -573,9 +573,14 @@ class CPHPlugin {
                     allPassed = false;
                 } else if (result.Result) {
                     // 检查输出是否匹配预期
-                    const actualOutput = result.Result.trim();
-                    const expectedOutput = (testCase.stdout || '').trim();
+                    // 忽略每行末尾的空格以及整体首尾空格
+                    const normalizeWhitespace = (str) => {
+                        return str.split('\n').map(line => line.replace(/\s+$/, '')).join('\n').trim();
+                    };
                     
+                    const actualOutput = normalizeWhitespace(result.Result);
+                    const expectedOutput = normalizeWhitespace(testCase.stdout || '');
+
                     if (actualOutput === expectedOutput) {
                         status = '✅ 通过';
                     } else {
