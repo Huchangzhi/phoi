@@ -165,7 +165,7 @@ function showLuoguProblemDialog() {
 
     // 创建"从剪切板读取Markdown格式题目"按钮
     const readMarkdownBtn = document.createElement('button');
-    readMarkdownBtn.textContent = '从剪切板读取Markdown格式题目（实验性）';
+    readMarkdownBtn.textContent = '从剪切板读取Markdown格式题目';
     readMarkdownBtn.className = 'modal-btn';
     readMarkdownBtn.style.backgroundColor = '#3e3e42';
     readMarkdownBtn.style.marginRight = '10px';
@@ -1082,34 +1082,30 @@ function isValidMarkdownProblem(text) {
 
 // 解析并显示Markdown题目
 function parseAndDisplayMarkdownProblem(markdownText) {
+    // 提取题号（从标题中提取P或B开头的题号）
+    const pidMatch = markdownText.match(/^#\s*[^\n]*?([PBUT]\d+)/im);
+    const pid = pidMatch ? pidMatch[1].toUpperCase() : 'MD'; // 标识这是Markdown导入的题目
+
     // 提取题目标题
     const titleMatch = markdownText.match(/^#\s*(.+)$/m);
     const title = titleMatch ? titleMatch[1].trim() : '未命名题目';
-    
-    // 提取题号（从标题中提取P或B开头的题号）
-    const pidMatch = title.match(/^[PBU]\d+/i);
-    const pid = pidMatch ? pidMatch[0].toUpperCase() : 'MD'; // 标识这是Markdown导入的题目
-    
+
+    // 提取样例
+    const samples = parseSamplesFromContent(markdownText);
+
     // 创建模拟的题目对象，用于显示
     const mockProblemData = {
         pid: pid,
         title: title,
-        // 不包含difficulty和link字段，因为Markdown导入的题目不显示这些
+        // 直接使用原始Markdown文本作为描述
+        description: markdownText,
+        // 保留提取的样例
+        samples: samples
     };
-    
-    // 分离各个板块
-    const sections = separateMarkdownSections(markdownText);
-    
-    // 将分离的板块添加到模拟题目对象
-    if (sections.description) mockProblemData.description = sections.description;
-    if (sections.inputFormat) mockProblemData.inputFormat = sections.inputFormat;
-    if (sections.outputFormat) mockProblemData.outputFormat = sections.outputFormat;
-    if (sections.samples) mockProblemData.samples = sections.samples;
-    if (sections.hint) mockProblemData.hint = sections.hint;
-    
+
     // 创建题目显示区域
     createProblemDisplayArea();
-    
+
     // 显示题目
     displayMarkdownProblem(mockProblemData);
 }
@@ -1509,64 +1505,21 @@ function displayMarkdownProblem(problemData) {
     titleContainer.appendChild(cphTransferButton);
     scrollContainer.appendChild(titleContainer);
 
-    // 题目描述
-    if (problemData.description) {
-        const descSection = document.createElement('div');
-        descSection.style.margin = '20px 0';
+    // 渲染完整的Markdown内容
+    const fullContentSection = document.createElement('div');
+    fullContentSection.style.margin = '20px 0';
+    fullContentSection.style.color = '#ccc';
+    fullContentSection.style.lineHeight = '1.6';
 
-        const descHeading = document.createElement('h3');
-        descHeading.style.color = '#569cd6';
-        descHeading.textContent = '题目描述';
+    const fullContentDiv = document.createElement('div');
+    fullContentDiv.id = 'full-markdown-content';
+    fullContentDiv.style.color = '#ccc';
+    fullContentDiv.style.lineHeight = '1.6';
 
-        const descContent = document.createElement('div');
-        descContent.id = 'problem-description';
-        descContent.style.color = '#ccc';
-        descContent.style.lineHeight = '1.6';
+    fullContentSection.appendChild(fullContentDiv);
+    scrollContainer.appendChild(fullContentSection);
 
-        descSection.appendChild(descHeading);
-        descSection.appendChild(descContent);
-        scrollContainer.appendChild(descSection);
-    }
-
-    // 输入格式
-    if (problemData.inputFormat) {
-        const inputSection = document.createElement('div');
-        inputSection.style.margin = '20px 0';
-
-        const inputHeading = document.createElement('h3');
-        inputHeading.style.color = '#569cd6';
-        inputHeading.textContent = '输入格式';
-
-        const inputContent = document.createElement('div');
-        inputContent.id = 'problem-input-format';
-        inputContent.style.color = '#ccc';
-        inputContent.style.lineHeight = '1.6';
-
-        inputSection.appendChild(inputHeading);
-        inputSection.appendChild(inputContent);
-        scrollContainer.appendChild(inputSection);
-    }
-
-    // 输出格式
-    if (problemData.outputFormat) {
-        const outputSection = document.createElement('div');
-        outputSection.style.margin = '20px 0';
-
-        const outputHeading = document.createElement('h3');
-        outputHeading.style.color = '#569cd6';
-        outputHeading.textContent = '输出格式';
-
-        const outputContent = document.createElement('div');
-        outputContent.id = 'problem-output-format';
-        outputContent.style.color = '#ccc';
-        outputContent.style.lineHeight = '1.6';
-
-        outputSection.appendChild(outputHeading);
-        outputSection.appendChild(outputContent);
-        scrollContainer.appendChild(outputSection);
-    }
-
-    // 样例
+    // 样例（如果存在）
     if (problemData.samples && Array.isArray(problemData.samples) && problemData.samples.length > 0) {
         const samplesSection = document.createElement('div');
         samplesSection.style.margin = '20px 0';
@@ -1642,25 +1595,6 @@ function displayMarkdownProblem(problemData) {
         scrollContainer.appendChild(samplesSection);
     }
 
-    // 提示
-    if (problemData.hint) {
-        const hintSection = document.createElement('div');
-        hintSection.style.margin = '20px 0';
-
-        const hintHeading = document.createElement('h3');
-        hintHeading.style.color = '#569cd6';
-        hintHeading.textContent = '提示';
-
-        const hintContent = document.createElement('div');
-        hintContent.id = 'problem-hint';
-        hintContent.style.color = '#ccc';
-        hintContent.style.lineHeight = '1.6';
-
-        hintSection.appendChild(hintHeading);
-        hintSection.appendChild(hintContent);
-        scrollContainer.appendChild(hintSection);
-    }
-
     problemDisplay.appendChild(scrollContainer);
 
     // 在移动设备上，临时隐藏编辑器区域以显示题目详情
@@ -1709,19 +1643,8 @@ function displayMarkdownProblem(problemData) {
         document.body.style.overflow = '';
     }
 
-    // 渲染Markdown和LaTeX内容
-    if (problemData.description) {
-        renderMarkdownAndLatex('problem-description', problemData.description);
-    }
-    if (problemData.inputFormat) {
-        renderMarkdownAndLatex('problem-input-format', problemData.inputFormat);
-    }
-    if (problemData.outputFormat) {
-        renderMarkdownAndLatex('problem-output-format', problemData.outputFormat);
-    }
-    if (problemData.hint) {
-        renderMarkdownAndLatex('problem-hint', problemData.hint);
-    }
+    // 渲染完整的Markdown和LaTeX内容
+    renderMarkdownAndLatex('full-markdown-content', problemData.description);
 
     // 添加关闭按钮
     const closeBtn = document.createElement('div');
@@ -1855,7 +1778,7 @@ function transferMarkdownProblemToCPH(problemData) {
         let problemId = problemData.pid;
         if (!problemId || problemId === 'MD') {
             // 从标题中提取题号（P或B开头的题号）
-            const pidMatch = problemData.title.match(/^[PBU]\d+/i);
+            const pidMatch = problemData.title.match(/^[PBUT]\d+/i);
             problemId = pidMatch ? pidMatch[0].toLowerCase() : 'markdown';
         } else {
             problemId = problemId.toLowerCase();
