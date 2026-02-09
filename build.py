@@ -132,9 +132,10 @@ def main():
     args = parser.parse_args()
     
     # 检查PyInstaller是否已安装
-    try:
-        import PyInstaller
-    except ImportError:
+    import subprocess
+    result = subprocess.run([sys.executable, "-c", "import PyInstaller"], 
+                          capture_output=True, text=True)
+    if result.returncode != 0:
         if not args.skip_install:
             install_pyinstaller()
         else:

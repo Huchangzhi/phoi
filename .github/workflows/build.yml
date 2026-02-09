@@ -31,9 +31,13 @@ jobs:
         pip install -r requirements.txt || echo "No requirements.txt found, installing common packages"
         pip install flask requests pyinstaller
 
+    - name: Verify PyInstaller installation
+      run: |
+        python -c "import PyInstaller; print('PyInstaller version:', PyInstaller.__version__)"
+
     - name: Run build script
       run: |
-        python -u build.py --version "${{ inputs.version }}" || python -u build.py
+        python -u build.py --skip-install --version "${{ inputs.version }}" || python -u build.py --skip-install
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
