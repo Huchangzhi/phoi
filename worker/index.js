@@ -74,7 +74,7 @@ export default {
             // If we have ASSETS binding, try to serve index.html from there
             if (env.ASSETS) {
                 try {
-                    const assetResponse = await env.ASSETS.fetch('/templates/index.html');
+                    const assetResponse = await env.ASSETS.fetch('/index.html');
 
                     if (assetResponse.status !== 404) {
                         const body = await assetResponse.text(); // 读取响应体
@@ -100,7 +100,7 @@ export default {
             // If we have ASSETS binding, try to serve easyrun.html from there
             if (env.ASSETS) {
                 try {
-                    const assetResponse = await env.ASSETS.fetch('/templates/easyrun.html');
+                    const assetResponse = await env.ASSETS.fetch('/easyrun.html');
 
                     if (assetResponse.status !== 404) {
                         const body = await assetResponse.text(); // 读取响应体
@@ -269,7 +269,7 @@ export default {
             // For other routes, serve the main index page (SPA fallback)
             if (env.ASSETS) {
                 try {
-                    const assetResponse = await env.ASSETS.fetch('/templates/index.html');
+                    const assetResponse = await env.ASSETS.fetch('/index.html');
 
                     if (assetResponse.status !== 404) {
                         const body = await assetResponse.text(); // 读取响应体
