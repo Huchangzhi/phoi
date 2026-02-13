@@ -6,7 +6,6 @@ compatibility_date = "2024-05-28"
 [assets]
 directory = "./static"
 binding = "ASSETS"
-not_found_handling = "single-page-application"
 
 [env.production]
 account_id = "your-account-id"

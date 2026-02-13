@@ -236,13 +236,13 @@ export default {
             // If we have ASSETS binding, try to serve static assets directly from there
             if (env.ASSETS) {
                 const assetResponse = await env.ASSETS.fetch(request);
-                
+
                 // If asset was found, return it
                 if (assetResponse.status !== 404) {
                     return assetResponse;
                 }
             }
-            
+
             // For API routes that don't match, return 404
             if (url.pathname.startsWith('/api/') || url.pathname === '/run' || url.pathname === '/easyrun_api' || url.pathname === '/health') {
                 return createResponse({
@@ -251,9 +251,30 @@ export default {
                     Stats: "The requested endpoint does not exist"
                 }, 404);
             }
-            
-            // For all other routes, return 404
-            return new Response('Not Found', { status: 404 });
+
+            // For routes that look like static assets, return 404
+            if (url.pathname.startsWith('/static/')) {
+                return new Response('Not Found', { status: 404 });
+            }
+
+            // For other routes, serve the main index page (SPA fallback)
+            if (env.ASSETS) {
+                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/index.html`, request);
+                const assetResponse = await env.ASSETS.fetch(assetRequest);
+
+                if (assetResponse.status !== 404) {
+                    return new Response(assetResponse.body, {
+                        headers: {
+                            ...assetResponse.headers,
+                            'Content-Type': 'text/html',
+                        },
+                        status: assetResponse.status
+                    });
+                }
+            }
+
+            // Fallback: return error if asset not found
+            return new Response('Page not found', { status: 404 });
         }
     }
 };
