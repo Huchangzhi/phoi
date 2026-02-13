@@ -4,7 +4,7 @@
   "description": "PH Code API running on Cloudflare Workers",
   "main": "worker/index.js",
   "scripts": {
-    "predeploy": "node -e \"const fs = require('fs'); const path = require('path'); const fse = require('fs-extra'); if(fs.existsSync('./dist')) fse.removeSync('./dist'); fse.copySync('./static', './dist'); fse.copySync('./templates', './dist/templates');\"",
+    "predeploy": "node -e \"const fse = require('fs-extra'); if(fse.existsSync('./dist')) fse.removeSync('./dist'); fse.mkdirSync('./dist', { recursive: true }); fse.copySync('./static', './dist/static'); fse.copySync('./templates', './dist/templates');\"",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"
   },

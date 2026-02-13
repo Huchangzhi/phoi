@@ -259,13 +259,12 @@ export default {
                 }, 404);
             }
 
-            // For routes that look like static assets, return 404
+            // For routes that look like static assets, try to serve from the static directory
             if (url.pathname.startsWith('/static/')) {
                 // Try looking for the file in the static directory
                 if (env.ASSETS) {
-                    const assetPath = url.pathname.replace('/static/', 'static/');
-                    const assetRequest = new Request(new URL(assetPath, request.url).href, request);
-                    const assetResponse = await env.ASSETS.fetch(assetRequest);
+                    // Since assets are stored in /static/ under dist, we can directly fetch
+                    const assetResponse = await env.ASSETS.fetch(request);
 
                     if (assetResponse.status !== 404) {
                         return assetResponse;
