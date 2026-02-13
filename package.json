@@ -1,0 +1,24 @@
+{
+  "name": "phcode-api-cf-worker",
+  "version": "1.0.0",
+  "description": "PH Code API running on Cloudflare Workers",
+  "main": "worker/index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "publish": "wrangler publish"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "api",
+    "cpp",
+    "compiler"
+  ],
+  "author": "PH Code",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "wrangler": "^3.0.0"
+  }
+}

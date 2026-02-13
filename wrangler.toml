@@ -1,0 +1,12 @@
+name = "phcode-api"
+main = "worker/index.js"
+compatibility_date = "2023-12-01"
+
+[env.production]
+account_id = "your-account-id"
+workers_dev = true
+route = ""
+zone_id = ""
+
+[vars]
+ENVIRONMENT = "production"
