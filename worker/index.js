@@ -264,20 +264,6 @@ export default {
                 return new Response('Not Found', { status: 404 });
             }
 
-            // For all other routes, try to serve static assets directly from there
-            if (env.ASSETS) {
-                try {
-                    const assetResponse = await env.ASSETS.fetch(request);
-
-                    // If asset was found, return it
-                    if (assetResponse.status !== 404) {
-                        return assetResponse;
-                    }
-                } catch (e) {
-                    console.error('Error fetching asset:', e);
-                }
-            }
-
             // For other routes, serve the main index page (SPA fallback)
             if (env.ASSETS) {
                 try {
