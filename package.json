@@ -4,7 +4,8 @@
   "description": "PH Code API running on Cloudflare Workers",
   "main": "worker/index.js",
   "scripts": {
-    "deploy": "wrangler deploy",
+    "build": "node build_tools/embed_assets.js",
+    "deploy": "npm run build && wrangler deploy",
     "dev": "wrangler dev",
     "publish": "wrangler publish"
   },

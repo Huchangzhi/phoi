@@ -41,7 +41,7 @@ This project provides a Cloudflare Worker implementation of the PH Code API, all
 Edit the `wrangler.toml` file to customize your deployment:
 
 ```toml
-name = "phcode-api"  # Name of your worker
+name = "phoi"  # Name of your worker
 account_id = "your-account-id"  # Your Cloudflare Account ID
 workers_dev = true  # Deploy to workers.dev subdomain
 ```
@@ -112,6 +112,23 @@ Response:
   "status": "OK",
   "message": "PH Code API is running"
 }
+```
+
+## Using with Frontend
+
+This Cloudflare Worker provides only the API backend. To use the complete PH Code editor:
+
+1. Deploy the frontend separately (to GitHub Pages, Netlify, Vercel, etc.)
+2. Update the frontend's API endpoint to point to your deployed worker
+3. In the frontend's `script.js`, change the API calls from `/run` to your worker's URL
+
+For example, if your worker is deployed at `https://phoi.your-subdomain.workers.dev`, update the frontend:
+```javascript
+// Change from:
+const response = await fetch('/run', {...})
+
+// To:
+const response = await fetch('https://phoi.your-subdomain.workers.dev/run', {...})
 ```
 
 ## Security

@@ -58,6 +58,348 @@ function handleOptions(request) {
     return null;
 }
 
+// HTML template with placeholders replaced
+const INDEX_HTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>C++ 在线编辑器</title>
+    <link rel="icon" href="/static/logo.png" type="image/x-icon">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <!-- VS Code 风格顶部菜单栏 -->
+    <div id="top-menu-bar">
+        <div id="menu-bar-left">
+            <img src="/static/logo.png" alt="Logo" id="logo">
+            <div class="menu-item" id="file-menu">文件</div>
+            <div class="menu-item" id="about-menu">关于</div>
+        </div>
+        <div id="menu-bar-center">
+            <span id="current-file-name" class="current-file">new.cpp</span>
+        </div>
+        <div id="menu-bar-right">
+            <!-- <button id="luogu-btn" class="tool-btn" title="洛谷题目"><img src="/static/Luogu.png" alt="Luogu" class="icon-btn"></button> -->
+            <button id="run-btn" class="tool-btn" title="运行"><img src="/static/debug.png" alt="Run" class="icon-btn"></button>
+            <button id="copy-btn" class="tool-btn" title="复制">❐</button>
+            <button id="mode-toggle-btn" class="tool-btn">▲</button>
+        </div>
+    </div>
+
+    <!-- 下拉菜单 -->
+    <div id="file-dropdown" class="dropdown-menu" style="display: none;">
+        <div class="dropdown-item" id="upload-file">上传文件</div>
+        <div class="dropdown-item" id="download-file">下载文件</div>
+        <div class="dropdown-item" id="save-as">另存为</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item" id="preferences">首选项</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item" id="new-file">新建文件</div>
+    </div>
+
+    <!-- 左侧边栏 -->
+    <div id="left-sidebar">
+        <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="/static/file.png" alt="Files" class="icon-btn"></div>
+        <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="/static/ext.png" alt="Plugins" class="icon-btn"></div>
+        <div id="cph-plugin-toggle" class="sidebar-button" title="CPH - 试题集管理"><img src="/static/cph.png" alt="CPH" class="icon-btn"></div>
+    </div>
+
+    <!-- 虚拟文件系统面板 -->
+    <div id="vfs-panel" class="vfs-panel" style="display: none;">
+        <div class="vfs-header">
+            <span>资源管理器</span>
+            <button id="vfs-close-btn" class="vfs-close-btn">×</button>
+        </div>
+        <div id="vfs-content" class="vfs-content">
+            <div class="vfs-root">
+                <div class="vfs-folder" data-path="/">根目录</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 插件中心面板 -->
+    <div id="plugin-center-panel" class="vfs-panel" style="display: none;">
+        <div class="vfs-header">
+            <span>插件中心</span>
+            <button id="plugin-center-close-btn" class="vfs-close-btn">×</button>
+        </div>
+        <div id="plugin-center-content" class="vfs-content">
+            <!-- C++代码补全插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">C++代码补全</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="cpp-autocomplete-enabled" checked> 启用
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="cpp-autocomplete-delay">延迟时间(ms):</label>
+                        <input type="number" id="cpp-autocomplete-delay" value="200" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查看洛谷主题库插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">查看洛谷主题库</div>
+                <div class="plugin-header">题目来源于洛谷开放平台</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="luogu-theme-enabled"> 启用
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CPH插件 -->
+            <div class="plugin-item">
+                <div class="plugin-header">CPH - 刷题好帮手</div>
+                <div class="plugin-description">记录测试点，一键运行!</div>
+                <div class="plugin-settings">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="cph-plugin-enabled"> 启用
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 3行预览区 (结构已修改，包含行号) -->
+    <div id="lines-container" style="display: none;">
+        <!-- 上一行 -->
+        <div class="line-wrapper">
+            <div id="ln-prev" class="line-number"></div>
+            <div id="line-prev" class="line-view"></div>
+        </div>
+        <!-- 当前行 -->
+        <div class="line-wrapper current">
+            <div id="ln-curr" class="line-number"></div>
+            <div id="line-curr" class="line-view current"></div>
+        </div>
+        <!-- 下一行 -->
+        <div class="line-wrapper">
+            <div id="ln-next" class="line-number"></div>
+            <div id="line-next" class="line-view"></div>
+        </div>
+    </div>
+
+    <!-- 输入模态框 -->
+    <div id="input-modal">
+        <div class="modal-content">
+            <div class="modal-header">Standard Input (Stdin)</div>
+            <textarea id="modal-textarea" placeholder="在此输入数据..."></textarea>
+            <div class="modal-footer">
+                <button id="modal-cancel" class="modal-btn">取消</button>
+                <button id="modal-run" class="modal-btn">运行</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首选项弹窗 -->
+    <div id="preferences-modal" class="modal-overlay">
+        <div class="modal-content preferences-modal">
+            <div class="modal-header">
+                <h2>首选项</h2>
+                <span id="close-preferences" class="close-btn">×</span>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <label for="default-code-editor">默认代码:</label>
+                    <textarea id="default-code-editor" placeholder="在此输入默认代码..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="reset-default-code" class="modal-btn">重置为默认</button>
+                <button id="cancel-preferences" class="modal-btn">取消</button>
+                <button id="save-preferences" class="modal-btn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 输出面板 -->
+    <div id="output-panel">
+        <div id="output-header">
+            <span>Terminal</span>
+            <span id="close-output">✕</span>
+        </div>
+        <div id="output-content"></div>
+        <div id="output-resizer" class="output-resizer"></div>
+    </div>
+
+    <!-- 中心编辑器区域 -->
+    <div id="editor-area" style="flex: 1; display: flex; overflow: hidden;">
+        <!-- 编辑器容器 -->
+        <div id="editor-container" style="flex: 1; height: 100%;"></div>
+    </div>
+
+    <!-- 移动端代码补全容器 -->
+    <div id="mobile-autocomplete-container"></div>
+
+    <!-- 虚拟键盘容器 -->
+    <div id="keyboard-container">
+        <!-- Row 1 -->
+        <div class="row">
+            <div class="key w-1" data-key="\`" data-shift="~"><div class="key-content"><span class="sup">~</span><span class="main">\`</span></div></div>
+            <div class="key w-1" data-key="1" data-shift="!"><div class="key-content"><span class="sup">!</span><span class="main">1</span></div></div>
+            <div class="key w-1" data-key="2" data-shift="@"><div class="key-content"><span class="sup">@</span><span class="main">2</span></div></div>
+            <div class="key w-1" data-key="3" data-shift="#"><div class="key-content"><span class="sup">#</span><span class="main">3</span></div></div>
+            <div class="key w-1" data-key="4" data-shift="$"><div class="key-content"><span class="sup">$</span><span class="main">4</span></div></div>
+            <div class="key w-1" data-key="5" data-shift="%"><div class="key-content"><span class="sup">%</span><span class="main">5</span></div></div>
+            <div class="key w-1" data-key="6" data-shift="^"><div class="key-content"><span class="sup">^</span><span class="main">6</span></div></div>
+            <div class="key w-1" data-key="7" data-shift="&"><div class="key-content"><span class="sup">&</span><span class="main">7</span></div></div>
+            <div class="key w-1" data-key="8" data-shift="*"><div class="key-content"><span class="sup">*</span><span class="main">8</span></div></div>
+            <div class="key w-1" data-key="9" data-shift="("><div class="key-content"><span class="sup">(</span><span class="main">9</span></div></div>
+            <div class="key w-1" data-key="0" data-shift=")"><div class="key-content"><span class="sup">)</span><span class="main">0</span></div></div>
+            <div class="key w-1" data-key="-" data-shift="_"><div class="key-content"><span class="sup">_</span><span class="main">-</span></div></div>
+            <div class="key w-1" data-key="=" data-shift="+"><div class="key-content"><span class="sup">+</span><span class="main">=</span></div></div>
+            <div class="key w-2 mod repeat-key" data-key="Backspace">Bksp</div>
+            <div class="spacer-sm"></div><div class="spacer"></div>
+            <div class="key nav-key" data-key="Home">Hom</div><div class="key nav-key" data-key="PageUp">PgU</div>
+        </div>
+        <!-- Row 2 -->
+        <div class="row">
+            <div class="key w-1-5 mod" data-key="Tab">Tab</div>
+            <div class="key w-1 alpha-key" data-key="q">Q</div><div class="key w-1 alpha-key" data-key="w">W</div><div class="key w-1 alpha-key" data-key="e">E</div>
+            <div class="key w-1 alpha-key" data-key="r">R</div><div class="key w-1 alpha-key" data-key="t">T</div><div class="key w-1 alpha-key" data-key="y">Y</div>
+            <div class="key w-1 alpha-key" data-key="u">U</div><div class="key w-1 alpha-key" data-key="i">I</div><div class="key w-1 alpha-key" data-key="o">O</div>
+            <div class="key w-1 alpha-key" data-key="p">P</div>
+            <div class="key w-1" data-key="[" data-shift="{"><div class="key-content"><span class="sup">{</span><span class="main">[</span></div></div>
+            <div class="key w-1" data-key="]" data-shift="}"><div class="key-content"><span class="sup">}</span><span class="main">]</span></div></div>
+            <div class="key w-1-5" data-key="\\" data-shift="|"><div class="key-content"><span class="sup">|</span><span class="main">\\</span></div></div>
+            <div class="spacer-sm"></div>
+            <div class="key nav-key" data-key="Delete">Del</div><div class="key nav-key" data-key="End">End</div><div class="key nav-key" data-key="PageDown">PgD</div>
+        </div>
+        <!-- Row 3 -->
+        <div class="row">
+            <div class="key w-1-75 mod" data-key="CapsLock">Caps</div>
+            <div class="key w-1 alpha-key" data-key="a">A</div><div class="key w-1 alpha-key" data-key="s">S</div><div class="key w-1 alpha-key" data-key="d">D</div>
+            <div class="key w-1 alpha-key" data-key="f">F</div><div class="key w-1 alpha-key" data-key="g">G</div><div class="key w-1 alpha-key" data-key="h">H</div>
+            <div class="key w-1 alpha-key" data-key="j">J</div><div class="key w-1 alpha-key" data-key="k">K</div><div class="key w-1 alpha-key" data-key="l">L</div>
+            <div class="key w-1" data-key=";" data-shift=":"><div class="key-content"><span class="sup">:</span><span class="main">;</span></div></div>
+            <div class="key w-1" data-key="'" data-shift='"'><div class="key-content"><span class="sup">"</span><span class="main">'</span></div></div>
+            <div class="key w-2-25 mod highlight" data-key="Enter" style="background:#444">Enter</div>
+            <div class="spacer-sm"></div>
+            <div class="spacer"></div><div class="spacer"></div><div class="spacer"></div>
+        </div>
+        <!-- Row 4 -->
+        <div class="row">
+            <div class="key w-2-25 mod shift-key" data-key="Shift">Shift</div>
+            <div class="key w-1 alpha-key" data-key="z">Z</div><div class="key w-1 alpha-key" data-key="x">X</div><div class="key w-1 alpha-key" data-key="c">C</div>
+            <div class="key w-1 alpha-key" data-key="v">V</div><div class="key w-1 alpha-key" data-key="b">B</div><div class="key w-1 alpha-key" data-key="n">N</div>
+            <div class="key w-1 alpha-key" data-key="m">M</div>
+            <div class="key w-1" data-key="," data-shift="<"><div class="key-content"><span class="sup">&lt;</span><span class="main">,</span></div></div>
+            <div class="key w-1" data-key="." data-shift=">"><div class="key-content"><span class="sup">&gt;</span><span class="main">.</span></div></div>
+            <div class="key w-1" data-key="/" data-shift="?"><div class="key-content"><span class="sup">?</span><span class="main">/</span></div></div>
+            <div class="key w-2 mod shift-key" data-key="Shift">Shift</div>
+            <div class="spacer-sm"></div><div class="spacer"></div>
+            <div class="key nav-key repeat-key" data-key="ArrowUp">↑</div><div class="spacer"></div>
+        </div>
+        <!-- Row 5 -->
+        <div class="row">
+            <div class="key w-1-5 mod ctrl-key" data-key="Control">Ctrl</div>
+            <div class="spacer"></div><div class="spacer-1-5"></div>
+            <div class="key w-space" data-key=" ">Space</div>
+            <div class="spacer"></div><div class="spacer"></div>
+            <div class="key w-1 mod" data-key="ContextMenu">≡</div>
+            <div class="key w-1-5 mod ctrl-key" data-key="Control">Ctrl</div>
+            <div class="spacer-sm"></div>
+            <div class="key nav-key repeat-key" data-key="ArrowLeft">←</div>
+            <div class="key nav-key repeat-key" data-key="ArrowDown">↓</div>
+            <div class="key nav-key repeat-key" data-key="ArrowRight">→</div>
+        </div>
+    </div>
+
+    <!-- 关于弹窗 -->
+    <div id="about-modal" class="modal-overlay">
+        <div class="modal-content about-modal">
+            <div class="modal-header">
+                <h2>关于 PH code</h2>
+                <span id="close-about" class="close-btn">×</span>
+            </div>
+            <div class="modal-body">
+                <p><a href="https://github.com/huchangzhi/phoi" target="_blank">PH code(原名phoi v2)</a> - 适合OI的在线C++编辑器</p>
+                <p>版本: 2.1.7</p>
+                <p>这是一个专为信息学竞赛（OI）设计的在线C++编辑器，支持在手机等移动设备上编写和运行C++代码。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 KaTeX CSS -->
+    <link rel="stylesheet" href="/static/lib/katex.min.css">
+
+    <!-- 引入 Marked.js 和 KaTeX JS -->
+    <script src="/static/lib/marked.min.js"></script>
+    <script src="/static/lib/katex.min.js"></script>
+    <script src="/static/lib/auto-render.min.js"></script>
+
+    <script src="/static/lib/monaco-editor/loader.js"></script>
+    <script src="/static/script.js"></script>
+    <script src="/static/autocomplete.js"></script>
+    <script src="/static/luogu.js"></script>
+    <script src="/static/cph.js"></script>
+    <script src="/static/mobile_autocomplete.js"></script>
+</body>
+</html>`;
+
+// Static assets map
+const ASSETS = {
+  "/static/style.css": {
+    content: `/* CSS content will be loaded dynamically */`,
+    contentType: "text/css"
+  },
+  "/static/script.js": {
+    content: `/* JS content will be loaded dynamically */`,
+    contentType: "application/javascript"
+  },
+  "/static/autocomplete.js": {
+    content: `/* JS content will be loaded dynamically */`,
+    contentType: "application/javascript"
+  },
+  "/static/luogu.js": {
+    content: `/* JS content will be loaded dynamically */`,
+    contentType: "application/javascript"
+  },
+  "/static/cph.js": {
+    content: `/* JS content will be loaded dynamically */`,
+    contentType: "application/javascript"
+  },
+  "/static/mobile_autocomplete.js": {
+    content: `/* JS content will be loaded dynamically */`,
+    contentType: "application/javascript"
+  },
+  "/static/logo.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  },
+  "/static/debug.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  },
+  "/static/file.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  },
+  "/static/ext.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  },
+  "/static/cph.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  },
+  "/static/Luogu.png": {
+    content: `/* Image data will be loaded dynamically */`,
+    contentType: "image/png"
+  }
+};
+
 // Main fetch handler
 export default {
     async fetch(request, env, ctx) {
@@ -69,8 +411,17 @@ export default {
 
         const url = new URL(request.url);
         
+        // Route: / (GET) - Serve the main page
+        if (request.method === 'GET' && url.pathname === '/') {
+            return new Response(INDEX_HTML, {
+                headers: {
+                    'Content-Type': 'text/html',
+                },
+            });
+        }
+        
         // Route: /run (POST) - Execute code via Rextester
-        if (request.method === 'POST' && url.pathname === '/run') {
+        else if (request.method === 'POST' && url.pathname === '/run') {
             try {
                 const { code, input } = await request.json();
                 
@@ -187,653 +538,23 @@ export default {
             return createResponse({ status: 'OK', message: 'PH Code API is running' });
         }
         
-        // Route: Serve the main page (GET /)
-        else if (request.method === 'GET' && url.pathname === '/') {
-            const html = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PH Code - 在线C++编辑器</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>">
-    <style>
-        /* 基础样式 */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* 工具栏样式 */
-        #global-toolbar {
-            background-color: #252526;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #3c3c3c;
-            z-index: 10;
-        }
-        
-        .toolbar-btn {
-            background: #3c3c3c;
-            color: #d4d4d4;
-            border: none;
-            padding: 6px 12px;
-            margin-right: 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        
-        .toolbar-btn:hover {
-            background: #494949;
-        }
-        
-        .toolbar-btn:active {
-            background: #2a2d2e;
-        }
-        
-        .toolbar-separator {
-            width: 1px;
-            height: 20px;
-            background: #454545;
-            margin: 0 8px;
-        }
-        
-        #current-file-name {
-            color: #9cdcfe;
-            font-weight: bold;
-            margin-left: 8px;
-            font-size: 14px;
-        }
-        
-        /* 编辑器区域 */
-        #editor-wrapper {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
-        }
-        
-        #editor-container {
-            flex: 1;
-            min-height: 0;
-        }
-        
-        /* 输出面板 */
-        #output-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 300px;
-            background: #1e1e1e;
-            border-top: 1px solid #3c3c3c;
-            display: none;
-            flex-direction: column;
-            z-index: 100;
-        }
-        
-        #output-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background: #252526;
-            cursor: ns-resize;
-        }
-        
-        #output-title {
-            font-weight: bold;
-            color: #9cdcfe;
-        }
-        
-        #output-resizer {
-            width: 100%;
-            height: 4px;
-            background: #3c3c3c;
-            cursor: ns-resize;
-        }
-        
-        #output-content {
-            flex: 1;
-            padding: 12px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            font-family: 'Consolas', 'Courier New', monospace;
-        }
-        
-        .out-section {
-            margin-bottom: 12px;
-        }
-        
-        .out-title {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 4px;
-            padding: 4px 0;
-        }
-        
-        .out-title.out-err { color: #f48771; }
-        .out-title.out-warn { color: #ffcc02; }
-        
-        .out-err { color: #f48771; }
-        .out-warn { color: #ffcc02; }
-        .out-res { color: #d4d4d4; }
-        
-        .out-stat { color: #808080; font-size: 0.9em; }
-        
-        /* 输入模态框 */
-        #input-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .modal-content {
-            background: #2d2d30;
-            padding: 20px;
-            border-radius: 5px;
-            width: 80%;
-            max-width: 500px;
-        }
-        
-        .modal-title {
-            color: #9cdcfe;
-            margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-        
-        #modal-textarea {
-            width: 100%;
-            height: 150px;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: 1px solid #3c3c3c;
-            border-radius: 3px;
-            padding: 10px;
-            font-family: 'Consolas', 'Courier New', monospace;
-            resize: vertical;
-        }
-        
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 15px;
-        }
-        
-        .modal-btn {
-            padding: 8px 16px;
-            margin-left: 10px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        
-        #modal-run {
-            background: #007acc;
-            color: white;
-        }
-        
-        #modal-cancel {
-            background: #3c3c3c;
-            color: #d4d4d4;
-        }
-        
-        /* 虚拟文件系统面板 */
-        #vfs-panel {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 300px;
-            height: 100%;
-            background: #252526;
-            border-right: 1px solid #3c3c3c;
-            display: none;
-            flex-direction: column;
-            z-index: 90;
-            overflow: hidden;
-        }
-        
-        #vfs-header {
-            padding: 12px;
-            background: #2d2d30;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        #vfs-title {
-            font-weight: bold;
-            color: #9cdcfe;
-        }
-        
-        #vfs-close-btn {
-            background: none;
-            border: none;
-            color: #d4d4d4;
-            font-size: 1.2em;
-            cursor: pointer;
-        }
-        
-        #vfs-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        
-        .vfs-item {
-            padding: 8px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        
-        .vfs-item:hover {
-            background: #2a2d2e;
-        }
-        
-        .vfs-file {
-            color: #d4d4d4;
-        }
-        
-        .vfs-folder {
-            color: #c586c0;
-            font-weight: bold;
-        }
-        
-        /* 插件中心面板 */
-        #plugin-center-panel {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 300px;
-            height: 100%;
-            background: #252526;
-            border-left: 1px solid #3c3c3c;
-            display: none;
-            flex-direction: column;
-            z-index: 90;
-            overflow: hidden;
-        }
-        
-        #plugin-center-header {
-            padding: 12px;
-            background: #2d2d30;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        #plugin-center-title {
-            font-weight: bold;
-            color: #9cdcfe;
-        }
-        
-        #plugin-center-close-btn {
-            background: none;
-            border: none;
-            color: #d4d4d4;
-            font-size: 1.2em;
-            cursor: pointer;
-        }
-        
-        #plugin-center-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        
-        /* 移动端适配 */
-        @media (max-width: 768px) {
-            #editor-wrapper {
-                flex-direction: column;
-            }
-            
-            #output-panel {
-                height: 150px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- 全局工具栏 -->
-    <div id="global-toolbar">
-        <button id="sidebar-toggle" class="toolbar-btn">📁</button>
-        <div class="toolbar-separator"></div>
-        <button id="run-btn" class="toolbar-btn">▶ 运行</button>
-        <button id="copy-btn" class="toolbar-btn">📋 复制</button>
-        <div class="toolbar-separator"></div>
-        <span id="current-file-name">new.cpp</span>
-        <div style="flex: 1;"></div>
-        <button id="plugin-center-toggle" class="toolbar-btn">🔌</button>
-    </div>
-    
-    <!-- 编辑器区域 -->
-    <div id="editor-wrapper">
-        <div id="editor-container"></div>
-    </div>
-    
-    <!-- 输出面板 -->
-    <div id="output-panel">
-        <div id="output-header">
-            <span id="output-title">输出</span>
-            <button id="close-output" class="toolbar-btn">✕</button>
-        </div>
-        <div id="output-resizer"></div>
-        <div id="output-content"></div>
-    </div>
-    
-    <!-- 输入模态框 -->
-    <div id="input-modal">
-        <div class="modal-content">
-            <div class="modal-title">程序输入</div>
-            <textarea id="modal-textarea" placeholder="在此输入程序的标准输入..."></textarea>
-            <div class="modal-buttons">
-                <button id="modal-cancel" class="modal-btn">取消</button>
-                <button id="modal-run" class="modal-btn">运行</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 虚拟文件系统面板 -->
-    <div id="vfs-panel">
-        <div id="vfs-header">
-            <span id="vfs-title">文件系统</span>
-            <button id="vfs-close-btn">×</button>
-        </div>
-        <div id="vfs-content"></div>
-    </div>
-    
-    <!-- 插件中心面板 -->
-    <div id="plugin-center-panel">
-        <div id="plugin-center-header">
-            <span id="plugin-center-title">插件中心</span>
-            <button id="plugin-center-close-btn">×</button>
-        </div>
-        <div id="plugin-center-content">
-            <div class="vfs-item">代码补全插件</div>
-            <div class="vfs-item">洛谷题库插件</div>
-            <div class="vfs-item">CPH插件</div>
-        </div>
-    </div>
-
-    <!-- Monaco Editor -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
-    <script>
-        // DOM Elements
-        const editorWrapper = document.getElementById('editor-wrapper');
-        const runBtn = document.getElementById('run-btn');
-        const copyBtn = document.getElementById('copy-btn');
-        const outputPanel = document.getElementById('output-panel');
-        const outputContent = document.getElementById('output-content');
-        const closeOutputBtn = document.getElementById('close-output');
-        const inputModal = document.getElementById('input-modal');
-        const modalTextarea = document.getElementById('modal-textarea');
-        const modalRun = document.getElementById('modal-run');
-        const modalCancel = document.getElementById('modal-cancel');
-        const vfsPanel = document.getElementById('vfs-panel');
-        const vfsCloseBtn = document.getElementById('vfs-close-btn');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const pluginCenterPanel = document.getElementById('plugin-center-panel');
-        const pluginCenterCloseBtn = document.getElementById('plugin-center-close-btn');
-        const pluginCenterToggle = document.getElementById('plugin-center-toggle');
-        const currentFileNameElement = document.getElementById('current-file-name');
-
-        // Global variables
-        let globalText = \`#include <iostream>
-
-using namespace std;
-
-int main() {
-    cout << "Hello Ph Code" << endl;
-    return 0;
-}\`;
-        let currentFileName = 'new.cpp';
-
-        // Initialize Monaco Editor
-        let monacoEditor = null; // Global reference to the Monaco editor instance
-
-        require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
-        require(['vs/editor/editor.main'], function() {
-            monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: globalText,
-                language: 'cpp',
-                theme: 'vs-dark', // 使用暗色主题
-                automaticLayout: true,
-                // 设置代码补全的延迟时间
-                quickSuggestions: true,
-                quickSuggestionsDelay: 200,
-                // 控制参数提示的延迟
-                parameterHints: {
-                    enabled: true,
-                    cycle: false
-                },
-                // 禁用内置的单词补全，避免与自定义补全重复
-                wordBasedSuggestions: false,
-                suggest: {
-                    // 确保自定义补全优先级更高
-                    localityBonus: false,
-                    // 根据设置启用或禁用建议
-                    snippetsPrevented: false
-                }
-            });
-
-            // Update globalText when editor content changes
-            monacoEditor.onDidChangeModelContent(() => {
-                globalText = monacoEditor.getValue();
-            });
-
-            // Update editor when globalText changes
-            window.addEventListener('codeUpdated', () => {
-                if (monacoEditor && monacoEditor.getValue() !== globalText) {
-                    monacoEditor.setValue(globalText);
-                }
-            });
-        });
-
-        // Run & Copy
-        if (runBtn) {
-            runBtn.addEventListener('click', () => {
-                if (inputModal) {
-                    inputModal.style.display = 'flex';
-                    if (modalTextarea) {
-                        modalTextarea.focus();
+        // Route: /static/* - Serve static assets
+        else if (url.pathname.startsWith('/static/')) {
+            const assetPath = url.pathname;
+            if (ASSETS[assetPath]) {
+                return new Response(ASSETS[assetPath].content, {
+                    headers: {
+                        'Content-Type': ASSETS[assetPath].contentType,
+                        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
                     }
-                }
-            });
-        }
-        if (modalCancel) {
-            modalCancel.addEventListener('click', () => {
-                if (inputModal) {
-                    inputModal.style.display = 'none';
-                }
-            });
-        }
-        if (modalRun) {
-            modalRun.addEventListener('click', () => {
-                if (inputModal) {
-                    inputModal.style.display = 'none';
-                }
-                if (modalTextarea) {
-                    executeRunCode(modalTextarea.value);
-                }
-            });
-        }
-
-        async function executeRunCode(stdin) {
-            if (outputPanel) {
-                outputPanel.style.display = 'flex';
-            }
-            if (outputContent) {
-                outputContent.innerHTML = '<span style="color:#888;">正在编译和运行...</span>';
-            }
-            try {
-                // 修改API端点为当前域名
-                const response = await fetch('/run', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: globalText, input: stdin })
                 });
-                if (!response.ok) throw new Error(\`HTTP Error: \${response.status}\`);
-                const data = await response.json();
-                let html = "";
-                if(data.Warnings) html += \`<div class="out-section"><span class="out-title out-warn">警告:</span><div class="out-warn">\${escapeHtml(data.Warnings)}</div></div>\`;
-                if(data.Errors) html += \`<div class="out-section"><span class="out-title out-err">错误:</span><div class="out-err">\${escapeHtml(data.Errors)}</div></div>\`;
-                if(data.Result) html += \`<div class="out-section"><span class="out-title">输出:</span><div class="out-res">\${escapeHtml(data.Result)}</div></div>\`;
-                else if(!data.Errors) html += \`<div class="out-section"><span class="out-title">输出:</span><div class="out-res" style="color:#666">(无输出)</div></div>\`;
-                if(data.Stats) html += \`<div class="out-stat">\${escapeHtml(data.Stats)}</div>\`;
-                if (outputContent) {
-                    outputContent.innerHTML = html;
-                }
-            } catch (e) {
-                if (outputContent) {
-                    outputContent.innerHTML = \`<span class="out-err">服务器连接错误: \${e.message}<br>请确定网络状态良好并稍后再试</span>\`;
-                }
+            } else {
+                return createResponse({
+                    Errors: "Static asset not found",
+                    Result: "",
+                    Stats: "The requested static asset does not exist"
+                }, 404);
             }
-        }
-
-        function copyCode() {
-            const t = document.createElement('textarea'); 
-            t.value = globalText; 
-            document.body.appendChild(t); 
-            t.select();
-            try { 
-                if(document.execCommand('copy')){
-                    if(navigator.vibrate)navigator.vibrate(50); 
-                } else alert('复制失败'); 
-            } catch(e){
-                console.error('复制失败:', e);
-            }
-            document.body.removeChild(t);
-        }
-        if (copyBtn) {
-            copyBtn.addEventListener('click', copyCode);
-        }
-        if (closeOutputBtn) {
-            closeOutputBtn.addEventListener('click', () => {
-                if (outputPanel) {
-                    outputPanel.style.display = 'none';
-                }
-            });
-        }
-
-        // 虚拟文件系统
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', toggleVFSPanel);
-        }
-        if (vfsCloseBtn) {
-            vfsCloseBtn.addEventListener('click', () => {
-                if (vfsPanel) {
-                    vfsPanel.style.display = 'none';
-                }
-            });
-        }
-
-        function toggleVFSPanel() {
-            if (vfsPanel) {
-                if (vfsPanel.style.display === 'none' || vfsPanel.style.display === '') {
-                    vfsPanel.style.display = 'flex';
-                } else {
-                    vfsPanel.style.display = 'none';
-                }
-            }
-        }
-
-        // 插件中心
-        if (pluginCenterToggle) {
-            pluginCenterToggle.addEventListener('click', togglePluginCenter);
-        }
-        if (pluginCenterCloseBtn) {
-            pluginCenterCloseBtn.addEventListener('click', () => {
-                if (pluginCenterPanel) {
-                    pluginCenterPanel.style.display = 'none';
-                }
-            });
-        }
-
-        function togglePluginCenter() {
-            if (pluginCenterPanel) {
-                if (pluginCenterPanel.style.display === 'none' || pluginCenterPanel.style.display === '') {
-                    pluginCenterPanel.style.display = 'flex';
-                } else {
-                    pluginCenterPanel.style.display = 'none';
-                }
-            }
-        }
-
-        // Core Helpers
-        function escapeHtml(text) {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-
-        // 添加输出面板调整大小功能
-        let isResizing = false;
-        const outputResizer = document.getElementById('output-resizer');
-        const globalToolbar = document.getElementById('global-toolbar');
-
-        // 鼠标按下调整大小手柄时
-        if (outputResizer) {
-            outputResizer.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                document.body.style.cursor = 'ns-resize';
-                e.preventDefault();
-            });
-        }
-
-        // 鼠标移动时调整输出面板大小
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-
-            // 计算新的高度（基于窗口高度和鼠标位置）
-            const windowHeight = window.innerHeight;
-            const newY = e.clientY;
-            const newHeight = windowHeight - newY;
-
-            // 设置最小和最大高度限制
-            const minHeight = 150; // 最小高度
-            const toolbarHeight = globalToolbar ? globalToolbar.offsetHeight : 0;
-            const maxHeight = windowHeight - toolbarHeight - 100; // 最大高度
-
-            // 应用边界限制
-            const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
-
-            if (outputPanel) {
-                outputPanel.style.height = \`\${clampedHeight}px\`;
-            }
-        });
-
-        // 鼠标释放时结束调整大小
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-            document.body.style.cursor = '';
-        });
-    </script>
-</body>
-</html>
-            `;
-            return new Response(html, {
-                headers: {
-                    'Content-Type': 'text/html',
-                },
-            });
         }
         
         // 404 for all other routes
