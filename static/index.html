@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>C++ 在线编辑器</title>
-    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" type="image/x-icon">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="/static/logo.png" type="image/x-icon">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
     <!-- VS Code 风格顶部菜单栏 -->
     <div id="top-menu-bar">
         <div id="menu-bar-left">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" id="logo">
+            <img src="/static/logo.png" alt="Logo" id="logo">
             <div class="menu-item" id="file-menu">文件</div>
             <div class="menu-item" id="about-menu">关于</div>
         </div>
@@ -20,8 +20,8 @@
             <span id="current-file-name" class="current-file">new.cpp</span>
         </div>
         <div id="menu-bar-right">
-            <!-- <button id="luogu-btn" class="tool-btn" title="洛谷题目"><img src="{{ url_for('static', filename='Luogu.png') }}" alt="Luogu" class="icon-btn"></button> -->
-            <button id="run-btn" class="tool-btn" title="运行"><img src="{{ url_for('static', filename='debug.png') }}" alt="Run" class="icon-btn"></button>
+            <!-- <button id="luogu-btn" class="tool-btn" title="洛谷题目"><img src="/static/Luogu.png" alt="Luogu" class="icon-btn"></button> -->
+            <button id="run-btn" class="tool-btn" title="运行"><img src="/static/debug.png" alt="Run" class="icon-btn"></button>
             <button id="copy-btn" class="tool-btn" title="复制">❐</button>
             <button id="mode-toggle-btn" class="tool-btn">▲</button>
         </div>
@@ -40,9 +40,9 @@
 
     <!-- 左侧边栏 -->
     <div id="left-sidebar">
-        <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="{{ url_for('static', filename='file.png') }}" alt="Files" class="icon-btn"></div>
-        <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="{{ url_for('static', filename='ext.png') }}" alt="Plugins" class="icon-btn"></div>
-        <div id="cph-plugin-toggle" class="sidebar-button" title="CPH - 试题集管理"><img src="{{ url_for('static', filename='cph.png') }}" alt="CPH" class="icon-btn"></div>
+        <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="/static/file.png" alt="Files" class="icon-btn"></div>
+        <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="/static/ext.png" alt="Plugins" class="icon-btn"></div>
+        <div id="cph-plugin-toggle" class="sidebar-button" title="CPH - 试题集管理"><img src="/static/cph.png" alt="CPH" class="icon-btn"></div>
     </div>
 
     <!-- 虚拟文件系统面板 -->
@@ -271,18 +271,18 @@
     </div>
 
     <!-- 引入 KaTeX CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='lib/katex.min.css') }}">
+    <link rel="stylesheet" href="/static/lib/katex.min.css">
 
     <!-- 引入 Marked.js 和 KaTeX JS -->
-    <script src="{{ url_for('static', filename='lib/marked.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='lib/katex.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='lib/auto-render.min.js') }}"></script>
+    <script src="/static/lib/marked.min.js"></script>
+    <script src="/static/lib/katex.min.js"></script>
+    <script src="/static/lib/auto-render.min.js"></script>
 
-    <script src="{{ url_for('static', filename='lib/monaco-editor/loader.js') }}"></script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-    <script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
-    <script src="{{ url_for('static', filename='luogu.js') }}"></script>
-    <script src="{{ url_for('static', filename='cph.js') }}"></script>
-    <script src="{{ url_for('static', filename='mobile_autocomplete.js') }}"></script>
+    <script src="/static/lib/monaco-editor/loader.js"></script>
+    <script src="/static/script.js"></script>
+    <script src="/static/autocomplete.js"></script>
+    <script src="/static/luogu.js"></script>
+    <script src="/static/cph.js"></script>
+    <script src="/static/mobile_autocomplete.js"></script>
 </body>
 </html>
