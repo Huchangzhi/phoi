@@ -77,7 +77,8 @@ export default {
                     const assetResponse = await env.ASSETS.fetch('/templates/index.html');
 
                     if (assetResponse.status !== 404) {
-                        return new Response(assetResponse.body, {
+                        const body = await assetResponse.text(); // 读取响应体
+                        return new Response(body, {
                             headers: {
                                 ...assetResponse.headers,
                                 'Content-Type': 'text/html',
@@ -102,7 +103,8 @@ export default {
                     const assetResponse = await env.ASSETS.fetch('/templates/easyrun.html');
 
                     if (assetResponse.status !== 404) {
-                        return new Response(assetResponse.body, {
+                        const body = await assetResponse.text(); // 读取响应体
+                        return new Response(body, {
                             headers: {
                                 ...assetResponse.headers,
                                 'Content-Type': 'text/html',
@@ -270,7 +272,8 @@ export default {
                     const assetResponse = await env.ASSETS.fetch('/templates/index.html');
 
                     if (assetResponse.status !== 404) {
-                        return new Response(assetResponse.body, {
+                        const body = await assetResponse.text(); // 读取响应体
+                        return new Response(body, {
                             headers: {
                                 ...assetResponse.headers,
                                 'Content-Type': 'text/html',
