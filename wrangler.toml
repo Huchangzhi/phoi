@@ -4,7 +4,7 @@ compatibility_date = "2024-05-28"
 
 # 启用静态资源功能
 [assets]
-directory = "./static"
+directory = "."
 binding = "ASSETS"
 
 [env.production]

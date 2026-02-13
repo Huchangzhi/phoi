@@ -73,9 +73,9 @@ export default {
         if (request.method === 'GET' && url.pathname === '/') {
             // If we have ASSETS binding, try to serve index.html from there
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/index.html`, request);
+                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/index.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
-                
+
                 if (assetResponse.status !== 404) {
                     return new Response(assetResponse.body, {
                         headers: {
@@ -86,7 +86,7 @@ export default {
                     });
                 }
             }
-            
+
             // Fallback: return error if asset not found
             return new Response('Index page not found', { status: 404 });
         }
@@ -95,9 +95,9 @@ export default {
         else if (request.method === 'GET' && url.pathname === '/easyrun') {
             // If we have ASSETS binding, try to serve easyrun.html from there
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/easyrun.html`, request);
+                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/easyrun.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
-                
+
                 if (assetResponse.status !== 404) {
                     return new Response(assetResponse.body, {
                         headers: {
@@ -108,7 +108,7 @@ export default {
                     });
                 }
             }
-            
+
             // Fallback: return error if asset not found
             return new Response('EasyRun page not found', { status: 404 });
         }
@@ -235,7 +235,14 @@ export default {
         else {
             // If we have ASSETS binding, try to serve static assets directly from there
             if (env.ASSETS) {
-                const assetResponse = await env.ASSETS.fetch(request);
+                // Adjust the path to look for static files in the correct location
+                let adjustedRequest = request;
+                if (url.pathname.startsWith('/static/')) {
+                    // For /static/* requests, look in the static directory
+                    adjustedRequest = new Request(url.toString().replace('/static/', '/static/'), request);
+                }
+                
+                const assetResponse = await env.ASSETS.fetch(adjustedRequest);
 
                 // If asset was found, return it
                 if (assetResponse.status !== 404) {
@@ -254,12 +261,22 @@ export default {
 
             // For routes that look like static assets, return 404
             if (url.pathname.startsWith('/static/')) {
+                // Try looking for the file in the static directory
+                if (env.ASSETS) {
+                    const assetPath = url.pathname.replace('/static/', 'static/');
+                    const assetRequest = new Request(new URL(assetPath, request.url).href, request);
+                    const assetResponse = await env.ASSETS.fetch(assetRequest);
+
+                    if (assetResponse.status !== 404) {
+                        return assetResponse;
+                    }
+                }
                 return new Response('Not Found', { status: 404 });
             }
 
             // For other routes, serve the main index page (SPA fallback)
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/index.html`, request);
+                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/index.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
 
                 if (assetResponse.status !== 404) {
