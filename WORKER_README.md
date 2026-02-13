@@ -1,13 +1,14 @@
-# PH Code API - Cloudflare Workers Deployment
+# PH Code - Cloudflare Workers Full Stack Deployment
 
-This project provides a Cloudflare Worker implementation of the PH Code API, allowing online C++ compilation and execution through the Rextester API.
+This project provides a Cloudflare Worker implementation of the PH Code application, including both the API backend and the complete frontend interface.
 
 ## Features
 
 - Online C++ code compilation and execution
 - Security checks to prevent dangerous code execution
 - Support for standard input
-- API-only mode (no UI included)
+- Complete frontend interface (no separate UI hosting required)
+- Static assets served directly from the Worker
 
 ## Prerequisites
 
@@ -114,22 +115,13 @@ Response:
 }
 ```
 
-## Using with Frontend
+## Using the Application
 
-This Cloudflare Worker provides only the API backend. To use the complete PH Code editor:
+This Cloudflare Worker provides both the API backend and the complete frontend interface. Once deployed, you can access:
 
-1. Deploy the frontend separately (to GitHub Pages, Netlify, Vercel, etc.)
-2. Update the frontend's API endpoint to point to your deployed worker
-3. In the frontend's `script.js`, change the API calls from `/run` to your worker's URL
-
-For example, if your worker is deployed at `https://phoi.your-subdomain.workers.dev`, update the frontend:
-```javascript
-// Change from:
-const response = await fetch('/run', {...})
-
-// To:
-const response = await fetch('https://phoi.your-subdomain.workers.dev/run', {...})
-```
+- Main editor interface: `https://your-worker.your-subdomain.workers.dev/`
+- Easy run interface: `https://your-worker.your-subdomain.workers.dev/easyrun`
+- API endpoints remain the same for programmatic access
 
 ## Security
 
