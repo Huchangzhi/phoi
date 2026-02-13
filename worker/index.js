@@ -73,7 +73,7 @@ export default {
         if (request.method === 'GET' && url.pathname === '/') {
             // If we have ASSETS binding, try to serve index.html from there
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/index.html`, request);
+                const assetRequest = new Request(`${new URL(request.url).origin}/templates/index.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
 
                 if (assetResponse.status !== 404) {
@@ -95,7 +95,7 @@ export default {
         else if (request.method === 'GET' && url.pathname === '/easyrun') {
             // If we have ASSETS binding, try to serve easyrun.html from there
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/easyrun.html`, request);
+                const assetRequest = new Request(`${new URL(request.url).origin}/templates/easyrun.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
 
                 if (assetResponse.status !== 404) {
@@ -275,7 +275,7 @@ export default {
 
             // For other routes, serve the main index page (SPA fallback)
             if (env.ASSETS) {
-                const assetRequest = new Request(`${request.url.replace(/\/$/, '')}/templates/index.html`, request);
+                const assetRequest = new Request(`${new URL(request.url).origin}/templates/index.html`, request);
                 const assetResponse = await env.ASSETS.fetch(assetRequest);
 
                 if (assetResponse.status !== 404) {
