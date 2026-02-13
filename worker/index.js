@@ -73,16 +73,20 @@ export default {
         if (request.method === 'GET' && url.pathname === '/') {
             // If we have ASSETS binding, try to serve index.html from there
             if (env.ASSETS) {
-                const assetResponse = await env.ASSETS.fetch('/templates/index.html');
+                try {
+                    const assetResponse = await env.ASSETS.fetch('/templates/index.html');
 
-                if (assetResponse.status !== 404) {
-                    return new Response(assetResponse.body, {
-                        headers: {
-                            ...assetResponse.headers,
-                            'Content-Type': 'text/html',
-                        },
-                        status: assetResponse.status
-                    });
+                    if (assetResponse.status !== 404) {
+                        return new Response(assetResponse.body, {
+                            headers: {
+                                ...assetResponse.headers,
+                                'Content-Type': 'text/html',
+                            },
+                            status: assetResponse.status
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching index.html:', e);
                 }
             }
 
@@ -94,16 +98,20 @@ export default {
         else if (request.method === 'GET' && url.pathname === '/easyrun') {
             // If we have ASSETS binding, try to serve easyrun.html from there
             if (env.ASSETS) {
-                const assetResponse = await env.ASSETS.fetch('/templates/easyrun.html');
+                try {
+                    const assetResponse = await env.ASSETS.fetch('/templates/easyrun.html');
 
-                if (assetResponse.status !== 404) {
-                    return new Response(assetResponse.body, {
-                        headers: {
-                            ...assetResponse.headers,
-                            'Content-Type': 'text/html',
-                        },
-                        status: assetResponse.status
-                    });
+                    if (assetResponse.status !== 404) {
+                        return new Response(assetResponse.body, {
+                            headers: {
+                                ...assetResponse.headers,
+                                'Content-Type': 'text/html',
+                            },
+                            status: assetResponse.status
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching easyrun.html:', e);
                 }
             }
 
@@ -231,23 +239,6 @@ export default {
 
         // For all other routes, let the static assets system handle it
         else {
-            // If we have ASSETS binding, try to serve static assets directly from there
-            if (env.ASSETS) {
-                // Adjust the path to look for static files in the correct location
-                let adjustedRequest = request;
-                if (url.pathname.startsWith('/static/')) {
-                    // For /static/* requests, look in the static directory
-                    adjustedRequest = new Request(url.toString().replace('/static/', '/static/'), request);
-                }
-                
-                const assetResponse = await env.ASSETS.fetch(adjustedRequest);
-
-                // If asset was found, return it
-                if (assetResponse.status !== 404) {
-                    return assetResponse;
-                }
-            }
-
             // For API routes that don't match, return 404
             if (url.pathname.startsWith('/api/') || url.pathname === '/run' || url.pathname === '/easyrun_api' || url.pathname === '/health') {
                 return createResponse({
@@ -259,30 +250,50 @@ export default {
 
             // For routes that look like static assets, try to serve from the static directory
             if (url.pathname.startsWith('/static/')) {
-                // Try looking for the file in the static directory
                 if (env.ASSETS) {
-                    // Since assets are stored in /static/ under dist, we can directly fetch
-                    const assetResponse = await env.ASSETS.fetch(url.pathname);
+                    try {
+                        const assetResponse = await env.ASSETS.fetch(url.pathname);
 
-                    if (assetResponse.status !== 404) {
-                        return assetResponse;
+                        if (assetResponse.status !== 404) {
+                            return assetResponse;
+                        }
+                    } catch (e) {
+                        console.error('Error fetching static asset:', e);
                     }
                 }
                 return new Response('Not Found', { status: 404 });
             }
 
+            // For all other routes, try to serve static assets directly from there
+            if (env.ASSETS) {
+                try {
+                    const assetResponse = await env.ASSETS.fetch(request);
+
+                    // If asset was found, return it
+                    if (assetResponse.status !== 404) {
+                        return assetResponse;
+                    }
+                } catch (e) {
+                    console.error('Error fetching asset:', e);
+                }
+            }
+
             // For other routes, serve the main index page (SPA fallback)
             if (env.ASSETS) {
-                const assetResponse = await env.ASSETS.fetch('/templates/index.html');
+                try {
+                    const assetResponse = await env.ASSETS.fetch('/templates/index.html');
 
-                if (assetResponse.status !== 404) {
-                    return new Response(assetResponse.body, {
-                        headers: {
-                            ...assetResponse.headers,
-                            'Content-Type': 'text/html',
-                        },
-                        status: assetResponse.status
-                    });
+                    if (assetResponse.status !== 404) {
+                        return new Response(assetResponse.body, {
+                            headers: {
+                                ...assetResponse.headers,
+                                'Content-Type': 'text/html',
+                            },
+                            status: assetResponse.status
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching fallback index.html:', e);
                 }
             }
 
