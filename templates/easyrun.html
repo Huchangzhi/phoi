@@ -328,10 +328,10 @@
     </div>
 
 
-    <script src="{{ url_for('static', filename='lib/monaco-editor/loader.js') }}"></script>
+    <script src="/static/lib/monaco-editor/loader.js"></script>
     <script>
         // Initialize Monaco Editor
-        require.config({ paths: { 'vs': '{{ url_for('static', filename='lib/monaco-editor/min/vs') }}' } });
+        require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 
         let monacoEditor = null;
         let isMonacoLoaded = false;
@@ -359,7 +359,7 @@
         // DOM Elements
         const editorWrapper = document.getElementById('editor-wrapper');
         // Monaco Editor 初始化
-        require.config({ paths: { 'vs': '{{ url_for('static', filename='lib/monaco-editor/min/vs') }}' } });
+        require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
         function initMonacoEditor(code) {
             if (monacoEditor) {
                 monacoEditor.dispose();
