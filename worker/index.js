@@ -262,7 +262,7 @@ export default {
                 // Try looking for the file in the static directory
                 if (env.ASSETS) {
                     // Since assets are stored in /static/ under dist, we can directly fetch
-                    const assetResponse = await env.ASSETS.fetch(request);
+                    const assetResponse = await env.ASSETS.fetch(url.pathname);
 
                     if (assetResponse.status !== 404) {
                         return assetResponse;
