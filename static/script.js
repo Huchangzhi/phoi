@@ -50,6 +50,7 @@ const savePreferences = document.getElementById('save-preferences');
 const resetDefaultCode = document.getElementById('reset-default-code');
 const defaultCodeEditor = document.getElementById('default-code-editor');
 
+
 const leftSidebar = document.getElementById('left-sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const mobileModeBtn = document.getElementById('mobile-mode-btn');
@@ -105,14 +106,14 @@ let saveTimer = null; // 用于防抖保存
 
 // --- [优化] 防抖保存代码到本地 ---
 // 避免每次按键都写入硬盘造成卡顿，延迟 500ms 保存
-function triggerSaveCode() {
+async function triggerSaveCode() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
+    saveTimer = setTimeout(async () => {
         localStorage.setItem('phoi_savedCode', globalText);
 
         // 如果当前文件已打开，则保存到虚拟文件系统
         if (window.vfsModule && typeof window.vfsModule.saveFileToVFS === 'function') {
-            window.vfsModule.saveFileToVFS(currentFileName, globalText);
+            await window.vfsModule.saveFileToVFS(currentFileName, globalText);
         }
     }, 500);
 }
@@ -122,10 +123,6 @@ function triggerSaveCode() {
 // Initialize Monaco Editor
 let monacoEditor = null; // Global reference to the Monaco editor instance
 
-// 初始化虚拟文件系统
-if (typeof initVFSModule === 'function') {
-    initVFSModule(vfsPanel, vfsCloseBtn, vfsContent, sidebarToggle);
-}
 
 require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 require(['vs/editor/editor.main'], function() {
@@ -1133,10 +1130,10 @@ window.PhoiAPI = {
     },
 
     // 打开文件
-    openFile: function(fileName) {
-        // 从虚拟文件系统中获取文件内容
+    openFile: async function(fileName) {
+        // 从虚拟文件系统获取文件内容
         if (window.vfsModule && typeof window.vfsModule.getFileContent === 'function') {
-            const fileContent = window.vfsModule.getFileContent(fileName);
+            const fileContent = await window.vfsModule.getFileContent(fileName);
             
             if (fileContent !== null) {
                 // 更新全局文本为文件内容
@@ -1179,16 +1176,16 @@ window.PhoiAPI = {
     },
 
     // 创建新文件
-    createNewFile: function(fileName, content = '') {
+    createNewFile: async function(fileName, content = '') {
         if (window.vfsModule && typeof window.vfsModule.createNewFile === 'function') {
-            return window.vfsModule.createNewFile(fileName, content);
+            return await window.vfsModule.createNewFile(fileName, content);
         }
     },
 
     // 获取所有文件列表
-    getFileList: function() {
+    getFileList: async function() {
         if (window.vfsModule && typeof window.vfsModule.getFileList === 'function') {
-            return window.vfsModule.getFileList();
+            return await window.vfsModule.getFileList();
         }
         return [];
     }
@@ -1238,11 +1235,194 @@ function resetToDefaultCode() {
     }
 }
 
+// 更新本地文件系统启用状态
+function updateNativeFSStatus() {
+    const nativeFSEnabledCheckbox = document.getElementById('native-fs-enabled');
+    if (nativeFSEnabledCheckbox) {
+        nativeFSEnabledCheckbox.checked = localStorage.getItem('phoi_useNativeFS') === 'true';
+        
+        nativeFSEnabledCheckbox.addEventListener('change', function() {
+            const isEnabled = this.checked;
+            localStorage.setItem('phoi_useNativeFS', isEnabled);
+            
+            // 重新初始化VFS模块以应用更改
+            if (window.vfsModule && typeof window.vfsModule.initVFSModule === 'function') {
+                window.location.reload(); // 重新加载页面以应用更改
+            }
+        });
+    }
+    
+}
+
+// 显示本地存储信息
+function showLocalStorageInfo() {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.id = 'local-storage-info-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+
+    // 创建弹窗内容
+    const modal = document.createElement('div');
+    modal.id = 'local-storage-info-modal';
+    modal.style.backgroundColor = '#252526';
+    modal.style.padding = '20px';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+    modal.style.textAlign = 'left';
+    modal.style.maxWidth = '500px';
+    modal.style.width = '80%';
+    modal.style.color = '#cccccc';
+    modal.style.maxHeight = '80vh';
+    modal.style.overflowY = 'auto';
+
+    // 添加标题
+    const title = document.createElement('h3');
+    title.textContent = '本地文件系统功能说明';
+    title.style.color = '#ffffff';
+    title.style.marginTop = '0';
+    title.style.marginBottom = '15px';
+    modal.appendChild(title);
+
+    // 添加说明内容
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <p>目前PH code使用的浏览器内置储存用来存储代码，使用该功能可将代码储存到本地，但注意当前版本可能有一些奇怪的问题...</p>
+        <ul style="margin: 15px 0; padding-left: 20px;">
+            <li>本地文件系统功能允许直接访问您的文件系统</li>
+            <li>所有代码将直接保存到您选择的文件夹中</li>
+            <li>功能仍在开发中，可能存在一些不稳定因素</li>
+            <li>如果遇到问题，可以随时切换回虚拟文件系统</li>
+        </ul>
+        <p>启用此功能需要您手动选择一个文件夹进行访问授权。</p>
+    `;
+    modal.appendChild(content);
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.textAlign = 'right';
+    buttonContainer.style.marginTop = '20px';
+
+    // 确定按钮
+    const okButton = document.createElement('button');
+    okButton.textContent = '确定';
+    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.color = 'white';
+    okButton.style.border = 'none';
+    okButton.style.padding = '8px 16px';
+    okButton.style.borderRadius = '4px';
+    okButton.style.cursor = 'pointer';
+    okButton.onclick = function() {
+        document.body.removeChild(overlay);
+    };
+
+    buttonContainer.appendChild(okButton);
+    modal.appendChild(buttonContainer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
 // 首选项弹窗事件监听器
 if (preferencesBtn) {
     preferencesBtn.addEventListener('click', function() {
         showPreferencesModal();
+        updateNativeFSStatus(); // 更新本地文件系统启用状态
     });
+}
+
+// 为本地存储信息图标添加事件监听器
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.id === 'local-storage-info') {
+        event.stopPropagation(); // 阻止事件冒泡
+        showLocalStorageInfo();
+    }
+});
+
+
+// 显示本地存储信息
+function showLocalStorageInfo() {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.id = 'local-storage-info-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+
+    // 创建弹窗内容
+    const modal = document.createElement('div');
+    modal.id = 'local-storage-info-modal';
+    modal.style.backgroundColor = '#252526';
+    modal.style.padding = '20px';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+    modal.style.textAlign = 'left';
+    modal.style.maxWidth = '500px';
+    modal.style.width = '80%';
+    modal.style.color = '#cccccc';
+    modal.style.maxHeight = '80vh';
+    modal.style.overflowY = 'auto';
+
+    // 添加标题
+    const title = document.createElement('h3');
+    title.textContent = '本地文件系统功能说明';
+    title.style.color = '#ffffff';
+    title.style.marginTop = '0';
+    title.style.marginBottom = '15px';
+    modal.appendChild(title);
+
+    // 添加说明内容
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <p>目前PH code使用的浏览器内置储存用来存储代码，使用该功能可将代码储存到本地，但注意当前版本可能有一些奇怪的问题...</p>
+        <ul style="margin: 15px 0; padding-left: 20px;">
+            <li>本地文件系统功能允许直接访问您的文件系统</li>
+            <li>所有代码将直接保存到您选择的文件夹中</li>
+            <li>功能仍在开发中，可能存在一些不稳定因素</li>
+            <li>如果遇到问题，可以随时切换回虚拟文件系统</li>
+        </ul>
+        <p>启用此功能需要您手动选择一个文件夹进行访问授权。</p>
+    `;
+    modal.appendChild(content);
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.textAlign = 'right';
+    buttonContainer.style.marginTop = '20px';
+
+    // 确定按钮
+    const okButton = document.createElement('button');
+    okButton.textContent = '确定';
+    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.color = 'white';
+    okButton.style.border = 'none';
+    okButton.style.padding = '8px 16px';
+    okButton.style.borderRadius = '4px';
+    okButton.style.cursor = 'pointer';
+    okButton.onclick = function() {
+        document.body.removeChild(overlay);
+    };
+
+    buttonContainer.appendChild(okButton);
+    modal.appendChild(buttonContainer);
+
+    overlay.appendChild(modal);  // 修复拼写错误
+    document.body.appendChild(overlay);
 }
 
 // 关闭首选项弹窗事件监听器

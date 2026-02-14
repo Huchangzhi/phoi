@@ -967,7 +967,7 @@ function renderMarkdownAndLatex(elementId, content) {
 }
 
 // 传输题目数据到CPH插件
-function transferProblemToCPH(problemData) {
+async function transferProblemToCPH(problemData) {
     try {
         // 提取题目编号，移除特殊字符，只保留字母和数字
         const problemId = problemData.pid.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -987,7 +987,7 @@ function transferProblemToCPH(problemData) {
         const fileName = `${problemId}.cpp`;
         
         // 首先确保在编辑器中创建并打开对应的cpp文件
-        createAndOpenCppFile(fileName);
+        await createAndOpenCppFile(fileName);
         
         // 然后发送消息到CPH插件
         if (window.cphPlugin) {
@@ -1048,17 +1048,17 @@ function transferProblemToCPH(problemData) {
 }
 
 // 创建并打开cpp文件
-function createAndOpenCppFile(fileName) {
+async function createAndOpenCppFile(fileName) {
     // 使用PhoiAPI创建和打开文件
     if (window.PhoiAPI) {
         // 检查文件是否已存在
-        const fileList = window.PhoiAPI.getFileList();
+        const fileList = await window.PhoiAPI.getFileList();
         if (fileList.includes(fileName)) {
             // 文件已存在，直接打开
-            window.PhoiAPI.openFile(fileName);
+            await window.PhoiAPI.openFile(fileName);
         } else {
             // 文件不存在，创建新文件并打开
-            window.PhoiAPI.createNewFile(fileName);
+            await window.PhoiAPI.createNewFile(fileName);
         }
     } else {
         console.error('PhoiAPI 未初始化');
@@ -1772,7 +1772,7 @@ function displayMarkdownProblem(problemData) {
 }
 
 // 传输Markdown题目数据到CPH插件
-function transferMarkdownProblemToCPH(problemData) {
+async function transferMarkdownProblemToCPH(problemData) {
     try {
         // 提取题目编号，优先使用PID，如果没有则从标题中提取
         let problemId = problemData.pid;
@@ -1799,7 +1799,7 @@ function transferMarkdownProblemToCPH(problemData) {
         const fileName = `${problemId}.cpp`;
 
         // 首先确保在编辑器中创建并打开对应的cpp文件
-        createAndOpenCppFile(fileName);
+        await createAndOpenCppFile(fileName);
 
         // 然后发送消息到CPH插件
         if (window.cphPlugin) {
