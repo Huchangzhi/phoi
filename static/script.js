@@ -64,10 +64,17 @@ const pluginCenterPanel = document.getElementById('plugin-center-panel');
 const pluginCenterCloseBtn = document.getElementById('plugin-center-close-btn');
 const pluginCenterContent = document.getElementById('plugin-center-content');
 
-// --- 虚拟文件系统相关变量 ---
-let vfsStructure = null;
-const VFS_STORAGE_KEY = 'phoi_vfs_structure';
-let currentFileName = localStorage.getItem('phoi_currentFileName') || 'new.cpp'; // 当前正在编辑的文件名
+// 初始化虚拟文件系统
+if (typeof window.vfsModule.initVFSModule === 'function') {
+    // 将DOM元素设置为全局变量，以便VFS模块可以访问
+    window.vfsPanel = vfsPanel;
+    window.vfsCloseBtn = vfsCloseBtn;
+    window.vfsContent = vfsContent;
+    window.sidebarToggle = sidebarToggle;
+    
+    window.vfsModule.initVFSModule();
+}
+
 
 // --- 恢复保存的代码 ---
 const defaultDefaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`;
@@ -102,403 +109,23 @@ function triggerSaveCode() {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
         localStorage.setItem('phoi_savedCode', globalText);
-        
+
         // 如果当前文件已打开，则保存到虚拟文件系统
-        if (vfsStructure && currentFileName) {
-            if (!vfsStructure['/'].children[currentFileName]) {
-                // 如果文件不存在，创建新文件
-                vfsStructure['/'].children[currentFileName] = {
-                    type: 'file',
-                    name: currentFileName,
-                    content: globalText
-                };
-            } else {
-                // 更新现有文件内容
-                vfsStructure['/'].children[currentFileName].content = globalText;
-            }
-            saveVFS();
+        if (window.vfsModule && typeof window.vfsModule.saveFileToVFS === 'function') {
+            window.vfsModule.saveFileToVFS(currentFileName, globalText);
         }
     }, 500);
 }
 
-// 初始化虚拟文件系统
-function initializeVFS() {
-    // 尝试从本地存储加载虚拟文件系统
-    const savedVFS = localStorage.getItem(VFS_STORAGE_KEY);
-    
-    if (savedVFS) {
-        // 如果已有虚拟文件系统，则加载它
-        vfsStructure = JSON.parse(savedVFS);
-        
-        // 检查是否有当前文件，如果没有则使用第一个文件
-        if (!vfsStructure['/'].children[currentFileName]) {
-            const firstFile = Object.keys(vfsStructure['/'].children).find(key => 
-                vfsStructure['/'].children[key].type === 'file'
-            );
-            if (firstFile) {
-                currentFileName = firstFile;
-                globalText = vfsStructure['/'].children[firstFile].content;
-            }
-        } else {
-            // 加载当前文件的内容
-            globalText = vfsStructure['/'].children[currentFileName].content;
-        }
-    } else {
-        // 否则初始化一个新的虚拟文件系统，并将当前代码作为 new.cpp 存储
-        vfsStructure = {
-            '/': {
-                type: 'folder',
-                name: 'root',
-                children: {}
-            }
-        };
-        
-        // 创建初始的 new.cpp 文件
-        vfsStructure['/'].children[currentFileName] = {
-            type: 'file',
-            name: currentFileName,
-            content: globalText
-        };
-        
-        // 保存到本地存储
-        localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
-    }
-}
-
-// 更新顶部菜单栏中显示的当前文件名
-function updateCurrentFileNameDisplay() {
-    const currentFileNameElement = document.getElementById('current-file-name');
-    if (currentFileNameElement) {
-        currentFileNameElement.textContent = currentFileName;
-    }
-}
-
-// 保存虚拟文件系统到本地存储
-function saveVFS() {
-    localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
-}
-
-// 渲染虚拟文件系统
-function renderVFS() {
-    if (!vfsContent) return; // 如果元素不存在则返回
-
-    // 清空内容
-    vfsContent.innerHTML = '';
-
-    // 创建操作按钮
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.padding = '10px';
-    buttonContainer.style.borderBottom = '1px solid #444';
-
-    const newFileButton = document.createElement('button');
-    newFileButton.textContent = '+ 文件';
-    newFileButton.style.marginRight = '5px';
-    newFileButton.onclick = newFile;
-
-    buttonContainer.appendChild(newFileButton);
-    vfsContent.appendChild(buttonContainer);
-
-    // 创建根目录项
-    const rootDiv = document.createElement('div');
-    rootDiv.className = 'vfs-folder';
-    rootDiv.textContent = '根目录';
-    rootDiv.dataset.path = '/';
-    // 为根目录添加点击事件
-    rootDiv.addEventListener('click', function() {
-        console.log('展开根目录');
-    });
-    vfsContent.appendChild(rootDiv);
-
-    // 渲染根目录下的所有子项
-    renderVFSDirectory('/', vfsContent);
-}
-
-// 打开文件
-function openFile(filePath) {
-    // 从虚拟文件系统中获取文件内容
-    const pathParts = filePath.split('/');
-    const fileName = pathParts[pathParts.length - 1];
-
-    if (vfsStructure['/'].children[fileName] && vfsStructure['/'].children[fileName].type === 'file') {
-        // 更新全局文本为文件内容
-        globalText = vfsStructure['/'].children[fileName].content;
-        currentFileName = fileName; // 更新当前文件名
-
-        // 更新编辑器内容
-        if (monacoEditor) {
-            monacoEditor.setValue(globalText);
-        }
-
-        // 更新顶部菜单栏中显示的当前文件名
-        const currentFileNameElement = document.getElementById('current-file-name');
-        if (currentFileNameElement) {
-            currentFileNameElement.textContent = currentFileName;
-        }
-
-        // 保存当前文件名到本地存储
-        localStorage.setItem('phoi_currentFileName', currentFileName);
-
-        // 关闭虚拟文件系统面板
-        if (vfsPanel) {
-            vfsPanel.style.display = 'none';
-        }
-        if (sidebarToggle) {
-            // 移除CSS类来表示面板关闭状态，而不是修改文本内容
-            sidebarToggle.classList.remove('vfs-open');
-        }
-
-        // 显示提示信息
-        showMessage(`已打开文件: ${fileName}`, 'user');
-    }
-}
-
-// 显示消息
-function showMessage(content, sender) {
-    // 创建消息元素
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `debug-message ${sender}`;
-    messageDiv.innerHTML = `<strong>${sender === 'user' ? '用户:' : '系统:'}</strong> ${content}`;
-    
-    // 添加到输出面板
-    const outputContent = document.getElementById('output-content');
-    if (outputContent) {
-        outputContent.appendChild(messageDiv);
-        outputContent.scrollTop = outputContent.scrollHeight;
-        
-        // 显示输出面板
-        const outputPanel = document.getElementById('output-panel');
-        if (outputPanel) {
-            outputPanel.style.display = 'flex';
-            
-            // 3秒后自动隐藏
-            setTimeout(() => {
-                outputPanel.style.display = 'none';
-            }, 3000);
-        }
-    }
-}
-
-// 渲染指定路径的目录
-function renderVFSDirectory(path, parentElement) {
-    if (!parentElement) return; // 如果父元素不存在则返回
-
-    const folder = vfsStructure[path];
-    if (!folder || folder.type !== 'folder') return;
-
-    const container = document.createElement('div');
-    container.className = 'vfs-subfolder';
-    container.style.paddingLeft = '16px';
-
-    for (const itemName in folder.children) {
-        const item = folder.children[itemName];
-
-        if (item.type === 'file') { // 只渲染文件，不渲染文件夹
-            const itemElement = document.createElement('div');
-            itemElement.className = 'vfs-file';
-            itemElement.style.color = 'white'; // 设置文字为白色
-            itemElement.style.display = 'flex';
-            itemElement.style.justifyContent = 'space-between';
-            itemElement.style.alignItems = 'center';
-            itemElement.style.padding = '5px';
-            itemElement.style.cursor = 'pointer';
-
-            // 文件名部分
-            const fileNameSpan = document.createElement('span');
-            fileNameSpan.textContent = item.name;
-            fileNameSpan.style.flexGrow = '1';
-            itemElement.appendChild(fileNameSpan);
-
-            // 删除按钮
-            const deleteButton = document.createElement('button');
-            deleteButton.textContent = '×';
-            deleteButton.style.backgroundColor = '#ff4444';
-            deleteButton.style.color = 'white';
-            deleteButton.style.border = 'none';
-            deleteButton.style.borderRadius = '50%';
-            deleteButton.style.width = '20px';
-            deleteButton.style.height = '20px';
-            deleteButton.style.cursor = 'pointer';
-            deleteButton.onclick = function(e) {
-                e.stopPropagation(); // 阻止事件冒泡到父元素
-                deleteFile(item.name);
-            };
-            itemElement.appendChild(deleteButton);
-
-            itemElement.dataset.path = path + itemName;
-
-            // 为每个项目添加点击事件
-            itemElement.addEventListener('click', function(e) {
-                if (e.target !== deleteButton) { // 只有当点击的不是删除按钮时才打开文件
-                    const itemPath = this.dataset.path;
-                    openFile(itemPath);
-                }
-            });
-
-            container.appendChild(itemElement);
-        }
-    }
-
-    parentElement.appendChild(container);
-}
-
-// 删除文件
-function deleteFile(fileName) {
-    // 检查是否是当前正在使用的文件
-    if (fileName === currentFileName) {
-        alert(`无法删除当前正在使用的文件 "${fileName}"`);
-        return;
-    }
-
-    if (confirm(`确定要删除文件 "${fileName}" 吗？`)) {
-        // 从虚拟文件系统中删除文件
-        delete vfsStructure['/'].children[fileName];
-
-        saveVFS();
-        renderVFS();
-
-        showMessage(`文件 "${fileName}" 已删除`, 'user');
-    }
-}
-
-// 切换虚拟文件系统面板显示状态
-function toggleVFSPanel() {
-    if (!vfsPanel || !sidebarToggle) return; // 如果元素不存在则返回
-
-    if (vfsPanel.style.display === 'none' || vfsPanel.style.display === '') {
-        vfsPanel.style.display = 'flex';
-        // 添加CSS类来表示面板打开状态
-        sidebarToggle.classList.add('vfs-open');
-    } else {
-        vfsPanel.style.display = 'none';
-        // 移除CSS类来表示面板关闭状态
-        sidebarToggle.classList.remove('vfs-open');
-    }
-}
-
-// 上传文件到虚拟文件系统
-function uploadFile() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.onchange = event => {
-        const file = event.target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            const content = e.target.result;
-            const fileName = file.name;
-            
-            // 将文件添加到根目录
-            vfsStructure['/'].children[fileName] = {
-                type: 'file',
-                name: fileName,
-                content: content
-            };
-            
-            saveVFS();
-            renderVFS();
-            
-            // 自动打开刚上传的文件
-            openFile(fileName);
-        };
-        
-        reader.readAsText(file);
-    };
-    
-    input.click();
-}
-
-// 下载当前活动文件
-function downloadCurrentFile() {
-    const blob = new Blob([globalText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = currentFileName || 'current.cpp'; // 使用当前文件名
-    document.body.appendChild(a);
-    a.click();
-    
-    // 清理
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-}
-
-// 另存为当前文件
-function saveCurrentFileAs() {
-    const fileName = prompt('请输入文件名:', currentFileName || 'new_file.cpp');
-    if (!fileName) return;
-    
-    // 将当前代码保存为新文件
-    vfsStructure['/'].children[fileName] = {
-        type: 'file',
-        name: fileName,
-        content: globalText
-    };
-    
-    saveVFS();
-    renderVFS();
-    
-    // 更新当前文件名
-    currentFileName = fileName;
-    
-    showMessage(`文件已另存为: ${fileName}`, 'user');
-}
-
-// 新建文件
-function newFile() {
-    const fileName = prompt('请输入文件名:', 'new.cpp');
-    if (!fileName) return;
-
-    // 检查文件是否已存在
-    if (vfsStructure['/'].children[fileName]) {
-        alert('文件已存在！');
-        return;
-    }
-
-    // 获取当前的默认代码（可能是用户自定义的）
-    const currentDefaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
-    
-    // 创建新文件
-    vfsStructure['/'].children[fileName] = {
-        type: 'file',
-        name: fileName,
-        content: currentDefaultCode
-    };
-
-    saveVFS();
-    renderVFS();
-
-    // 自动打开新创建的文件
-    openFile(fileName);
-}
-
-// 新建文件夹
-function newFolder() {
-    const folderName = prompt('请输入文件夹名:');
-    if (!folderName) return;
-    
-    // 检查文件夹是否已存在
-    if (vfsStructure['/'].children[folderName]) {
-        alert('文件夹已存在！');
-        return;
-    }
-    
-    // 创建新文件夹
-    vfsStructure['/'].children[folderName] = {
-        type: 'folder',
-        name: folderName,
-        children: {}
-    };
-    
-    saveVFS();
-    renderVFS();
-}
 
 
 // Initialize Monaco Editor
 let monacoEditor = null; // Global reference to the Monaco editor instance
+
+// 初始化虚拟文件系统
+if (typeof initVFSModule === 'function') {
+    initVFSModule(vfsPanel, vfsCloseBtn, vfsContent, sidebarToggle);
+}
 
 require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 require(['vs/editor/editor.main'], function() {
@@ -1193,38 +820,34 @@ document.addEventListener('click', function(event) {
 
 // 文件操作按钮事件 - 需要检查元素是否存在
 if (uploadFileBtn) {
-    uploadFileBtn.addEventListener('click', uploadFile);
-}
-if (downloadFileBtn) {
-    downloadFileBtn.addEventListener('click', downloadCurrentFile);
-}
-if (saveAsBtn) {
-    saveAsBtn.addEventListener('click', saveCurrentFileAs);
-}
-if (newFileBtn) {
-    newFileBtn.addEventListener('click', newFile);
-}
-if (newFolderBtn) {
-    newFolderBtn.addEventListener('click', newFolder);
-}
-
-// 左侧边栏事件 - 需要检查元素是否存在
-if (sidebarToggle) {
-    sidebarToggle.addEventListener('click', toggleVFSPanel);
-}
-
-// 虚拟文件系统关闭按钮 - 需要检查元素是否存在
-if (vfsCloseBtn) {
-    vfsCloseBtn.addEventListener('click', function() {
-        if (vfsPanel) {
-            vfsPanel.style.display = 'none';
-        }
-        if (sidebarToggle) {
-            // 移除CSS类来表示面板关闭状态，而不是修改文本内容
-            sidebarToggle.classList.remove('vfs-open');
+    uploadFileBtn.addEventListener('click', function() {
+        if (window.vfsModule && typeof window.vfsModule.uploadFile === 'function') {
+            window.vfsModule.uploadFile();
         }
     });
 }
+if (downloadFileBtn) {
+    downloadFileBtn.addEventListener('click', function() {
+        if (window.vfsModule && typeof window.vfsModule.downloadCurrentFile === 'function') {
+            window.vfsModule.downloadCurrentFile();
+        }
+    });
+}
+if (saveAsBtn) {
+    saveAsBtn.addEventListener('click', function() {
+        if (window.vfsModule && typeof window.vfsModule.saveCurrentFileAs === 'function') {
+            window.vfsModule.saveCurrentFileAs();
+        }
+    });
+}
+if (newFileBtn) {
+    newFileBtn.addEventListener('click', function() {
+        if (window.vfsModule && typeof window.vfsModule.newFile === 'function') {
+            window.vfsModule.newFile();
+        }
+    });
+}
+
 
 // 插件中心面板切换功能
 function togglePluginCenterPanel() {
@@ -1484,6 +1107,18 @@ window.PhoiAPI = {
         return currentFileName;
     },
 
+    // 设置当前文件名
+    setCurrentFileName: function(fileName) {
+        currentFileName = fileName;
+        localStorage.setItem('phoi_currentFileName', currentFileName);
+
+        // 更新顶部菜单栏中显示的当前文件名
+        const currentFileNameElement = document.getElementById('current-file-name');
+        if (currentFileNameElement) {
+            currentFileNameElement.textContent = currentFileName;
+        }
+    },
+
     // 获取当前文件内容
     getCurrentFileContent: function() {
         return globalText;
@@ -1499,60 +1134,43 @@ window.PhoiAPI = {
 
     // 打开文件
     openFile: function(fileName) {
-        // 检查文件是否存在于VFS中
-        if (vfsStructure['/'].children[fileName] && vfsStructure['/'].children[fileName].type === 'file') {
-            // 更新全局文本为文件内容
-            globalText = vfsStructure['/'].children[fileName].content;
-            currentFileName = fileName; // 更新当前文件名
-
-            // 更新编辑器内容
-            if (monacoEditor) {
-                monacoEditor.setValue(globalText);
-            }
-
-            // 更新顶部菜单栏中显示的当前文件名
-            const currentFileNameElement = document.getElementById('current-file-name');
-            if (currentFileNameElement) {
-                currentFileNameElement.textContent = currentFileName;
-            }
-
-            // 保存当前文件名到本地存储
-            localStorage.setItem('phoi_currentFileName', currentFileName);
-
-            // 关闭虚拟文件系统面板
-            const vfsPanel = document.getElementById('vfs-panel');
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            if (vfsPanel) {
-                vfsPanel.style.display = 'none';
-            }
-            if (sidebarToggle) {
-                sidebarToggle.classList.remove('vfs-open');
-            }
-
-            // 显示提示信息
-            if (typeof showMessage === 'function') {
-                showMessage(`已打开文件: ${fileName}`, 'user');
-            }
-            
-            return true;
-        } else {
-            // 文件不存在，检查是否在localStorage中有该文件
-            const fileKey = `phoi_file_${fileName}`;
-            const fileContent = localStorage.getItem(fileKey);
+        // 从虚拟文件系统中获取文件内容
+        if (window.vfsModule && typeof window.vfsModule.getFileContent === 'function') {
+            const fileContent = window.vfsModule.getFileContent(fileName);
             
             if (fileContent !== null) {
-                // 文件存在于localStorage中，将其添加到VFS
-                vfsStructure['/'].children[fileName] = {
-                    type: 'file',
-                    name: fileName,
-                    content: fileContent
-                };
-                
-                // 保存VFS结构
-                saveVFS();
-                
-                // 打开文件
-                return this.openFile(fileName); // 递归调用
+                // 更新全局文本为文件内容
+                globalText = fileContent;
+                currentFileName = fileName; // 更新当前文件名
+
+                // 更新编辑器内容
+                if (monacoEditor) {
+                    monacoEditor.setValue(globalText);
+                }
+
+                // 更新顶部菜单栏中显示的当前文件名
+                const currentFileNameElement = document.getElementById('current-file-name');
+                if (currentFileNameElement) {
+                    currentFileNameElement.textContent = currentFileName;
+                }
+
+                // 保存当前文件名到本地存储
+                localStorage.setItem('phoi_currentFileName', currentFileName);
+
+                // 关闭虚拟文件系统面板
+                if (window.vfsPanel) {
+                    window.vfsPanel.style.display = 'none';
+                }
+                if (window.sidebarToggle) {
+                    window.sidebarToggle.classList.remove('vfs-open');
+                }
+
+                // 显示提示信息
+                if (typeof showMessage === 'function') {
+                    showMessage(`已打开文件: ${fileName}`, 'user');
+                }
+
+                return true;
             } else {
                 console.error(`文件 ${fileName} 不存在`);
                 return false;
@@ -1562,35 +1180,17 @@ window.PhoiAPI = {
 
     // 创建新文件
     createNewFile: function(fileName, content = '') {
-        // 检查文件是否已存在
-        if (vfsStructure['/'].children[fileName]) {
-            console.warn(`文件 ${fileName} 已存在`);
-            return false;
+        if (window.vfsModule && typeof window.vfsModule.createNewFile === 'function') {
+            return window.vfsModule.createNewFile(fileName, content);
         }
-
-        // 使用提供的内容或默认代码创建文件
-        const currentDefaultCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
-        const fileContent = content || currentDefaultCode;
-
-        // 创建新文件
-        vfsStructure['/'].children[fileName] = {
-            type: 'file',
-            name: fileName,
-            content: fileContent
-        };
-
-        saveVFS();
-        renderVFS();
-
-        // 自动打开新创建的文件
-        return this.openFile(fileName);
     },
 
     // 获取所有文件列表
     getFileList: function() {
-        return Object.keys(vfsStructure['/'].children).filter(key => {
-            return vfsStructure['/'].children[key].type === 'file';
-        });
+        if (window.vfsModule && typeof window.vfsModule.getFileList === 'function') {
+            return window.vfsModule.getFileList();
+        }
+        return [];
     }
 };
 
@@ -1676,8 +1276,3 @@ window.addEventListener('click', function(event) {
         hidePreferencesModal();
     }
 });
-
-// 初始化虚拟文件系统
-initializeVFS();
-renderVFS();
-updateCurrentFileNameDisplay();
