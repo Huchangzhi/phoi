@@ -762,7 +762,27 @@ function displayLuoguProblem(problemData) {
     }
 
     titleContainer.appendChild(titleElement);
-    // 先添加CPH按钮，再添加洛谷按钮，这样CPH按钮会在左边
+    // 翻译按钮
+    const translateButton = document.createElement('button');
+    translateButton.textContent = '翻译';
+    translateButton.style.backgroundColor = '#2d8c4e';
+    translateButton.style.color = 'white';
+    translateButton.style.padding = '8px 16px';
+    translateButton.style.textDecoration = 'none';
+    translateButton.style.border = 'none';
+    translateButton.style.borderRadius = '4px';
+    translateButton.style.fontSize = '14px';
+    translateButton.style.whiteSpace = 'nowrap';
+    translateButton.style.marginRight = '10px';
+    translateButton.style.cursor = 'pointer';
+
+    translateButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        translateProblemContent(problemData);
+    });
+
+    // 依次添加翻译按钮、CPH 按钮、洛谷按钮
+    titleContainer.appendChild(translateButton);
     titleContainer.appendChild(cphTransferButton);
     titleContainer.appendChild(linkButton);
     scrollContainer.appendChild(titleContainer);
@@ -1653,6 +1673,27 @@ function displayMarkdownProblem(problemData) {
 
     titleContainer.appendChild(titleElement);
     // 只添加CPH按钮，不添加洛谷链接
+    // 翻译按钮
+    const translateButton = document.createElement('button');
+    translateButton.textContent = '翻译';
+    translateButton.style.backgroundColor = '#2d8c4e';
+    translateButton.style.color = 'white';
+    translateButton.style.padding = '8px 16px';
+    translateButton.style.textDecoration = 'none';
+    translateButton.style.border = 'none';
+    translateButton.style.borderRadius = '4px';
+    translateButton.style.fontSize = '14px';
+    translateButton.style.whiteSpace = 'nowrap';
+    translateButton.style.marginRight = '10px';
+    translateButton.style.cursor = 'pointer';
+
+    translateButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        translateProblemContent(problemData);
+    });
+
+    // 依次添加翻译按钮、CPH 按钮
+    titleContainer.appendChild(translateButton);
     titleContainer.appendChild(cphTransferButton);
     scrollContainer.appendChild(titleContainer);
 
@@ -2009,6 +2050,206 @@ async function transferMarkdownProblemToCPH(problemData) {
         }
     }
 }
+
+
+// 翻译题目内容
+async function translateProblemContent(problemData) {
+    const problemDisplay = document.getElementById('problem-display');
+    if (!problemDisplay) return;
+
+    // 获取需要翻译的各部分内容
+    const description = problemData.description || '';
+    const inputFormat = problemData.inputFormat || '';
+    const outputFormat = problemData.outputFormat || '';
+    const hint = problemData.hint || '';
+
+    // 显示正在翻译状态
+    const fullContentElement = document.getElementById('full-markdown-content');
+    const descElement = document.getElementById('problem-description');
+    const inputFormatElement = document.getElementById('problem-input-format');
+    const outputFormatElement = document.getElementById('problem-output-format');
+    const hintElement = document.getElementById('problem-hint');
+
+    if (fullContentElement) fullContentElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+    if (descElement) descElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+    if (inputFormatElement) inputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+    if (outputFormatElement) outputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+    if (hintElement) hintElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+
+    try {
+        // 分别翻译各部分内容
+        const translatePromises = [];
+
+        // 翻译题目描述
+        if (description) {
+            translatePromises.push(
+                fetch('https://tr.hcz1017.dpdns.org/translate', {
+                    method: 'POST',
+                    headers: {
+                        'accept': '*/*',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'en',
+                        to: 'zh',
+                        text: description
+                    })
+                }).then(res => res.json()).then(data => ({
+                    type: 'description',
+                    text: (data.result || data.translatedText || data.text || '') + '\n\n\n---\n--使用自建机器翻译服务翻译，仅供参考'
+                }))
+            );
+        }
+
+        // 翻译输入格式
+        if (inputFormat) {
+            translatePromises.push(
+                fetch('https://tr.hcz1017.dpdns.org/translate', {
+                    method: 'POST',
+                    headers: {
+                        'accept': '*/*',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'en',
+                        to: 'zh',
+                        text: inputFormat
+                    })
+                }).then(res => res.json()).then(data => ({
+                    type: 'inputFormat',
+                    text: (data.result || data.translatedText || data.text || '') + '\n\n\n---\n--使用自建机器翻译服务翻译，仅供参考'
+                }))
+            );
+        }
+
+        // 翻译输出格式
+        if (outputFormat) {
+            translatePromises.push(
+                fetch('https://tr.hcz1017.dpdns.org/translate', {
+                    method: 'POST',
+                    headers: {
+                        'accept': '*/*',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'en',
+                        to: 'zh',
+                        text: outputFormat
+                    })
+                }).then(res => res.json()).then(data => ({
+                    type: 'outputFormat',
+                    text: (data.result || data.translatedText || data.text || '') + '\n\n\n---\n--使用自建机器翻译服务翻译，仅供参考'
+                }))
+            );
+        }
+
+        // 翻译提示
+        if (hint) {
+            translatePromises.push(
+                fetch('https://tr.hcz1017.dpdns.org/translate', {
+                    method: 'POST',
+                    headers: {
+                        'accept': '*/*',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: 'en',
+                        to: 'zh',
+                        text: hint
+                    })
+                }).then(res => res.json()).then(data => ({
+                    type: 'hint',
+                    text: (data.result || data.translatedText || data.text || '') + '\n\n\n---\n--使用自建机器翻译服务翻译，仅供参考'
+                }))
+            );
+        }
+
+        // 等待所有翻译完成
+        const results = await Promise.all(translatePromises);
+
+        // 渲染翻译结果
+        const renderOptions = {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false},
+                {left: "\\(", right: "\\)", display: false},
+                {left: "\\[", right: "\\]", display: true}
+            ],
+            throwOnError: false
+        };
+
+        results.forEach(item => {
+            let element;
+            let originalText;
+
+            switch(item.type) {
+                case 'description':
+                    element = fullContentElement || descElement;
+                    originalText = description;
+                    break;
+                case 'inputFormat':
+                    element = inputFormatElement;
+                    originalText = inputFormat;
+                    break;
+                case 'outputFormat':
+                    element = outputFormatElement;
+                    originalText = outputFormat;
+                    break;
+                case 'hint':
+                    element = hintElement;
+                    originalText = hint;
+                    break;
+            }
+
+            if (element && item.text) {
+                element.innerHTML = marked.parse(item.text);
+                renderMathInElement(element, renderOptions);
+            }
+        });
+
+        if (typeof showMessage === 'function') {
+            showMessage('翻译完成', 'success');
+        }
+    } catch (error) {
+        console.error('翻译失败:', error);
+        // 恢复原始内容
+        const renderOptions = {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false},
+                {left: "\\(", right: "\\)", display: false},
+                {left: "\\[", right: "\\]", display: true}
+            ],
+            throwOnError: false
+        };
+
+        if (fullContentElement) {
+            fullContentElement.innerHTML = marked.parse(description);
+            renderMathInElement(fullContentElement, renderOptions);
+        }
+        if (descElement && !fullContentElement) {
+            descElement.innerHTML = marked.parse(description);
+            renderMathInElement(descElement, renderOptions);
+        }
+        if (inputFormatElement) {
+            inputFormatElement.innerHTML = marked.parse(inputFormat);
+            renderMathInElement(inputFormatElement, renderOptions);
+        }
+        if (outputFormatElement) {
+            outputFormatElement.innerHTML = marked.parse(outputFormat);
+            renderMathInElement(outputFormatElement, renderOptions);
+        }
+        if (hintElement) {
+            hintElement.innerHTML = marked.parse(hint);
+            renderMathInElement(hintElement, renderOptions);
+        }
+
+        if (typeof showMessage === 'function') {
+            showMessage('翻译失败：' + error.message, 'error');
+        }
+    }
+}
+
 
 // 初始化洛谷题目功能
 initLuoguFeature();
