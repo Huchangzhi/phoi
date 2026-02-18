@@ -307,29 +307,95 @@ function loadLuoguProblem(problemId) {
         const keyboardContainer = document.getElementById('keyboard-container');
         const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
-        if (isMobile) {
-            problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc; text-align: center;">正在加载题目...</div>';
-        } else {
-            problemDisplay.innerHTML = '<div style="padding: 20px; color: #ccc;">正在加载题目...</div>';
-        }
         problemDisplay.style.display = 'block';
+
+        // 保存关闭按钮（如果存在）
+        const existingCloseBtn = problemDisplay.querySelector('.problem-display-close');
+        
+        // 清空内容区域
+        const oldScrollContainer = problemDisplay.querySelector('[data-scroll-container]');
+        if (oldScrollContainer) {
+            oldScrollContainer.remove();
+        }
+
+        // 创建加载提示容器
+        const loadingContainer = document.createElement('div');
+        loadingContainer.setAttribute('data-scroll-container', 'true');
+        loadingContainer.style.height = '100%';
+        loadingContainer.style.overflowY = 'auto';
+        loadingContainer.style.padding = '20px';
+        loadingContainer.style.boxSizing = 'border-box';
+        loadingContainer.style.textAlign = isMobile ? 'center' : 'left';
+        loadingContainer.style.color = '#ccc';
+        loadingContainer.textContent = '正在加载题目...';
+
+        problemDisplay.appendChild(loadingContainer);
+
+        // 重新添加关闭按钮
+        if (existingCloseBtn) {
+            problemDisplay.appendChild(existingCloseBtn);
+        }
+
+        // 在桌面端显示 resizer
+        if (!isMobile) {
+            const resizer = document.getElementById('problem-display-resizer');
+            if (resizer) {
+                resizer.style.display = 'block';
+            }
+        }
 
         // 异步加载题目数据
         fetchLuoguProblemData(problemId).then(problemData => {
             if (problemData) {
                 displayLuoguProblem(problemData);
             } else {
-                if (isMobile) {
-                    problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771; text-align: center;">未找到题目: ' + problemId + '</div>';
-                } else {
-                    problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">未找到题目: ' + problemId + '</div>';
+                // 显示错误信息
+                const errorContainer = document.createElement('div');
+                errorContainer.setAttribute('data-scroll-container', 'true');
+                errorContainer.style.height = '100%';
+                errorContainer.style.overflowY = 'auto';
+                errorContainer.style.padding = '20px';
+                errorContainer.style.boxSizing = 'border-box';
+                errorContainer.style.textAlign = isMobile ? 'center' : 'left';
+                errorContainer.style.color = '#f48771';
+                errorContainer.textContent = '未找到题目：' + problemId;
+
+                // 替换加载提示
+                const oldContainer = problemDisplay.querySelector('[data-scroll-container]');
+                if (oldContainer) {
+                    oldContainer.remove();
+                }
+                problemDisplay.appendChild(errorContainer);
+
+                // 重新添加关闭按钮
+                const closeBtn = problemDisplay.querySelector('.problem-display-close');
+                if (closeBtn) {
+                    problemDisplay.appendChild(closeBtn);
                 }
             }
         }).catch(error => {
-            if (isMobile) {
-                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771; text-align: center;">加载题目失败: ' + error.message + '</div>';
-            } else {
-                problemDisplay.innerHTML = '<div style="padding: 20px; color: #f48771;">加载题目失败: ' + error.message + '</div>';
+            // 显示错误信息
+            const errorContainer = document.createElement('div');
+            errorContainer.setAttribute('data-scroll-container', 'true');
+            errorContainer.style.height = '100%';
+            errorContainer.style.overflowY = 'auto';
+            errorContainer.style.padding = '20px';
+            errorContainer.style.boxSizing = 'border-box';
+            errorContainer.style.textAlign = isMobile ? 'center' : 'left';
+            errorContainer.style.color = '#f48771';
+            errorContainer.textContent = '加载题目失败：' + error.message;
+
+            // 替换加载提示
+            const oldContainer = problemDisplay.querySelector('[data-scroll-container]');
+            if (oldContainer) {
+                oldContainer.remove();
+            }
+            problemDisplay.appendChild(errorContainer);
+
+            // 重新添加关闭按钮
+            const closeBtn = problemDisplay.querySelector('.problem-display-close');
+            if (closeBtn) {
+                problemDisplay.appendChild(closeBtn);
             }
         });
     }
@@ -416,6 +482,24 @@ function createProblemDisplayArea() {
             problemDisplay.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
             problemDisplay.style.display = 'none';
             problemDisplay.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
+
+            // 添加关闭按钮
+            const closeBtn = document.createElement('div');
+            closeBtn.innerHTML = '×';
+            closeBtn.className = 'problem-display-close';
+            closeBtn.style.position = 'absolute';
+            closeBtn.style.top = '10px';
+            closeBtn.style.right = '10px';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '24px';
+            closeBtn.style.color = '#ccc';
+            closeBtn.style.zIndex = '101';
+            closeBtn.addEventListener('click', function() {
+                problemDisplay.style.display = 'none';
+            });
+
+            problemDisplay.appendChild(closeBtn);
+            document.body.appendChild(problemDisplay);
         } else {
             // 桌面设备上的样式
             problemDisplay.style.position = 'fixed';
@@ -426,28 +510,88 @@ function createProblemDisplayArea() {
             problemDisplay.style.backgroundColor = '#1e1e1e';
             problemDisplay.style.borderLeft = '1px solid #333';
             problemDisplay.style.zIndex = '100';
-            problemDisplay.style.overflowY = 'auto';
-            problemDisplay.style.WebkitOverflowScrolling = 'touch'; // 启用硬件加速的滚动
+            problemDisplay.style.overflowY = 'hidden'; // 隐藏 problemDisplay 的滚动，由 scrollContainer 负责
             problemDisplay.style.display = 'none';
             problemDisplay.style.boxShadow = '-5px 0 15px rgba(0,0,0,0.5)';
+
+            // 添加关闭按钮
+            const closeBtn = document.createElement('div');
+            closeBtn.innerHTML = '×';
+            closeBtn.className = 'problem-display-close';
+            closeBtn.style.position = 'absolute';
+            closeBtn.style.top = '10px';
+            closeBtn.style.right = '10px';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.fontSize = '24px';
+            closeBtn.style.color = '#ccc';
+            closeBtn.style.zIndex = '101';
+            closeBtn.addEventListener('click', function() {
+                problemDisplay.style.display = 'none';
+                // 同时隐藏 resizer
+                const resizer = document.getElementById('problem-display-resizer');
+                if (resizer) {
+                    resizer.style.display = 'none';
+                }
+            });
+
+            problemDisplay.appendChild(closeBtn);
+            document.body.appendChild(problemDisplay);
+
+            // 添加可拖动调整大小的边缘（在面板外部，与 output-resizer 类似）
+            const resizer = document.createElement('div');
+            resizer.id = 'problem-display-resizer';
+            resizer.style.position = 'fixed';
+            resizer.style.top = '36px';
+            resizer.style.right = '400px'; // 初始位置：面板宽度（面板靠右对齐）
+            resizer.style.width = '15px'; // 增加拖动区域宽度，方便调节
+            resizer.style.height = 'calc(100vh - 36px)';
+            resizer.style.cursor = 'ew-resize';
+            resizer.style.zIndex = '101';
+            resizer.style.backgroundColor = 'transparent';
+            resizer.style.transition = 'background-color 0.2s';
+            resizer.style.display = 'none'; // 初始隐藏，与面板同步
+            resizer.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'rgba(0, 122, 204, 0.3)'; // 降低透明度，使高亮更柔和
+            });
+            resizer.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'transparent';
+            });
+
+            // 拖动调整大小逻辑
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+
+            resizer.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = problemDisplay.offsetWidth;
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                const deltaX = startX - e.clientX;
+                const newWidth = startWidth + deltaX;
+                // 限制最小和最大宽度
+                if (newWidth >= 200 && newWidth <= window.innerWidth - 200) {
+                    problemDisplay.style.width = newWidth + 'px';
+                    resizer.style.right = newWidth + 'px'; // 同步更新 resizer 位置
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+
+            document.body.appendChild(resizer);
         }
-
-        // 添加关闭按钮
-        const closeBtn = document.createElement('div');
-        closeBtn.innerHTML = '×';
-        closeBtn.style.position = 'absolute';
-        closeBtn.style.top = '10px';
-        closeBtn.style.right = '10px';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.fontSize = '24px';
-        closeBtn.style.color = '#ccc';
-        closeBtn.style.zIndex = '101';
-        closeBtn.addEventListener('click', function() {
-            problemDisplay.style.display = 'none';
-        });
-
-        problemDisplay.appendChild(closeBtn);
-        document.body.appendChild(problemDisplay);
     }
 
     return problemDisplay;
@@ -461,35 +605,42 @@ function displayLuoguProblem(problemData) {
     // 检测是否为移动设备 - 使用 isFullMode 变量作为参考
     const isMobile = !isFullMode; // 非全屏模式视为移动设备
 
-    // 清空并显示题目区域
-    problemDisplay.innerHTML = '';
+    // 保存关闭按钮（如果存在）
+    const existingCloseBtn = problemDisplay.querySelector('.problem-display-close');
+
+    // 清空内容区域（不删除关闭按钮）
+    // 先获取所有需要保留的元素
+    const oldScrollContainer = problemDisplay.querySelector('[data-scroll-container]');
+    if (oldScrollContainer) {
+        oldScrollContainer.remove();
+    }
+
     problemDisplay.style.display = 'block';
+
+    // 在桌面端显示 resizer
+    if (!isMobile) {
+        const resizer = document.getElementById('problem-display-resizer');
+        if (resizer) {
+            resizer.style.display = 'block';
+        }
+    }
 
     // 创建滚动容器
     const scrollContainer = document.createElement('div');
     scrollContainer.style.height = '100%';
-    scrollContainer.style.overflowY = 'auto'; // 启用滚动以便按钮可以控制
+    scrollContainer.style.overflowY = 'auto';
     scrollContainer.style.padding = '20px';
     scrollContainer.style.boxSizing = 'border-box';
-    scrollContainer.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
+    scrollContainer.style.touchAction = 'none';
+    scrollContainer.setAttribute('data-scroll-container', 'true');
 
-    // 为移动端隐藏滚动条
-    if (isMobile) {
-        // 隐藏滚动条的样式
-        scrollContainer.style.msOverflowStyle = 'none';  // IE 和 Edge
-        scrollContainer.style.scrollbarWidth = 'none';  // Firefox
+    // 先添加滚动容器，再添加关闭按钮（确保关闭按钮在最上层）
+    problemDisplay.appendChild(scrollContainer);
 
-        // 为 Webkit 浏览器隐藏滚动条
-        const style = document.createElement('style');
-        style.textContent = `
-            #problem-display [data-scroll-container]::-webkit-scrollbar {
-                display: none;  /* Chrome, Safari, Opera*/
-            }
-        `;
-        document.head.appendChild(style);
+    // 重新添加关闭按钮（如果之前存在），确保它在 scrollContainer 之后，这样 z-index 才能生效
+    if (existingCloseBtn) {
+        problemDisplay.appendChild(existingCloseBtn);
     }
-
-    scrollContainer.setAttribute('data-scroll-container', 'true'); // 标记这个容器用于滚动
 
     // 难度标签
     const difficultyTag = document.createElement('div');
