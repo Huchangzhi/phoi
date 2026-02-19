@@ -776,9 +776,70 @@ function displayLuoguProblem(problemData) {
     translateButton.style.marginRight = '10px';
     translateButton.style.cursor = 'pointer';
 
+    // 保存原始内容和翻译状态的变量
+    let isTranslated = false;
+    let originalContent = {
+        description: problemData.description || '',
+        inputFormat: problemData.inputFormat || '',
+        outputFormat: problemData.outputFormat || '',
+        hint: problemData.hint || ''
+    };
+    let translatedContent = {
+        description: '',
+        inputFormat: '',
+        outputFormat: '',
+        hint: ''
+    };
+
     translateButton.addEventListener('click', function(e) {
         e.preventDefault();
-        translateProblemContent(problemData);
+        if (isTranslated) {
+            // 返回原文
+            const renderOptions = {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false},
+                    {left: "\\[", right: "\\]", display: true}
+                ],
+                throwOnError: false
+            };
+
+            const descElement = document.getElementById('problem-description');
+            const inputFormatElement = document.getElementById('problem-input-format');
+            const outputFormatElement = document.getElementById('problem-output-format');
+            const hintElement = document.getElementById('problem-hint');
+
+            if (descElement) {
+                descElement.innerHTML = marked.parse(originalContent.description);
+                renderMathInElement(descElement, renderOptions);
+            }
+            if (inputFormatElement) {
+                inputFormatElement.innerHTML = marked.parse(originalContent.inputFormat);
+                renderMathInElement(inputFormatElement, renderOptions);
+            }
+            if (outputFormatElement) {
+                outputFormatElement.innerHTML = marked.parse(originalContent.outputFormat);
+                renderMathInElement(outputFormatElement, renderOptions);
+            }
+            if (hintElement) {
+                hintElement.innerHTML = marked.parse(originalContent.hint);
+                renderMathInElement(hintElement, renderOptions);
+            }
+
+            translateButton.textContent = '翻译';
+            translateButton.style.backgroundColor = '#2d8c4e';
+            isTranslated = false;
+
+            if (typeof showMessage === 'function') {
+                showMessage('已返回原文', 'success');
+            }
+        } else {
+            // 翻译
+            translateProblemContent(problemData, translateButton, originalContent, translatedContent, function() {
+                isTranslated = true;
+            });
+        }
     });
 
     // 依次添加翻译按钮、CPH 按钮、洛谷按钮
@@ -1687,9 +1748,55 @@ function displayMarkdownProblem(problemData) {
     translateButton.style.marginRight = '10px';
     translateButton.style.cursor = 'pointer';
 
+    // 保存原始内容和翻译状态的变量
+    let isTranslated = false;
+    let originalContent = {
+        description: problemData.description || '',
+        inputFormat: problemData.inputFormat || '',
+        outputFormat: problemData.outputFormat || '',
+        hint: problemData.hint || ''
+    };
+    let translatedContent = {
+        description: '',
+        inputFormat: '',
+        outputFormat: '',
+        hint: ''
+    };
+
     translateButton.addEventListener('click', function(e) {
         e.preventDefault();
-        translateProblemContent(problemData);
+        if (isTranslated) {
+            // 返回原文
+            const renderOptions = {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\(", right: "\)", display: false},
+                    {left: "\[", right: "\]", display: true}
+                ],
+                throwOnError: false
+            };
+
+            const fullContentElement = document.getElementById('full-markdown-content');
+
+            if (fullContentElement) {
+                fullContentElement.innerHTML = marked.parse(originalContent.description);
+                renderMathInElement(fullContentElement, renderOptions);
+            }
+
+            translateButton.textContent = '翻译';
+            translateButton.style.backgroundColor = '#2d8c4e';
+            isTranslated = false;
+
+            if (typeof showMessage === 'function') {
+                showMessage('已返回原文', 'success');
+            }
+        } else {
+            // 翻译
+            translateProblemContent(problemData, translateButton, originalContent, translatedContent, function() {
+                isTranslated = true;
+            });
+        }
     });
 
     // 依次添加翻译按钮、CPH 按钮
@@ -2053,7 +2160,7 @@ async function transferMarkdownProblemToCPH(problemData) {
 
 
 // 翻译题目内容
-async function translateProblemContent(problemData) {
+async function translateProblemContent(problemData, translateButton, originalContent, translatedContent, onTranslateComplete) {
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
@@ -2075,6 +2182,12 @@ async function translateProblemContent(problemData) {
     if (inputFormatElement) inputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
     if (outputFormatElement) outputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
     if (hintElement) hintElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+
+    // 更新按钮状态
+    if (translateButton) {
+        translateButton.textContent = '正在翻译...';
+        translateButton.style.backgroundColor = '#1e5a3a';
+    }
 
     try {
         // 分别翻译各部分内容
@@ -2186,18 +2299,22 @@ async function translateProblemContent(problemData) {
                 case 'description':
                     element = fullContentElement || descElement;
                     originalText = description;
+                    if (translatedContent) translatedContent.description = item.text;
                     break;
                 case 'inputFormat':
                     element = inputFormatElement;
                     originalText = inputFormat;
+                    if (translatedContent) translatedContent.inputFormat = item.text;
                     break;
                 case 'outputFormat':
                     element = outputFormatElement;
                     originalText = outputFormat;
+                    if (translatedContent) translatedContent.outputFormat = item.text;
                     break;
                 case 'hint':
                     element = hintElement;
                     originalText = hint;
+                    if (translatedContent) translatedContent.hint = item.text;
                     break;
             }
 
@@ -2206,6 +2323,17 @@ async function translateProblemContent(problemData) {
                 renderMathInElement(element, renderOptions);
             }
         });
+
+        // 更新按钮状态为"返回原文"
+        if (translateButton) {
+            translateButton.textContent = '返回原文';
+            translateButton.style.backgroundColor = '#8b5a2b';
+        }
+
+        // 调用回调函数通知翻译完成
+        if (onTranslateComplete) {
+            onTranslateComplete();
+        }
 
         if (typeof showMessage === 'function') {
             showMessage('翻译完成', 'success');
@@ -2242,6 +2370,12 @@ async function translateProblemContent(problemData) {
         if (hintElement) {
             hintElement.innerHTML = marked.parse(hint);
             renderMathInElement(hintElement, renderOptions);
+        }
+
+        // 恢复按钮状态
+        if (translateButton) {
+            translateButton.textContent = '翻译';
+            translateButton.style.backgroundColor = '#2d8c4e';
         }
 
         if (typeof showMessage === 'function') {
