@@ -322,10 +322,39 @@ class MobileAutocomplete {
             suggestions = suggestions.concat(codeSuggestions);
         }
 
-        // 去重并按长度排序
+        // 去重
         suggestions = [...new Set(suggestions)];
 
+        // 使用 HabitTracker 进行智能排序（如果可用）
+        if (typeof HabitTracker !== 'undefined' && HabitTracker.sortSuggestions) {
+            const prefix = currentWord || '';
+            // 将字符串数组转换为对象数组以便排序
+            const suggestionObjects = suggestions.map(s => ({
+                label: s,
+                kind: this.getSuggestionKind(s),
+                insertText: s,
+                range: { startColumn: 1, endColumn: 1 }
+            }));
+            
+            const sorted = HabitTracker.sortSuggestions(suggestionObjects, prefix);
+            suggestions = sorted.map(s => s.label);
+        }
+
         return suggestions;
+    }
+
+    /**
+     * 获取建议的类型（用于 HabitTracker 排序）
+     */
+    getSuggestionKind(suggestion) {
+        // 判断建议的类型，返回对应的 Monaco CompletionItemKind
+        if (this.cppKeywords.includes(suggestion)) return 17; // Keyword
+        if (this.cppFunctions.includes(suggestion.replace('()', ''))) return 3; // Function
+        if (this.cppObjects.includes(suggestion)) return 6; // Variable
+        if (this.stlContainers.includes(suggestion)) return 7; // Class
+        if (this.preprocessorDirectives.includes(suggestion)) return 17; // Keyword
+        if (suggestion.startsWith('<') && suggestion.endsWith('>')) return 9; // Module
+        return 6; // Variable
     }
     
     /**
@@ -530,6 +559,14 @@ class MobileAutocomplete {
      * 处理建议点击事件
      */
     handleSuggestionClick(suggestion) {
+        // 记录用户选择了这个建议到 HabitTracker
+        const lastWordMatch = this.globalText.substring(0, this.globalCursorPos).match(/[\w]+$/);
+        const prefix = lastWordMatch ? lastWordMatch[0] : '';
+        
+        if (typeof HabitTracker !== 'undefined' && HabitTracker.recordSelection) {
+            HabitTracker.recordSelection(suggestion, prefix, 'mobile_click');
+        }
+        
         // 获取当前光标前后的文本
         const textBeforeCursor = this.globalText.substring(0, this.globalCursorPos);
         const textAfterCursor = this.globalText.substring(this.globalCursorPos);
