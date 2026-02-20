@@ -335,8 +335,9 @@ class MobileAutocomplete {
                 insertText: s,
                 range: { startColumn: 1, endColumn: 1 }
             }));
-            
-            const sorted = HabitTracker.sortSuggestions(suggestionObjects, prefix);
+
+            // 使用 AI 模型打分（传入代码和光标位置）
+            const sorted = HabitTracker.sortSuggestions(suggestionObjects, prefix, this.globalText, this.globalCursorPos);
             suggestions = sorted.map(s => s.label);
         }
 

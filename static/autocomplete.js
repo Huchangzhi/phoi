@@ -31,14 +31,14 @@ const cppKeywords = [
 ];
 
 // 智能排序辅助函数 - 根据用户习惯和上下文优化建议顺序
-function sortSuggestionsByIntelligence(suggestions, prefix = '') {
+function sortSuggestionsByIntelligence(suggestions, prefix = '', code = '', cursorPos = 0) {
     if (!suggestions || suggestions.length === 0) return suggestions;
-    
-    // 如果 HabitTracker 可用，使用它进行排序
+
+    // 如果 HabitTracker 可用，使用它进行排序（带 AI 模型）
     if (typeof HabitTracker !== 'undefined' && HabitTracker.sortSuggestions) {
-        return HabitTracker.sortSuggestions(suggestions, prefix);
+        return HabitTracker.sortSuggestions(suggestions, prefix, code, cursorPos);
     }
-    
+
     // 否则使用基础智能排序
     const priorityOrder = {
         // 最高优先级：用户定义的变量
@@ -92,7 +92,7 @@ function sortSuggestionsByIntelligence(suggestions, prefix = '') {
 }
 
 // 记录用户选择并更新建议
-function recordAndSortSuggestions(suggestions, prefix = '', context = '') {
+function recordAndSortSuggestions(suggestions, prefix = '', context = '', code = '', cursorPos = 0) {
     if (typeof HabitTracker !== 'undefined' && HabitTracker.recordSelection) {
         // 记录用户最可能选择的前 3 个建议
         const topSuggestions = suggestions.slice(0, 3);
@@ -100,7 +100,7 @@ function recordAndSortSuggestions(suggestions, prefix = '', context = '') {
             HabitTracker.recordSelection(s.label, prefix, context);
         });
     }
-    return sortSuggestionsByIntelligence(suggestions, prefix);
+    return sortSuggestionsByIntelligence(suggestions, prefix, code, cursorPos);
 }
 
 // Define C++ STL containers and their methods for autocompletion
@@ -307,14 +307,15 @@ function registerCompletionProviders() {
                 startColumn: word.startColumn,
                 endColumn: word.endColumn
             };
-            
+
             const prefix = word.word;
             const currentLine = model.getLineContent(position.lineNumber);
             const textBefore = currentLine.substring(0, position.column - 1);
             const fullText = model.getValue();
-            
+            const cursorPos = model.getOffsetAt(position);
+
             const allSuggestions = [];
-            
+
             // ========== 1. 处理 #include <> 情况 ==========
             if (textBefore.trim().endsWith('#include <') || /.*#include\s*<[^>]*$/.test(textBefore)) {
                 const allHeaders = new Set([...Object.keys(cppFunctions), ...Object.keys(cppObjects)]);
@@ -328,9 +329,9 @@ function registerCompletionProviders() {
                         range: range
                     });
                 }
-                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix) };
+                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
             }
-            
+
             // ========== 2. 处理 # 预处理器指令 ==========
             if (textBefore.trim() === '#' || textBefore.trim().endsWith('#')) {
                 const directives = ['include', 'define', 'ifdef', 'ifndef', 'endif', 'pragma'];
@@ -344,7 +345,7 @@ function registerCompletionProviders() {
                         range: range
                     });
                 }
-                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix) };
+                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
             }
             
             // ========== 3. 处理 . 成员访问 ==========
@@ -405,11 +406,11 @@ function registerCompletionProviders() {
                         }
                     }
                 }
-                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix) };
+                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
             }
-            
+
             // ========== 4. 常规情况：合并所有建议 ==========
-            
+
             // 4.1 关键字
             for (const keyword of cppKeywords) {
                 const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
@@ -421,7 +422,7 @@ function registerCompletionProviders() {
                     range: range
                 });
             }
-            
+
             // 4.2 变量名
             const variableNames = extractVariableNames(fullText);
             for (const varName of variableNames) {
@@ -435,7 +436,7 @@ function registerCompletionProviders() {
                     range: range
                 });
             }
-            
+
             // 4.3 STL 容器（声明变量时）
             for (const containerName in stlContainers) {
                 allSuggestions.push({
@@ -447,7 +448,7 @@ function registerCompletionProviders() {
                     range: range
                 });
             }
-            
+
             // 4.4 标准库函数
             for (const [headerName, functions] of Object.entries(cppFunctions)) {
                 for (const func of functions) {
@@ -462,7 +463,7 @@ function registerCompletionProviders() {
                     });
                 }
             }
-            
+
             // 4.5 标准库对象
             for (const [headerName, objects] of Object.entries(cppObjects)) {
                 for (const obj of objects) {
@@ -478,9 +479,9 @@ function registerCompletionProviders() {
                     });
                 }
             }
-            
+
             // 统一排序所有建议
-            return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix) };
+            return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
         },
         triggerCharacters: ['.', '<', '#']
     });

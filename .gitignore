@@ -1,0 +1,16 @@
+# AI 训练数据目录（不提交原始样本和中间文件）
+ai_training/
+
+# 模型文件（保留，前端需要使用）
+# models/*.json
+# models/*.json.gz
+
+# 依赖
+node_modules/
+
+# 日志
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db

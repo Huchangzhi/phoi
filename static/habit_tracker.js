@@ -144,25 +144,56 @@ const HabitTracker = {
         return score;
     },
 
-    // 对建议列表进行排序
-    sortSuggestions(suggestions, prefix = '') {
-        // 为每个建议计算分数
+    // 对建议列表进行排序（混合打分：用户习惯 + AI 模型）
+    sortSuggestions(suggestions, prefix = '', code = '', cursorPos = 0) {
+        // 提取代码特征（如果提供了代码和光标位置）
+        let features = null;
+        if (typeof CodeFeatures !== 'undefined' && code && typeof cursorPos === 'number') {
+            const featureExtractor = new CodeFeatures();
+            features = featureExtractor.extract(code, cursorPos, prefix);
+        }
+
+        // 为每个建议计算分数（混合打分）
         const scored = suggestions.map((s) => {
-            const score = this.getScore(s.label, prefix);
+            // 1. 用户习惯分数（0-1000 分）
+            const habitScore = this.getScore(s.label, prefix);
+
+            // 2. AI 模型分数（0-1000 分）- 使用快速打分方法
+            let aiScore = 0;
+            
+            // 使用 window.LightModel 实例
+            const lm = window.LightModel;
+            const hasLightModel = typeof lm !== 'undefined';
+            const modelLoaded = lm ? lm.loaded : false;
+            
+            if (features && hasLightModel && modelLoaded) {
+                aiScore = lm.getContextScore(s.label, features);
+            }
+
+            // 3. 混合分数（40% 习惯 + 60% AI）
+            const totalScore = habitScore * 0.4 + aiScore * 0.6;
+
             // 设置 sortText 来控制 Monaco 的排序
             // 分数越高，sortText 越靠前（字母顺序越前，即字母越小）
-            const scorePrefix = Math.floor(score / 100);
-            const c1 = String.fromCharCode(122 - Math.min(25, Math.floor(scorePrefix / 26)));
-            const c2 = String.fromCharCode(122 - Math.min(25, scorePrefix % 26));
-            const c3 = String.fromCharCode(122 - Math.min(25, Math.floor(score / 10)));
+            // 使用 3 个字符的分级，支持更细的分数差异
+            // 分数 0 -> 'zzz', 分数 2600+ -> 'aaa'
+            const score1 = Math.min(25, Math.floor(totalScore / 100));
+            const score2 = Math.min(25, Math.floor((totalScore % 100) / 4));
+            const score3 = Math.min(25, Math.floor((totalScore % 4) * 6));
             
+            const sortPrefix = String.fromCharCode(122 - score1) +
+                              String.fromCharCode(122 - score2) +
+                              String.fromCharCode(122 - score3);
+
             return {
                 ...s,
-                _score: score,
-                sortText: c1 + c2 + c3 + (s.sortText || s.label)
+                _score: totalScore,
+                _habitScore: habitScore,
+                _aiScore: aiScore,
+                sortText: sortPrefix + (s.sortText || s.label)
             };
         });
-        
+
         const sorted = scored.sort((a, b) => {
             // 分数高的排前面
             if (a._score !== b._score) {
@@ -171,7 +202,7 @@ const HabitTracker = {
             // 分数相同时，按原有顺序
             return 0;
         });
-        
+
         return sorted;
     },
     
