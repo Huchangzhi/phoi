@@ -838,6 +838,13 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     text-align: center;
 }
 
+.cph-test-case-actions-top {
+    padding: 8px;
+    border-bottom: 1px solid #444;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
 .btn-small {
     padding: 4px 8px;
     background-color: #0e639c;

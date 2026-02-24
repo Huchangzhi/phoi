@@ -374,6 +374,12 @@ class CPHPlugin {
             return;
         }
 
+        // 添加运行全部按钮（顶部）
+        const runAllDiv = document.createElement('div');
+        runAllDiv.className = 'cph-test-case-actions-top';
+        runAllDiv.innerHTML = `<button class="cph-run-all-btn btn-small">▶ 运行全部测试点</button>`;
+        container.appendChild(runAllDiv);
+
         this.testCases.forEach((testCase, index) => {
             const testCaseDiv = document.createElement('div');
             testCaseDiv.className = 'cph-test-case';
@@ -381,20 +387,20 @@ class CPHPlugin {
                 <div class="cph-test-case-header">
                     <span class="cph-test-case-name">${testCase.name}</span>
                     <div class="cph-test-case-actions">
-                        <button class="cph-delete-test-case-btn btn-small" 
+                        <button class="cph-delete-test-case-btn btn-small"
                                 data-test-case-index="${index}">×</button>
                     </div>
                 </div>
                 <div class="cph-test-case-content">
                     <div class="cph-test-case-input">
                         <label>标准输入 (stdin):</label>
-                        <textarea class="cph-test-case-textarea" 
+                        <textarea class="cph-test-case-textarea"
                                   data-test-case-index="${index}"
                                   data-type="stdin">${testCase.stdin || ''}</textarea>
                     </div>
                     <div class="cph-test-case-output">
                         <label>标准输出 (stdout):</label>
-                        <textarea class="cph-test-case-textarea" 
+                        <textarea class="cph-test-case-textarea"
                                   data-test-case-index="${index}"
                                   data-type="stdout">${testCase.stdout || ''}</textarea>
                     </div>
@@ -409,7 +415,7 @@ class CPHPlugin {
                 textarea.addEventListener('input', (e) => {
                     const testCaseIndex = parseInt(e.target.dataset.testCaseIndex);
                     const type = e.target.dataset.type;
-                    
+
                     if (this.testCases[testCaseIndex]) {
                         this.testCases[testCaseIndex][type] = e.target.value;
                         this.saveTestCases();
@@ -417,12 +423,6 @@ class CPHPlugin {
                 });
             });
         });
-
-        // 添加运行全部按钮
-        const runAllDiv = document.createElement('div');
-        runAllDiv.className = 'cph-test-case-actions-bottom';
-        runAllDiv.innerHTML = `<button class="cph-run-all-btn btn-small">▶ 运行全部测试点</button>`;
-        container.appendChild(runAllDiv);
     }
 
     // 渲染测试用例列表 (主面板)
@@ -437,6 +437,12 @@ class CPHPlugin {
             return;
         }
 
+        // 添加运行全部按钮（顶部）
+        const runAllDiv = document.createElement('div');
+        runAllDiv.className = 'cph-test-case-actions-top';
+        runAllDiv.innerHTML = `<button class="cph-run-all-btn btn-small">▶ 运行全部测试点</button>`;
+        container.appendChild(runAllDiv);
+
         this.testCases.forEach((testCase, index) => {
             const testCaseDiv = document.createElement('div');
             testCaseDiv.className = 'cph-test-case';
@@ -444,20 +450,20 @@ class CPHPlugin {
                 <div class="cph-test-case-header">
                     <span class="cph-test-case-name">${testCase.name}</span>
                     <div class="cph-test-case-actions">
-                        <button class="cph-delete-test-case-btn btn-small" 
+                        <button class="cph-delete-test-case-btn btn-small"
                                 data-test-case-index="${index}">×</button>
                     </div>
                 </div>
                 <div class="cph-test-case-content">
                     <div class="cph-test-case-input">
                         <label>标准输入 (stdin):</label>
-                        <textarea class="cph-test-case-textarea-main" 
+                        <textarea class="cph-test-case-textarea-main"
                                   data-test-case-index="${index}"
                                   data-type="stdin">${testCase.stdin || ''}</textarea>
                     </div>
                     <div class="cph-test-case-output">
                         <label>标准输出 (stdout):</label>
-                        <textarea class="cph-test-case-textarea-main" 
+                        <textarea class="cph-test-case-textarea-main"
                                   data-test-case-index="${index}"
                                   data-type="stdout">${testCase.stdout || ''}</textarea>
                     </div>
@@ -472,7 +478,7 @@ class CPHPlugin {
                 textarea.addEventListener('input', (e) => {
                     const testCaseIndex = parseInt(e.target.dataset.testCaseIndex);
                     const type = e.target.dataset.type;
-                    
+
                     if (this.testCases[testCaseIndex]) {
                         this.testCases[testCaseIndex][type] = e.target.value;
                         this.saveTestCases();
@@ -480,12 +486,6 @@ class CPHPlugin {
                 });
             });
         });
-
-        // 添加运行全部按钮
-        const runAllDiv = document.createElement('div');
-        runAllDiv.className = 'cph-test-case-actions-bottom';
-        runAllDiv.innerHTML = `<button class="cph-run-all-btn btn-small">▶ 运行全部测试点</button>`;
-        container.appendChild(runAllDiv);
     }
 
     // 删除测试用例

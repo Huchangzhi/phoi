@@ -393,7 +393,8 @@ class MobileAutocomplete {
             'set': ['begin()', 'end()', 'rbegin()', 'rend()', 'find()', 'count()', 'lower_bound()', 'upper_bound()', 'equal_range()', 'insert()', 'erase()', 'clear()', 'swap()', 'size()', 'max_size()', 'empty()'],
             'map': ['begin()', 'end()', 'rbegin()', 'rend()', 'find()', 'count()', 'lower_bound()', 'upper_bound()', 'equal_range()', 'insert()', 'emplace()', 'erase()', 'clear()', 'swap()', 'at()', 'operator[]', 'size()', 'max_size()', 'empty()'],
             'string': ['begin()', 'end()', 'rbegin()', 'rend()', 'size()', 'length()', 'max_size()', 'resize()', 'capacity()', 'reserve()', 'clear()', 'empty()', 'shrink_to_fit()', 'operator[]', 'at()', 'back()', 'front()', 'c_str()', 'data()', 'substr()', 'copy()', 'compare()', 'find()', 'rfind()', 'find_first_of()', 'find_last_of()', 'find_first_not_of()', 'find_last_not_of()', 'append()', 'operator+=', 'push_back()', 'assign()', 'insert()', 'erase()', 'replace()', 'swap()', 'getline()'],
-            'pair': ['first', 'second']
+            'pair': ['first', 'second'],
+            'deque': ['front()', 'back()', 'push_front()', 'push_back()', 'pop_front()', 'pop_back()']
         };
         
         return methodMap[containerType] || ['begin()', 'end()', 'size()', 'empty()', 'clear()'];

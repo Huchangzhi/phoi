@@ -146,7 +146,7 @@ const stlContainers = {
         properties: []
     },
     'deque': {
-        functions: ['front', 'back', 'assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size'],
+        functions: ['front', 'back', 'assign', 'at', 'insert', 'emplace', 'erase', 'push_back', 'emplace_back', 'pop_back', 'resize', 'swap', 'clear', 'begin', 'end', 'rbegin', 'rend', 'empty', 'size', 'max_size', 'push_front', 'pop_front'],
         properties: ['operator[]', 'get_allocator', 'shrink_to_fit']
     },
     'list': {
@@ -211,6 +211,7 @@ const cppObjects = {
     'set': [],
     'map': [],
     'deque': [],
+    'stack': [],
     'bits/stdc++.h': [],
 };
 
@@ -410,11 +411,21 @@ function registerCompletionProviders() {
             }
 
             // ========== 4. 常规情况：合并所有建议 ==========
+            // 使用 Set 记录已添加的 label，避免重复
+            const addedLabels = new Set();
+
+            // 辅助函数：添加建议（自动去重）
+            function addSuggestion(label, item) {
+                if (!addedLabels.has(label)) {
+                    addedLabels.add(label);
+                    allSuggestions.push(item);
+                }
+            }
 
             // 4.1 关键字
             for (const keyword of cppKeywords) {
                 const isFunctionKeyword = ['main', 'printf', 'scanf', 'cin', 'cout'].includes(keyword);
-                allSuggestions.push({
+                addSuggestion(keyword, {
                     label: keyword,
                     kind: monaco.languages.CompletionItemKind.Keyword,
                     insertText: isFunctionKeyword ? keyword + '($1)' : keyword,
@@ -427,7 +438,7 @@ function registerCompletionProviders() {
             const variableNames = extractVariableNames(fullText);
             for (const varName of variableNames) {
                 const isPair = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`).test(fullText);
-                allSuggestions.push({
+                addSuggestion(varName, {
                     label: varName,
                     kind: isPair ? monaco.languages.CompletionItemKind.Struct : monaco.languages.CompletionItemKind.Variable,
                     insertText: varName,
@@ -439,7 +450,7 @@ function registerCompletionProviders() {
 
             // 4.3 STL 容器（声明变量时）
             for (const containerName in stlContainers) {
-                allSuggestions.push({
+                addSuggestion(containerName, {
                     label: containerName,
                     kind: monaco.languages.CompletionItemKind.Class,
                     insertText: containerName,
@@ -452,7 +463,7 @@ function registerCompletionProviders() {
             // 4.4 标准库函数
             for (const [headerName, functions] of Object.entries(cppFunctions)) {
                 for (const func of functions) {
-                    allSuggestions.push({
+                    addSuggestion(func, {
                         label: func,
                         kind: monaco.languages.CompletionItemKind.Function,
                         insertText: func + '($1)',
@@ -468,7 +479,7 @@ function registerCompletionProviders() {
             for (const [headerName, objects] of Object.entries(cppObjects)) {
                 for (const obj of objects) {
                     const isFunctionLike = ['endl', 'flush', 'ws'].includes(obj);
-                    allSuggestions.push({
+                    addSuggestion(obj, {
                         label: obj,
                         kind: monaco.languages.CompletionItemKind.Variable,
                         insertText: isFunctionLike ? obj + '($1)' : obj,
