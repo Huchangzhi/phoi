@@ -61,18 +61,15 @@ jobs:
 
     - name: Build executable with PyInstaller
       run: |
-        # 使用 PyInstaller 构建可执行文件，包含 w64devkit
-        python -m PyInstaller --onefile `
-          --add-data "templates;templates" `
-          --add-data "static;static" `
-          --add-data "w64devkit;w64devkit" `
+        # 使用 PyInstaller 构建单文件可执行文件（包含 Python 核心），无控制台窗口
+        python -m PyInstaller --onefile --windowed --noconfirm `
           --name phcode `
           app_gui.py
 
     - name: Create ZIP archive
       shell: pwsh
       run: |
-        # 创建包含可执行文件和资源的 ZIP 归档
+        # 创建包含可执行文件、w64devkit 和资源的 ZIP 归档
         if ("${{ inputs.version }}" -ne "") {
           $zipFileName = "phcode-v${{ inputs.version }}.zip"
         } else {
@@ -84,7 +81,8 @@ jobs:
         Copy-Item "dist\phcode.exe" -Destination "temp_package\"
         Copy-Item "templates" -Recurse -Destination "temp_package\"
         Copy-Item "static" -Recurse -Destination "temp_package\"
-        
+        Copy-Item "w64devkit" -Recurse -Destination "temp_package\"
+
         # 创建空的 phcode_data 目录（用于存储用户数据）
         New-Item -ItemType Directory -Name "temp_package\phcode_data" -Force
 

@@ -15,12 +15,25 @@ import webview
 
 class PHCodeServer:
     def __init__(self):
-        self.app = Flask(__name__)
+        # 获取程序所在目录（exe 所在目录或脚本所在目录）
+        if getattr(sys, 'frozen', False):
+            # PyInstaller 打包后，获取 exe 所在目录
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            # 开发环境，获取脚本所在目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 设置 Flask 模板和静态文件路径
+        template_folder = os.path.join(base_dir, 'templates')
+        static_folder = os.path.join(base_dir, 'static')
+        
+        self.app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
         self.server_thread = None
         self.is_running = False
         self.host = '127.0.0.1'  # 仅本地访问
         self.port = 5000
         self.use_local_compiler = True  # 默认使用本地编译器
+        self.base_dir = base_dir  # 保存基础目录路径
 
         # Rextester API 配置（备用）
         self.REXTESTER_URL = "https://rextester.com/rundotnet/Run"
@@ -49,21 +62,20 @@ class PHCodeServer:
         self.compiler_path = self._get_compiler_path()  # 自动获取编译器路径
 
     def _get_compiler_path(self):
-        """获取编译器路径，优先使用 bundled w64devkit"""
-        # 检查 bundled w64devkit
+        """获取编译器路径，从 exe 同级目录查找 w64devkit"""
+        # 获取程序所在目录（exe 所在目录或脚本所在目录）
         if getattr(sys, 'frozen', False):
-            # PyInstaller 打包后的路径
-            bundle_dir = sys._MEIPASS
-            bundled_compiler = os.path.join(bundle_dir, 'w64devkit', 'bin', 'g++.exe')
-            if os.path.exists(bundled_compiler):
-                print(f"使用 bundled 编译器：{bundled_compiler}")
-                return bundled_compiler
+            # PyInstaller 打包后，获取 exe 所在目录
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            # 开发环境，获取脚本所在目录
+            base_dir = os.path.dirname(os.path.abspath(__file__))
         
-        # 检查当前目录下的 w64devkit
-        local_compiler = os.path.join(os.getcwd(), 'w64devkit', 'bin', 'g++.exe')
-        if os.path.exists(local_compiler):
-            print(f"使用本地编译器：{local_compiler}")
-            return local_compiler
+        # 查找 w64devkit 中的 g++
+        bundled_compiler = os.path.join(base_dir, 'w64devkit', 'bin', 'g++.exe')
+        if os.path.exists(bundled_compiler):
+            print(f"使用 bundled 编译器：{bundled_compiler}")
+            return bundled_compiler
         
         # 检查系统 PATH 中的 g++
         try:
