@@ -41,25 +41,21 @@ jobs:
 
     - name: Extract w64devkit
       run: |
-        # 创建提取目录
-        New-Item -ItemType Directory -Name "w64devkit" -Force
+        # 使用自解压方式解压（会创建 w64devkit 子目录）
+        Start-Process -FilePath ".\w64devkit-installer.exe" -ArgumentList "-ow64devkit_extract", "-y" -Wait -NoNewWindow
         
-        # 使用 7z 解压 (GitHub Actions 环境自带 7z)
-        7z x w64devkit-installer.exe -ow64devkit_temp -y
-        # w64devkit 是自解压的 7z，需要再次解压内部文件
-        if (Test-Path "w64devkit_temp\w64devkit-x64-2.5.0") {
-          Move-Item -Path "w64devkit_temp\w64devkit-x64-2.5.0\*" -Destination "w64devkit" -Force
-        } else {
-          Move-Item -Path "w64devkit_temp\*" -Destination "w64devkit" -Force
+        # 移动 w64devkit 子目录到根目录
+        if (Test-Path "w64devkit_extract\w64devkit") {
+          Move-Item -Path "w64devkit_extract\w64devkit" -Destination "w64devkit" -Force
+          Remove-Item -Path "w64devkit_extract" -Recurse -Force
         }
-        Remove-Item -Path "w64devkit_temp" -Recurse -Force
-        Remove-Item -Path "w64devkit-installer.exe" -Force
         
-        # 验证 g++ 是否存在
+        # 验证
         if (Test-Path "w64devkit\bin\g++.exe") {
-          Write-Host "g++ 编译器已准备就绪：w64devkit\bin\g++.exe"
+          Write-Host "✓ g++ 编译器已准备就绪：w64devkit\bin\g++.exe"
         } else {
           Write-Error "g++ 编译器未找到"
+          Get-ChildItem -Path "." -Directory | Select-Object Name
           exit 1
         }
 
