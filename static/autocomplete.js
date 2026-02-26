@@ -40,52 +40,86 @@ function sortSuggestionsByIntelligence(suggestions, prefix = '', code = '', curs
     }
 
     // 否则使用基础智能排序
+    // Monaco CompletionItemKind 枚举值：
+    // Method=0, Function=1, Constructor=2, Field=3, Variable=4, Class=5, 
+    // Struct=6, Interface=7, Module=8, Property=9, Keyword=17, Snippet=18
     const priorityOrder = {
-        // 最高优先级：用户定义的变量
-        'Variable': 0,
-        'Function': 1,
-        'Method': 2,
+        // 最高优先级：用户定义的 struct 成员
+        'Field': 0,
+        3: 0,  // Field
+        'Method': 1,
+        0: 1,  // Method
+        // 高优先级：用户定义的变量
+        'Variable': 2,
+        4: 2,  // Variable
+        'Struct': 3,
+        6: 3,  // Struct
         // 中等优先级：类型和类
-        'Class': 3,
-        'Struct': 4,
+        'Class': 4,
+        5: 4,  // Class
         'Interface': 5,
+        7: 5,  // Interface
         // 较低优先级：关键字
         'Keyword': 10,
+        17: 10,  // Keyword
         'Snippet': 11,
+        18: 11,  // Snippet
         // 最低优先级：其他
         'Module': 20,
+        8: 20,  // Module
         'Property': 21,
-        'Field': 22
+        9: 21,  // Property
+        'Function': 22,
+        1: 22,  // Function
+        2: 22,  // Constructor
+        10: 22,  // Unit
+        11: 22,  // Value
+        12: 22,  // Constant
+        13: 22,  // Enum
+        14: 22,  // EnumMember
+        15: 22,  // Event
+        16: 22,  // Operator
+        19: 22,  // Color
+        20: 22,  // File
+        21: 22,  // Reference
+        22: 22,  // Folder
+        23: 22,  // TypeParameter
+        24: 22,  // User
+        25: 22,  // Issue
+        100: 100  // 默认
     };
-    
+
     return suggestions.sort((a, b) => {
         // 首先按类型优先级排序
-        const kindA = monaco.languages.CompletionItemKind[a.kind] || a.kind;
-        const kindB = monaco.languages.CompletionItemKind[b.kind] || b.kind;
-        const priorityA = priorityOrder[kindA] ?? 100;
-        const priorityB = priorityOrder[kindB] ?? 100;
+        // a.kind 可能是数字（Monaco 内部使用）或字符串（我们自定义的）
+        let kindA = a.kind;
+        let kindB = b.kind;
         
+        // 如果是数字，直接使用；如果是字符串，尝试转换为对应的优先级
+        const priorityA = priorityOrder[kindA] ?? priorityOrder[String(kindA)] ?? 100;
+        const priorityB = priorityOrder[kindB] ?? priorityOrder[String(kindB)] ?? 100;
+
         if (priorityA !== priorityB) {
             return priorityA - priorityB;
         }
-        
+
         // 同类型时，优先匹配前缀（前缀匹配度高的排前面）
         if (prefix) {
             const labelA = a.label.toLowerCase();
             const labelB = b.label.toLowerCase();
             const prefixLower = prefix.toLowerCase();
-            
+
             // 完全匹配前缀的排前面
             const startsWithA = labelA.startsWith(prefixLower);
             const startsWithB = labelB.startsWith(prefixLower);
-            
+
             if (startsWithA && !startsWithB) return -1;
             if (!startsWithA && startsWithB) return 1;
-            
+
             // 都匹配或都不匹配时，按长度排序（短的排前面）
             return labelA.length - labelB.length;
         }
-        
+
         // 默认按标签字母顺序
         return a.label.localeCompare(b.label);
     });
@@ -215,20 +249,277 @@ const cppObjects = {
     'bits/stdc++.h': [],
 };
 
-// Function to extract variable names from code
+// ========== Struct 成员补全功能 ==========
+
+// 存储所有 struct 定义及其成员
+const structDefinitions = {};
+
+// 解析代码中的 struct 定义
+function parseStructDefinitions(code) {
+    const structDefs = {};
+    
+    // 匹配 struct 定义：struct StructName { members... }; 或 struct StructName { members... } var1, var2[100];
+    // 支持数组声明如 c, sz[123]
+    const structRegex = /\bstruct\s+([a-zA-Z_]\w*)\s*\{([^}]*)\}\s*([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)?\s*;/g;
+    let match;
+    
+    while ((match = structRegex.exec(code)) !== null) {
+        const structName = match[1];
+        const membersStr = match[2];
+        const members = parseStructMembers(membersStr);
+        
+        structDefs[structName] = {
+            name: structName,
+            members: members,
+            startPos: match.index,
+            endPos: match.index + match[0].length
+        };
+        
+        // 如果 struct 定义时同时声明了变量（如 struct node{...}c;），也记录这些变量
+        if (match[3]) {
+            const varList = match[3];
+            const individualVars = varList.split(/\s*,\s*/);
+            for (const varNameWithArray of individualVars) {
+                // 提取变量名（去除数组部分）
+                const arrayMatch = varNameWithArray.trim().match(/^([a-zA-Z_]\w*)\s*\[\s*\d+\s*\]/);
+                const trimmedVarName = arrayMatch ? arrayMatch[1] : varNameWithArray.trim();
+                if (trimmedVarName) {
+                    // 将这些变量标记为 struct 类型
+                    if (!structDefs[structName].instanceVars) {
+                        structDefs[structName].instanceVars = [];
+                    }
+                    structDefs[structName].instanceVars.push(trimmedVarName);
+                }
+            }
+        }
+    }
+    
+    return structDefs;
+}
+
+// 解析 struct 成员
+function parseStructMembers(membersStr) {
+    const members = [];
+    const lines = membersStr.split(';');
+    
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        // 匹配成员声明：type memberName; 或 type member1, member2;
+        // 支持指针、引用、数组等
+        const memberRegex = /\b([a-zA-Z_]\w*(?:\s*[*&])?\s*(?:<[^>]*>)?)\s+([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?)*)/g;
+        let memberMatch;
+        
+        while ((memberMatch = memberRegex.exec(trimmed)) !== null) {
+            const memberType = memberMatch[1].trim();
+            const memberNamesStr = memberMatch[2];
+            
+            // 分割多个成员名（处理 int a, b; 这种情况）
+            const memberNamesList = memberNamesStr.split(',');
+            
+            for (const memberNameWithInit of memberNamesList) {
+                // 提取成员名（去除初始化值）
+                const memberNameMatch = memberNameWithInit.trim().match(/^([a-zA-Z_]\w*)(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?/);
+                if (!memberNameMatch) continue;
+                
+                const memberName = memberNameMatch[1];
+                
+                // 跳过访问修饰符
+                if (['public', 'private', 'protected', 'static', 'const', 'virtual'].includes(memberName)) {
+                    continue;
+                }
+                
+                members.push({
+                    name: memberName,
+                    type: memberType,
+                    isFunction: false
+                });
+            }
+        }
+        
+        // 匹配成员函数：returnType funcName(params) { body } 或 returnType funcName(params);
+        const funcRegex = /\b([a-zA-Z_]\w*(?:\s*[*&])?\s*(?:<[^>]*>)?)\s+([a-zA-Z_]\w*)\s*\(([^)]*)\)\s*(?:const\s*)?(?:=\s*0)?\s*;?/g;
+        let funcMatch;
+        
+        while ((funcMatch = funcRegex.exec(trimmed)) !== null) {
+            const returnType = funcMatch[1].trim();
+            const funcName = funcMatch[2];
+            const params = funcMatch[3].trim();
+            
+            // 跳过构造函数、析构函数等
+            if (['public', 'private', 'protected', 'static', 'const', 'virtual', 'explicit', 'friend'].includes(funcName)) {
+                continue;
+            }
+            
+            members.push({
+                name: funcName,
+                type: returnType,
+                isFunction: true,
+                params: params
+            });
+        }
+    }
+    
+    return members;
+}
+
+// 推断变量的类型
+function inferVariableTypes(code, structDefs) {
+    const varTypes = {};
+    let match;
+    
+    // 首先处理 struct 定义时声明的变量（如 struct node{...}c;）
+    for (const structName in structDefs) {
+        const structDef = structDefs[structName];
+        
+        // 处理 struct 定义时声明的变量
+        if (structDef.instanceVars) {
+            for (const varName of structDef.instanceVars) {
+                varTypes[varName] = {
+                    type: structName,
+                    isStruct: true,
+                    isPointer: false,
+                    isArray: false
+                };
+            }
+        }
+        
+        // 匹配：struct StructName varName 或 StructName varName（包括数组声明）
+        const declRegex = new RegExp(`\\b(?:struct\\s+)?${structName}\\s+([a-zA-Z_]\\w*(?:\\s*\\[\\s*\\d+\\s*\\])?(?:\\s*,\\s*[a-zA-Z_]\\w*(?:\\s*\\[\\s*\\d+\\s*\\])?)*)`, 'g');
+        while ((match = declRegex.exec(code)) !== null) {
+            const varList = match[1];
+            const individualVars = varList.split(/\s*,\s*/);
+            for (const varNameWithArray of individualVars) {
+                // 检查是否是数组（如 sz[123]）
+                const arrayMatch = varNameWithArray.trim().match(/^([a-zA-Z_]\w*)\s*\[\s*\d+\s*\]/);
+                const varName = arrayMatch ? arrayMatch[1] : varNameWithArray.trim();
+                if (varName) {
+                    varTypes[varName] = {
+                        type: structName,
+                        isStruct: true,
+                        isPointer: false,
+                        isArray: !!arrayMatch
+                    };
+                }
+            }
+        }
+        
+        // 匹配指针声明：struct StructName* varName 或 StructName* varName
+        const ptrDeclRegex = new RegExp(`\\b(?:struct\\s+)?${structName}\\s*\\*\\s*([a-zA-Z_]\\w*(?:\\s*,\\s*[a-zA-Z_]\\w*)*)`, 'g');
+        while ((match = ptrDeclRegex.exec(code)) !== null) {
+            const varList = match[1];
+            const individualVars = varList.split(/\s*,\s*/);
+            for (const varName of individualVars) {
+                const trimmedVarName = varName.trim();
+                if (trimmedVarName) {
+                    varTypes[trimmedVarName] = {
+                        type: structName,
+                        isStruct: true,
+                        isPointer: true,
+                        isArray: false
+                    };
+                }
+            }
+        }
+    }
+    
+    // 匹配普通变量声明（包括数组）
+    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)/g;
+    while ((match = varDeclarationRegex.exec(code)) !== null) {
+        const varType = match[1];
+        const varList = match[2];
+        const individualVars = varList.split(/\s*,\s*/);
+        
+        for (const varNameWithArray of individualVars) {
+            const trimmedVarName = varNameWithArray.trim();
+            // 检查是否是数组
+            const arrayMatch = trimmedVarName.match(/^([a-zA-Z_]\w*)\s*\[\s*\d+\s*\]/);
+            const varName = arrayMatch ? arrayMatch[1] : trimmedVarName;
+            
+            if (varName && !varTypes[varName]) {
+                varTypes[varName] = {
+                    type: varType,
+                    isStruct: structDefs.hasOwnProperty(varType),
+                    isPointer: false,
+                    isArray: !!arrayMatch
+                };
+            }
+        }
+    }
+    
+    // 匹配函数参数
+    const functionRegex = /\b(?:[a-zA-Z_*&:<>]+\s+)+[a-zA-Z_][a-zA-Z0-9_]*\s*\(([^)]*)\)\s*(?:const\s+)?(?:\[[^\]]*\]\s*)*(?:noexcept\s*\(.*\)\s*)*(?:->\s*[\w_*:<>]+)?\s*{/gi;
+    let functionMatch;
+    while ((functionMatch = functionRegex.exec(code)) !== null) {
+        const paramsStr = functionMatch[1];
+        if (paramsStr.trim()) {
+            const params = paramsStr.split(',');
+            for (const param of params) {
+                const varMatches = param.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g);
+                if (varMatches) {
+                    const varName = varMatches[varMatches.length - 1];
+                    if (varName && !varTypes[varName]) {
+                        // 尝试推断参数类型
+                        const typeMatch = param.match(/\b([\w:*&<>]+)\s+/);
+                        const paramType = typeMatch ? typeMatch[1].trim() : 'unknown';
+                        varTypes[varName] = {
+                            type: paramType,
+                            isStruct: structDefs.hasOwnProperty(paramType.replace(/[*&]/g, '')),
+                            isPointer: paramType.includes('*'),
+                            isArray: false
+                        };
+                    }
+                }
+            }
+        }
+    }
+    
+    return varTypes;
+}
+
+// 获取变量对应的 struct 成员
+function getStructMembersForVariable(varName, code, structDefs, varTypes) {
+    // 首先确保我们有最新的变量类型信息
+    if (Object.keys(varTypes).length === 0) {
+        varTypes = inferVariableTypes(code, structDefs);
+    }
+    
+    const varInfo = varTypes[varName];
+    if (!varInfo || !varInfo.isStruct) {
+        return null;
+    }
+    
+    const structName = varInfo.type;
+    const structDef = structDefs[structName];
+    
+    if (!structDef) {
+        return null;
+    }
+    
+    return {
+        structName: structName,
+        members: structDef.members,
+        isPointer: varInfo.isPointer,
+        isArray: varInfo.isArray
+    };
+}
+
+// ========== 原有的变量提取功能（增强版） ==========
+
 function extractVariableNames(code) {
     const variables = new Set();
     let match;
 
-    // Match variable declarations: type name or type name[N] or type name(...);
-    // This regex looks for common patterns like: int varName, vector<int> varName, etc.
-    // Updated to handle multiple variables in one declaration like: int a, b, c;
+    // 首先解析 struct 定义
+    const structDefs = parseStructDefinitions(code);
+    
+    // 匹配变量声明
     const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
 
     while ((match = varDeclarationRegex.exec(code)) !== null) {
-        // Extract all variable names from the declaration
-        const varList = match[2]; // Get the variable name part
-        const individualVars = varList.split(/\s*,\s*/); // Split by comma
+        const varList = match[2];
+        const individualVars = varList.split(/\s*,\s*/);
 
         for (const varName of individualVars) {
             const trimmedVarName = varName.trim();
@@ -238,20 +529,16 @@ function extractVariableNames(code) {
         }
     }
 
-    // Also match function parameters: function(type param1, type param2, ...)
-    // Find function definitions and extract parameter names
+    // 匹配函数参数
     const functionRegex = /\b(?:[a-zA-Z_*&:<>]+\s+)+[a-zA-Z_][a-zA-Z0-9_]*\s*\(([^)]*)\)\s*(?:const\s+)?(?:\[[^\]]*\]\s*)*(?:noexcept\s*\(.*\)\s*)*(?:->\s*[\w_*:<>]+)?\s*{/gi;
     let functionMatch;
     while ((functionMatch = functionRegex.exec(code)) !== null) {
-        const paramsStr = functionMatch[1]; // Parameters part
+        const paramsStr = functionMatch[1];
         if (paramsStr.trim()) {
-            // Split parameters by comma and extract variable names
             const params = paramsStr.split(',');
             for (const param of params) {
-                // Match the variable name in the parameter (last word that looks like a variable name)
                 const varMatches = param.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g);
                 if (varMatches) {
-                    // Take the last match (which should be the variable name)
                     const varName = varMatches[varMatches.length - 1];
                     if (varName) {
                         variables.add(varName);
@@ -261,11 +548,11 @@ function extractVariableNames(code) {
         }
     }
 
-    // Also match pair declarations specifically: pair<type, type> varName
+    // 匹配 pair 声明
     const pairDeclarationRegex = /pair\s*<\s*[\w:<> ]+\s*,\s*[\w:<> ]+\s*>\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
     while ((match = pairDeclarationRegex.exec(code)) !== null) {
-        const varList = match[1]; // Get the variable name part
-        const individualVars = varList.split(/\s*,\s*/); // Split by comma
+        const varList = match[1];
+        const individualVars = varList.split(/\s*,\s*/);
 
         for (const varName of individualVars) {
             const trimmedVarName = varName.trim();
@@ -275,19 +562,34 @@ function extractVariableNames(code) {
         }
     }
 
-    // Also match assignments like varName = ...
+    // 匹配 struct 变量声明
+    for (const structName in structDefinitions) {
+        const structDeclRegex = new RegExp(`\\b(?:struct\\s+)?${structName}\\s+([a-zA-Z_]\\w*(?:\\s*,\\s*[a-zA-Z_]\\w*)*)`, 'g');
+        while ((match = structDeclRegex.exec(code)) !== null) {
+            const varList = match[1];
+            const individualVars = varList.split(/\s*,\s*/);
+            for (const varName of individualVars) {
+                const trimmedVarName = varName.trim();
+                if (trimmedVarName) {
+                    variables.add(trimmedVarName);
+                }
+            }
+        }
+    }
+
+    // 匹配赋值
     const assignmentRegex = /\b([a-zA-Z_]\w*)\s*=[^=]/g;
     while ((match = assignmentRegex.exec(code)) !== null) {
         variables.add(match[1]);
     }
 
-    // Also match function calls like varName.function()
+    // 匹配函数调用
     const functionCallRegex = /\b([a-zA-Z_]\w*)\s*\.\s*\w+/g;
     while ((match = functionCallRegex.exec(code)) !== null) {
         variables.add(match[1]);
     }
 
-    // Also match array/index access like varName[index]
+    // 匹配数组访问
     const arrayAccessRegex = /\b([a-zA-Z_]\w*)\s*\[/g;
     while ((match = arrayAccessRegex.exec(code)) !== null) {
         variables.add(match[1]);
@@ -352,9 +654,63 @@ function registerCompletionProviders() {
             // ========== 3. 处理 . 成员访问 ==========
             if (textBefore.endsWith('.')) {
                 const beforeDot = textBefore.substring(0, textBefore.lastIndexOf('.')).trim();
-                const parts = beforeDot.split(/[^\w\d_]/);
-                const potentialContainerName = parts[parts.length - 1];
                 
+                // 支持数组访问（如 sz[1].）和指针访问（如 ptr->.）
+                // 提取变量名：支持 sz[1], sz[1].next, ptr->next 等情况
+                let potentialContainerName = '';
+                
+                // 先尝试匹配数组访问（如 sz[1]）
+                const arrayMatch = beforeDot.match(/([a-zA-Z_]\w*)\s*\[\s*[^\]]+\s*\]\s*$/);
+                if (arrayMatch) {
+                    potentialContainerName = arrayMatch[1];
+                } else {
+                    // 否则按普通方式提取
+                    const parts = beforeDot.split(/[^\w\d_]/);
+                    potentialContainerName = parts[parts.length - 1];
+                }
+
+                // ========== 3.1 处理 struct 成员补全 ==========
+                const currentStructDefs = parseStructDefinitions(fullText);
+                const currentVarTypes = inferVariableTypes(fullText, currentStructDefs);
+
+                // 尝试查找 struct 变量
+                if (potentialContainerName && currentVarTypes[potentialContainerName]) {
+                    const varInfo = currentVarTypes[potentialContainerName];
+                    if (varInfo.isStruct) {
+                        const structDef = currentStructDefs[varInfo.type];
+                        if (structDef) {
+                            // 添加 struct 成员建议
+                            for (const member of structDef.members) {
+                                if (member.isFunction) {
+                                    allSuggestions.push({
+                                        label: member.name,
+                                        kind: monaco.languages.CompletionItemKind.Method,
+                                        insertText: member.name + '($1)',
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                        detail: `${member.type} ${member.name}(${member.params || ''})`,
+                                        documentation: `Member function of struct ${structDef.name}`,
+                                        range: range
+                                    });
+                                } else {
+                                    allSuggestions.push({
+                                        label: member.name,
+                                        kind: monaco.languages.CompletionItemKind.Field,
+                                        insertText: member.name,
+                                        detail: `${member.type} ${member.name}`,
+                                        documentation: `Member variable of struct ${structDef.name}`,
+                                        range: range
+                                    });
+                                }
+                            }
+                            // 如果找到了 struct 成员，直接返回
+                            if (allSuggestions.length > 0) {
+                                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
+                            }
+                        }
+                    }
+                }
+
+                // ========== 3.2 处理 STL 容器补全 ==========
                 // 查找代码中使用的 STL 容器
                 const usedContainers = new Set();
                 for (const containerName in stlContainers) {
@@ -363,7 +719,7 @@ function registerCompletionProviders() {
                         usedContainers.add(containerName);
                     }
                 }
-                
+
                 // 识别具体变量类型
                 let specificContainer = null;
                 if (potentialContainerName) {
@@ -375,7 +731,7 @@ function registerCompletionProviders() {
                         }
                     }
                 }
-                
+
                 // 添加容器方法建议
                 const containersToSuggest = specificContainer ? [specificContainer] : Array.from(usedContainers);
                 for (const containerName of containersToSuggest) {
@@ -407,7 +763,11 @@ function registerCompletionProviders() {
                         }
                     }
                 }
-                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
+                
+                // 如果有建议，直接返回
+                if (allSuggestions.length > 0) {
+                    return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
+                }
             }
 
             // ========== 4. 常规情况：合并所有建议 ==========
@@ -436,19 +796,38 @@ function registerCompletionProviders() {
 
             // 4.2 变量名
             const variableNames = extractVariableNames(fullText);
+            const currentStructDefs = parseStructDefinitions(fullText);
+            const currentVarTypes = inferVariableTypes(fullText, currentStructDefs);
+            
             for (const varName of variableNames) {
-                const isPair = new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`).test(fullText);
+                const varInfo = currentVarTypes[varName];
+                
+                // 确定变量类型
+                let kind = monaco.languages.CompletionItemKind.Variable;
+                let detail = 'Variable or function parameter';
+                let documentation = 'Variable or function parameter defined in current code';
+                
+                if (varInfo && varInfo.isStruct) {
+                    kind = monaco.languages.CompletionItemKind.Struct;
+                    detail = `struct ${varInfo.type}${varInfo.isPointer ? '*' : ''}`;
+                    documentation = `Struct variable of type ${varInfo.type}`;
+                } else if (new RegExp(`pair\\s*<[^>]*>\\s+${varName}\\b`).test(fullText)) {
+                    kind = monaco.languages.CompletionItemKind.Struct;
+                    detail = 'pair variable';
+                    documentation = 'STL pair variable';
+                }
+                
                 addSuggestion(varName, {
                     label: varName,
-                    kind: isPair ? monaco.languages.CompletionItemKind.Struct : monaco.languages.CompletionItemKind.Variable,
+                    kind: kind,
                     insertText: varName,
-                    detail: isPair ? 'pair variable' : 'Variable or function parameter',
-                    documentation: 'Variable or function parameter defined in current code',
+                    detail: detail,
+                    documentation: documentation,
                     range: range
                 });
             }
 
-            // 4.3 STL 容器（声明变量时）
+            // 4.3 STL 容器和 struct 类型（声明变量时）
             for (const containerName in stlContainers) {
                 addSuggestion(containerName, {
                     label: containerName,
@@ -456,6 +835,18 @@ function registerCompletionProviders() {
                     insertText: containerName,
                     detail: `STL ${containerName} container`,
                     documentation: `Standard Template Library ${containerName} container`,
+                    range: range
+                });
+            }
+            
+            // 添加已定义的 struct 类型建议（使用 4.2 中已声明的 currentStructDefs）
+            for (const structName in currentStructDefs) {
+                addSuggestion(structName, {
+                    label: structName,
+                    kind: monaco.languages.CompletionItemKind.Struct,
+                    insertText: structName,
+                    detail: `struct ${structName}`,
+                    documentation: `User-defined struct type`,
                     range: range
                 });
             }
