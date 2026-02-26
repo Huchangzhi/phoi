@@ -14,3 +14,18 @@ node_modules/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# pywebview 数据存储目录
+phcode_data/
+~/.phcode/
+
+# PyInstaller 构建产物
+dist/
+build/
+*.spec
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so

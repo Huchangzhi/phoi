@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    
+
     env:
       PYTHONIOENCODING: utf-8
       PYTHONUTF8: 1
@@ -31,30 +31,70 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
 
+    - name: Download w64devkit
+      run: |
+        # 下载 w64devkit 安装包
+        $downloadUrl = "https://github.com/skeeto/w64devkit/releases/download/v2.5.0/w64devkit-x64-2.5.0.7z.exe"
+        $outputFile = "w64devkit-installer.exe"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $outputFile
+        Write-Host "w64devkit 下载完成"
+
+    - name: Extract w64devkit
+      run: |
+        # 创建提取目录
+        New-Item -ItemType Directory -Name "w64devkit" -Force
+        
+        # 使用 7z 解压 (GitHub Actions 环境自带 7z)
+        7z x w64devkit-installer.exe -ow64devkit_temp -y
+        # w64devkit 是自解压的 7z，需要再次解压内部文件
+        if (Test-Path "w64devkit_temp\w64devkit-x64-2.5.0") {
+          Move-Item -Path "w64devkit_temp\w64devkit-x64-2.5.0\*" -Destination "w64devkit" -Force
+        } else {
+          Move-Item -Path "w64devkit_temp\*" -Destination "w64devkit" -Force
+        }
+        Remove-Item -Path "w64devkit_temp" -Recurse -Force
+        Remove-Item -Path "w64devkit-installer.exe" -Force
+        
+        # 验证 g++ 是否存在
+        if (Test-Path "w64devkit\bin\g++.exe") {
+          Write-Host "g++ 编译器已准备就绪：w64devkit\bin\g++.exe"
+        } else {
+          Write-Error "g++ 编译器未找到"
+          exit 1
+        }
+
     - name: Build executable with PyInstaller
       run: |
-        # 直接使用PyInstaller命令行构建可执行文件
-        python -m PyInstaller --onefile --add-data "templates;templates" --add-data "static;static" --name phcode app_gui.py
+        # 使用 PyInstaller 构建可执行文件，包含 w64devkit
+        python -m PyInstaller --onefile `
+          --add-data "templates;templates" `
+          --add-data "static;static" `
+          --add-data "w64devkit;w64devkit" `
+          --name phcode `
+          app_gui.py
 
     - name: Create ZIP archive
       shell: pwsh
       run: |
-        # 创建包含可执行文件和资源的ZIP归档
+        # 创建包含可执行文件和资源的 ZIP 归档
         if ("${{ inputs.version }}" -ne "") {
           $zipFileName = "phcode-v${{ inputs.version }}.zip"
         } else {
           $zipFileName = "phcode-build.zip"
         }
-        
+
         # 创建临时目录并将所有文件复制进去
         New-Item -ItemType Directory -Name "temp_package" -Force
         Copy-Item "dist\phcode.exe" -Destination "temp_package\"
         Copy-Item "templates" -Recurse -Destination "temp_package\"
         Copy-Item "static" -Recurse -Destination "temp_package\"
         
-        # 使用PowerShell创建ZIP归档
+        # 创建空的 phcode_data 目录（用于存储用户数据）
+        New-Item -ItemType Directory -Name "temp_package\phcode_data" -Force
+
+        # 使用 PowerShell 创建 ZIP 归档
         Compress-Archive -Path "temp_package\*" -DestinationPath $zipFileName -Force
-        
+
         Write-Host "Created ZIP archive: $zipFileName"
 
     - name: Upload artifact

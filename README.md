@@ -8,6 +8,11 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 体验:[点我](https://hcz1017.pythonanywhere.com/)
 
+另外,ph code桌面版自v2.2.2版本已打包发布至release
+运行要求:
+> win10及以上 
+> webview 
+
 插件功能：
 
 > 目前插件功能正在改善，正在添加更多的端口，希望大家多多pr
