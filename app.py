@@ -10,28 +10,34 @@ app = Flask(__name__)
 REXTESTER_URL = "https://rextester.com/rundotnet/Run"
 LANG_CPP_GCC = 7
 
-# 3. 危险关键词黑名单
-DANGEROUS_PATTERNS = [
-    r'\bsystem\s*\(',       # 禁止 system()
-    r'\bexec[lqvpe]*\s*\(', # 禁止 exec 系列
-    r'\bfork\s*\(',         # 禁止 fork()
-    r'\bpopen\s*\(',        # 禁止 popen
-    r'\bkill\s*\(',         # 禁止 kill
-    r'<windows\.h>',        # 禁止 Windows API
-    r'<unistd\.h>',         # 禁止 POSIX 系统调用
-    r'\bfstream\b',         # 禁止文件流操作
-    r'\bfreopen\b',
-    r'\bFILE\s*\*',         # 禁止 C 风格文件指针
-    r'\bfopen\s*\(',        # 禁止 fopen
-    r'__asm__',             # 禁止内联汇编
-    r'\basm\s*\(',
+# 3. 危险词列表 - 包含即拒绝（不区分大小写）
+DANGEROUS_WORDS = [
+    'system',        # system()
+    'exec',          # exec 系列
+    'fork',          # fork()
+    'popen',         # popen()
+    'kill',          # kill()
+    'windows.h',     # Windows API
+    'unistd.h',      # POSIX 系统调用
+    'fstream',       # 文件流
+    'freopen',       # 文件重定向
+    'fopen',         # 文件打开
+    'FILE',          # C 文件指针
+    'asm',           # 汇编
+    '__asm__',       # 内联汇编
+    'CreateProcess', # Windows 创建进程
+    'ShellExecute',  # Windows 执行
+    'WinExec',       # Windows 执行
+    'spawn',         # spawn 系列
+    '_wsystem',      # 宽字符 system
 ]
 
 def check_security(code):
-    """检查代码是否包含危险特征"""
-    for pattern in DANGEROUS_PATTERNS:
-        if re.search(pattern, code):
-            return False, f"Security Alert: Detected forbidden pattern '{pattern}'"
+    """检查代码是否包含危险特征 - 包含危险词即拒绝"""
+    code_lower = code.lower()
+    for word in DANGEROUS_WORDS:
+        if word.lower() in code_lower:
+            return False, f"Security Alert: Detected forbidden word '{word}'"
     return True, ""
 
 @app.route('/')

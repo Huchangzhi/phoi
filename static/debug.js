@@ -131,7 +131,7 @@
             }
         } catch (error) {
             console.error('[Debug] 检查状态失败:', error);
-            showDebugStatusModal('无法连接到调试服务器，请确保服务已启动', false);
+            showDebugStatusModal('该功能仅在离线版存在，运行在右上角', false);
         }
     }
 
@@ -374,12 +374,6 @@
     async function sendSingleCommand(command) {
         if (!debugState.isDebugging) {
             appendTerminalOutput('[错误] 调试未运行\n', 'error');
-            return;
-        }
-
-        // 禁止使用 ! 命令（shell 逃逸）
-        if (command.startsWith('!')) {
-            appendTerminalOutput('[错误] 禁止使用 shell 逃逸命令 (!)\n', 'error');
             return;
         }
 

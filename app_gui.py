@@ -302,20 +302,26 @@ class PHCodeServer:
         # 安全配置
         self.TIMEOUT_SECONDS = 1
         self.MEMORY_LIMIT_MB = 512
-        self.DANGEROUS_PATTERNS = [
-            r'\bsystem\s*\(',       # 禁止 system()
-            r'\bexec[lqvpe]*\s*\(', # 禁止 exec 系列
-            r'\bfork\s*\(',         # 禁止 fork()
-            r'\bpopen\s*\(',        # 禁止 popen
-            r'\bkill\s*\(',         # 禁止 kill
-            r'<windows\.h>',        # 禁止 Windows API
-            r'<unistd\.h>',         # 禁止 POSIX 系统调用
-            r'\bfstream\b',         # 禁止文件流操作
-            r'\bfreopen\b',
-            r'\bFILE\s*\*',         # 禁止 C 风格文件指针
-            r'\bfopen\s*\(',        # 禁止 fopen
-            r'__asm__',             # 禁止内联汇编
-            r'\basm\s*\(',
+        # 危险词列表 - 包含即拒绝（不区分大小写）
+        self.DANGEROUS_WORDS = [
+            'system',        # system()
+            'exec',          # exec 系列
+            'fork',          # fork()
+            'popen',         # popen()
+            'kill',          # kill()
+            'windows.h',     # Windows API
+            'unistd.h',      # POSIX 系统调用
+            'fstream',       # 文件流
+            'freopen',       # 文件重定向
+            'fopen',         # 文件打开
+            'FILE',          # C 文件指针
+            'asm',           # 汇编
+            '__asm__',       # 内联汇编
+            'CreateProcess', # Windows 创建进程
+            'ShellExecute',  # Windows 执行
+            'WinExec',       # Windows 执行
+            'spawn',         # spawn 系列
+            '_wsystem',      # 宽字符 system
         ]
 
         self.setup_routes()
@@ -452,10 +458,10 @@ class PHCodeServer:
 
         @self.app.route('/debug/command', methods=['POST'])
         def debug_command():
-            """发送 GDB 命令"""
+            """发送 GDB 命令 - 带安全检查"""
             try:
                 data = request.json
-                command = data.get('command', '')
+                command = data.get('command', '').strip()
 
                 if not command:
                     return jsonify({'success': False, 'message': '命令不能为空'})
@@ -467,6 +473,100 @@ class PHCodeServer:
 
                 if self.debug_manager.status != 'busy':
                     return jsonify({'success': False, 'message': '调试器未运行'})
+
+                # 安全检查：禁止危险命令
+                # 使用小写检查
+                cmd_lower = command.lower()
+                
+                # 禁止的危险命令列表（包含即拒绝）
+                dangerous_patterns = [
+                    'file ',      # 切换调试文件
+                    'file\t',     # 切换调试文件
+                    '\tfile ',    # 切换调试文件
+                    '\tfile\t',   # 切换调试文件
+                    ' exec ',     # 执行文件
+                    '\texec ',    # 执行文件
+                    ' exec\t',    # 执行文件
+                    '\texec\t',   # 执行文件
+                    'attach ',    # 附加到进程
+                    '\tattach ',  # 附加到进程
+                    'attach\t',   # 附加到进程
+                    '\tattach\t', # 附加到进程
+                    'core ',      # 核心文件
+                    'core\t',     # 核心文件
+                    'symbol ',    # 符号文件
+                    'symbol\t',   # 符号文件
+                    'library ',   # 加载库
+                    'library\t',  # 加载库
+                    'sharedlib',  # 共享库
+                    'handle ',    # 修改信号处理
+                    'handle\t',   # 修改信号处理
+                    ' jump ',     # 跳转执行
+                    '\tjump ',    # 跳转执行
+                    ' jump\t',    # 跳转执行
+                    '\tjump\t',   # 跳转执行
+                    ' kill ',     # 杀死进程
+                    '\tkill ',    # 杀死进程
+                    ' kill\t',    # 杀死进程
+                    '\tkill\t',   # 杀死进程
+                    'detach ',    # 分离进程
+                    'detach\t',   # 分离进程
+                    ' shell ',    # 执行 shell 命令
+                    '\tshell ',   # 执行 shell 命令
+                    ' shell\t',   # 执行 shell 命令
+                    '\tshell\t',  # 执行 shell 命令
+                    ' make ',     # 执行 make
+                    '\tmake ',    # 执行 make
+                    ' make\t',    # 执行 make
+                    '\tmake\t',   # 执行 make
+                    ' load ',     # 加载文件
+                    '\tload ',    # 加载文件
+                    ' load\t',    # 加载文件
+                    '\tload\t',   # 加载文件
+                    'download',   # 下载文件
+                    'generate-core', # 生成核心文件
+                    'add-symbol',    # 添加符号
+                    'delete-symbol', # 删除符号
+                    ' call ',     # 调用函数
+                    '\tcall ',    # 调用函数
+                    ' call\t',    # 调用函数
+                    '\tcall\t',   # 调用函数
+                    ' return ',   # 强制返回
+                    '\treturn ',  # 强制返回
+                    ' return\t',  # 强制返回
+                    '\treturn\t', # 强制返回
+                ]
+                
+                # 检查是否包含危险模式
+                for pattern in dangerous_patterns:
+                    if pattern in cmd_lower:
+                        return jsonify({
+                            'success': False,
+                            'message': f'禁止使用包含 "{pattern.strip()}" 的命令'
+                        })
+                
+                # 检查命令是否就是单独的危险词（如 "file" 不带参数）
+                single_dangerous = ['file', 'exec', 'attach', 'shell', 'kill', 'detach', 'make', 'load', 'download', 'call', 'return', 'jump']
+                cmd_parts = cmd_lower.split()
+                if cmd_parts and cmd_parts[0] in single_dangerous:
+                    return jsonify({
+                        'success': False,
+                        'message': f'禁止使用命令：{cmd_parts[0]}'
+                    })
+                
+                # 检查是否以 ! 开头（shell 逃逸）
+                if command.startswith('!'):
+                    return jsonify({
+                        'success': False,
+                        'message': '禁止使用 shell 逃逸命令 (!)'
+                    })
+                
+                # 检查是否包含管道、重定向等
+                if any(c in command for c in ['|', '>', '<', '&', ';', '`', '$']):
+                    return jsonify({
+                        'success': False,
+                        'message': '命令包含非法字符'
+                    })
 
                 success = self.debug_manager.send_command(command)
                 return jsonify({'success': success})
@@ -510,10 +610,11 @@ class PHCodeServer:
             )
 
     def check_security(self, code):
-        """检查代码是否包含危险特征"""
-        for pattern in self.DANGEROUS_PATTERNS:
-            if re.search(pattern, code):
-                return False, f"Security Alert: Detected forbidden pattern '{pattern}'"
+        """检查代码是否包含危险特征 - 包含危险词即拒绝"""
+        code_lower = code.lower()
+        for word in self.DANGEROUS_WORDS:
+            if word.lower() in code_lower:
+                return False, f"Security Alert: Detected forbidden word '{word}'"
         return True, ""
 
     def _handle_run_code(self, request):
@@ -722,7 +823,7 @@ class PHCodeWebViewApp:
         os.makedirs(storage_path, exist_ok=True)
         
         self.window = webview.create_window(
-            title='PH Code - 在线 C++ 编辑器',
+            title='PH Code Editor',
             url=url,
             width=1200,
             height=800,
