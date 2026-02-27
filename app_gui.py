@@ -122,6 +122,9 @@ class DebugManager:
             with open(self.source_path, 'w', encoding='utf-8') as f:
                 f.write(code)
 
+            # 获取编译器所在目录作为工作目录
+            compiler_dir = os.path.dirname(os.path.abspath(compiler_path)) if os.path.isabs(compiler_path) else None
+
             # 编译代码（带调试信息）
             compile_cmd = [
                 compiler_path,
@@ -137,7 +140,8 @@ class DebugManager:
                 compile_cmd,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                cwd=compiler_dir  # 设置工作目录为编译器所在目录
             )
 
             if compile_proc.returncode != 0:
@@ -165,6 +169,9 @@ class DebugManager:
     def _start_gdb(self, gdb_path):
         """启动 GDB 调试器"""
         try:
+            # 获取 GDB 所在目录作为工作目录
+            gdb_dir = os.path.dirname(os.path.abspath(gdb_path)) if os.path.isabs(gdb_path) else None
+
             # 启动 GDB 进程（去掉 -batch 以支持交互模式）
             gdb_cmd = [gdb_path, '-q', self.executable_path]
             self.debug_process = subprocess.Popen(
@@ -175,7 +182,8 @@ class DebugManager:
                 text=True,
                 bufsize=1,
                 encoding='utf-8',
-                errors='replace'
+                errors='replace',
+                cwd=gdb_dir  # 设置工作目录为 GDB 所在目录
             )
 
             self.status = "busy"
@@ -673,6 +681,9 @@ class PHCodeServer:
         executable_name = 'program.exe'
         executable_path = os.path.join(temp_dir, executable_name)
 
+        # 获取编译器所在目录作为工作目录
+        compiler_dir = os.path.dirname(os.path.abspath(compiler_path)) if os.path.isabs(compiler_path) else None
+
         response_data = {
             "Result": "",
             "Errors": "",
@@ -693,7 +704,8 @@ class PHCodeServer:
                 compile_cmd,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                cwd=compiler_dir  # 设置工作目录为编译器所在目录
             )
 
             if compile_proc.returncode != 0:
