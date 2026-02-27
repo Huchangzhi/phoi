@@ -87,9 +87,6 @@ jobs:
         # 创建空的 phcode_data 目录（用于存储用户数据）
         New-Item -ItemType Directory -Name "temp_package\phcode_data" -Force
 
-        # 复制 logo.ico 作为应用程序图标
-        Copy-Item "static\logo.ico" -Destination "temp_package\logo.ico"
-
         # 使用 PowerShell 创建 ZIP 归档
         Compress-Archive -Path "temp_package\*" -DestinationPath $zipFileName -Force
 

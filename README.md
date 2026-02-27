@@ -10,8 +10,24 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 另外,ph code桌面版自v2.2.2版本已打包发布至release
 运行要求:
-> win10及以上 
-> webview 
+
+**关于桌面版**
+
+环境要求:
+
+> win10及以上   
+
+> webview2 
+
+安装：
+
+Release里面下载（推荐2.2.5+，不建议beta版本）
+
+功能区别:
+
+gdb调试，但是翻译功能仍是使用云端接口
+
+---
 
 插件功能：
 
@@ -24,7 +40,7 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 部署:
 ```sh
-pip install flask
+pip install -r requirements.txt
 ```
 对于使用rextester的
 ```sh
@@ -33,4 +49,9 @@ python app.py
 对于使用本机进行评测的（有风险，建议容器内部署）
 ```sh
 python app_local.py
+```
+
+gui版本
+```sh
+python server_gui.py
 ```
