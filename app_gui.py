@@ -122,8 +122,12 @@ class DebugManager:
             with open(self.source_path, 'w', encoding='utf-8') as f:
                 f.write(code)
 
-            # 获取编译器所在目录作为工作目录
-            compiler_dir = os.path.dirname(os.path.abspath(compiler_path)) if os.path.isabs(compiler_path) else None
+            # 获取编译器完整路径和所在目录
+            full_compiler_path = shutil.which(compiler_path) if not os.path.isabs(compiler_path) else compiler_path
+            compiler_dir = os.path.dirname(full_compiler_path) if full_compiler_path else None
+            
+            print(f"[DEBUG] 编译器路径：{full_compiler_path}")
+            print(f"[DEBUG] 编译器目录：{compiler_dir}")
 
             # 编译代码（带调试信息）
             compile_cmd = [
@@ -135,13 +139,20 @@ class DebugManager:
                 '-Wall',
                 '-std=c++14'
             ]
+            
+            # 设置环境变量，将编译器目录添加到 PATH 中
+            env = os.environ.copy()
+            if compiler_dir:
+                env['PATH'] = compiler_dir + os.pathsep + env.get('PATH', '')
+                print(f"[DEBUG] PATH 已添加编译器目录：{compiler_dir}")
 
             compile_proc = subprocess.run(
                 compile_cmd,
                 capture_output=True,
                 text=True,
                 timeout=30,
-                cwd=compiler_dir  # 设置工作目录为编译器所在目录
+                cwd=compiler_dir,  # 设置工作目录为编译器所在目录
+                env=env  # 使用更新后的环境变量
             )
 
             if compile_proc.returncode != 0:
@@ -169,8 +180,18 @@ class DebugManager:
     def _start_gdb(self, gdb_path):
         """启动 GDB 调试器"""
         try:
-            # 获取 GDB 所在目录作为工作目录
-            gdb_dir = os.path.dirname(os.path.abspath(gdb_path)) if os.path.isabs(gdb_path) else None
+            # 获取 GDB 完整路径和所在目录
+            full_gdb_path = shutil.which(gdb_path) if not os.path.isabs(gdb_path) else gdb_path
+            gdb_dir = os.path.dirname(full_gdb_path) if full_gdb_path else None
+            
+            print(f"[DEBUG] GDB 路径：{full_gdb_path}")
+            print(f"[DEBUG] GDB 目录：{gdb_dir}")
+
+            # 设置环境变量，将 GDB 目录添加到 PATH 中
+            env = os.environ.copy()
+            if gdb_dir:
+                env['PATH'] = gdb_dir + os.pathsep + env.get('PATH', '')
+                print(f"[DEBUG] PATH 已添加 GDB 目录：{gdb_dir}")
 
             # 启动 GDB 进程（去掉 -batch 以支持交互模式）
             gdb_cmd = [gdb_path, '-q', self.executable_path]
@@ -183,7 +204,8 @@ class DebugManager:
                 bufsize=1,
                 encoding='utf-8',
                 errors='replace',
-                cwd=gdb_dir  # 设置工作目录为 GDB 所在目录
+                cwd=gdb_dir,  # 设置工作目录为 GDB 所在目录
+                env=env  # 使用更新后的环境变量
             )
 
             self.status = "busy"
@@ -488,6 +510,8 @@ class PHCodeServer:
                 
                 # 禁止的危险命令列表（包含即拒绝）
                 dangerous_patterns = [
+                    'alias ',      # 切换调试文件
+                    'alias\t',     # 切换调试文件
                     'file ',      # 切换调试文件
                     'file\t',     # 切换调试文件
                     '\tfile ',    # 切换调试文件
@@ -681,8 +705,13 @@ class PHCodeServer:
         executable_name = 'program.exe'
         executable_path = os.path.join(temp_dir, executable_name)
 
-        # 获取编译器所在目录作为工作目录
-        compiler_dir = os.path.dirname(os.path.abspath(compiler_path)) if os.path.isabs(compiler_path) else None
+        # 获取编译器完整路径和所在目录
+        # 使用 shutil.which() 查找编译器在 PATH 中的完整路径
+        full_compiler_path = shutil.which(compiler_path) if not os.path.isabs(compiler_path) else compiler_path
+        compiler_dir = os.path.dirname(full_compiler_path) if full_compiler_path else None
+        
+        print(f"[DEBUG] 编译器路径：{full_compiler_path}")
+        print(f"[DEBUG] 编译器目录：{compiler_dir}")
 
         response_data = {
             "Result": "",
@@ -699,14 +728,30 @@ class PHCodeServer:
             # 编译
             start_time = time.time()
             compile_cmd = [compiler_path, source_path, '-o', executable_path, '-O2', '-g', '-Wall', '-std=c++14']
+            
+            print(f"[DEBUG] 编译命令：{compile_cmd}")
+            print(f"[DEBUG] 工作目录：{compiler_dir}")
+            
+            # 设置环境变量，将编译器目录添加到 PATH 中
+            env = os.environ.copy()
+            if compiler_dir:
+                env['PATH'] = compiler_dir + os.pathsep + env.get('PATH', '')
+                print(f"[DEBUG] PATH 已添加编译器目录：{compiler_dir}")
 
             compile_proc = subprocess.run(
                 compile_cmd,
                 capture_output=True,
                 text=True,
                 timeout=10,
-                cwd=compiler_dir  # 设置工作目录为编译器所在目录
+                cwd=compiler_dir,  # 设置工作目录为编译器所在目录
+                env=env  # 使用更新后的环境变量
             )
+            
+            print(f"[DEBUG] 编译返回码：{compile_proc.returncode}")
+            if compile_proc.stdout:
+                print(f"[DEBUG] 编译 stdout: {compile_proc.stdout}")
+            if compile_proc.stderr:
+                print(f"[DEBUG] 编译 stderr: {compile_proc.stderr}")
 
             if compile_proc.returncode != 0:
                 response_data["Errors"] = compile_proc.stderr

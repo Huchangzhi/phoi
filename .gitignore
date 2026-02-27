@@ -1,6 +1,6 @@
 # AI 训练数据目录（不提交原始样本和中间文件）
 ai_training/
-
+w64devkit/
 # 模型文件（保留，前端需要使用）
 # models/*.json
 # models/*.json.gz
