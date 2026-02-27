@@ -21,7 +21,7 @@
         </div>
         <div id="menu-bar-right">
             <!-- <button id="luogu-btn" class="tool-btn" title="洛谷题目"><img src="/static/Luogu.png" alt="Luogu" class="icon-btn"></button> -->
-            <button id="run-btn" class="tool-btn" title="运行"><img src="/static/debug.png" alt="Run" class="icon-btn"></button>
+            <button id="run-btn" class="tool-btn" title="运行"><img src="/static/run.png" alt="Run" class="icon-btn"></button>
             <button id="copy-btn" class="tool-btn" title="复制">❐</button>
             <button id="mode-toggle-btn" class="tool-btn">▲</button>
         </div>
@@ -43,6 +43,7 @@
         <div id="sidebar-toggle" class="sidebar-button" title="显示/隐藏虚拟文件系统"><img src="/static/file.png" alt="Files" class="icon-btn"></div>
         <div id="plugin-center-toggle" class="sidebar-button" title="插件中心"><img src="/static/ext.png" alt="Plugins" class="icon-btn"></div>
         <div id="cph-plugin-toggle" class="sidebar-button" title="CPH - 试题集管理"><img src="/static/cph.png" alt="CPH" class="icon-btn"></div>
+        <div id="debug-btn" class="sidebar-button" title="调试"><img src="/static/debug.png" alt="Debug" class="icon-btn"></div>
     </div>
 
     <!-- 虚拟文件系统面板 -->
@@ -178,6 +179,40 @@
         <div id="output-resizer" class="output-resizer"></div>
     </div>
 
+    <!-- 调试终端面板 -->
+    <div id="debug-panel" style="display: none;">
+        <div id="debug-resizer" class="output-resizer"></div>
+        <div id="debug-header">
+            <div id="debug-header-left">
+                <span>GDB 调试终端</span>
+                <span id="debug-pairing-code" style="margin-left: 10px; color: #4daafc; font-size: 12px;"></span>
+            </div>
+            <div id="debug-header-right">
+                <button id="debug-minimize-btn" class="debug-header-btn" title="折叠">−</button>
+                <button id="debug-close-btn" class="debug-header-btn" title="退出调试">✕</button>
+            </div>
+        </div>
+        <div id="debug-terminal-container">
+            <div id="debug-terminal-content"></div>
+            <div id="debug-input-line" style="display: flex; align-items: center; border-top: 1px solid #333; padding: 5px;">
+                <span style="color: #4daafc; margin-right: 8px;">(gdb)</span>
+                <input type="text" id="debug-command-input" placeholder="输入 GDB 命令..." style="flex: 1; background: transparent; border: none; color: #d4d4d4; outline: none; font-family: Consolas, monospace; font-size: 13px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- 调试状态提示框 -->
+    <div id="debug-status-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">调试功能</div>
+            <div id="debug-status-message" style="color: #ccc; padding: 15px 0; font-size: 14px;"></div>
+            <div id="debug-status-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                <button id="debug-status-cancel" class="modal-btn" style="background-color: #3e3e42;">取消</button>
+                <button id="debug-status-confirm" class="modal-btn" style="background-color: #0e639c; display: none;">开始调试</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 中心编辑器区域 -->
     <div id="editor-area" style="flex: 1; display: flex; overflow: hidden;">
         <!-- 编辑器容器 -->
@@ -270,7 +305,7 @@
             </div>
             <div class="modal-body">
                 <p><a href="https://github.com/huchangzhi/phoi" target="_blank">PH code(原名phoi v2)</a> - 适合OI的在线C++编辑器</p>
-                <p>版本: 2.2.4beta.1</p>
+                <p>版本: 2.2.4beta.2</p>
                 <p>这是一个专为信息学竞赛（OI）设计的在线C++编辑器，支持在手机等移动设备上编写和运行C++代码。</p>
             </div>
         </div>
@@ -294,5 +329,6 @@
     <script src="/static/luogu.js"></script>
     <script src="/static/cph.js"></script>
     <script src="/static/mobile_autocomplete.js"></script>
+    <script src="/static/debug.js"></script>
 </body>
 </html>

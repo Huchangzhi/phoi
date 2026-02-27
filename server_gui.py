@@ -147,7 +147,7 @@ class PHCodeServer:
 
             # 编译 - 使用指定的编译器路径
             start_time = time.time()
-            compile_cmd = [compiler_path, source_path, '-o', executable_path, '-O2', '-Wall', '-std=c++14']
+            compile_cmd = [compiler_path, source_path, '-o', executable_path, '-O2', '-g', '-Wall', '-std=c++14']
 
             compile_proc = subprocess.run(
                 compile_cmd,

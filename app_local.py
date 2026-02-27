@@ -100,7 +100,7 @@ def run_code():
         # 3. 编译
         # 编译时一般不需要太严格的资源限制，主要限制运行
         start_time = time.time()
-        compile_cmd = ['g++', source_path, '-o', executable_path, '-O2', '-Wall']
+        compile_cmd = ['g++', source_path, '-o', executable_path, '-g', '-O2', '-Wall']
 
         compile_proc = subprocess.run(
             compile_cmd,
@@ -220,7 +220,7 @@ def easy_run_api():
             # 3. 编译
             # 编译时一般不需要太严格的资源限制，主要限制运行
             start_time = time.time()
-            compile_cmd = ['g++', source_path, '-o', executable_path, '-O2', '-Wall']
+            compile_cmd = ['g++', source_path, '-o', executable_path, '-g', '-O2', '-Wall']
 
             compile_proc = subprocess.run(
                 compile_cmd,

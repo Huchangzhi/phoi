@@ -926,3 +926,145 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     color: #888888;
     padding-left: 20px;
 }
+
+/* 调试功能样式 */
+#debug-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 40%;
+    min-height: 200px;
+    background-color: #0d0d0d;
+    border-top: 2px solid #4daafc;
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+}
+
+#debug-header {
+    height: 35px;
+    background-color: #1e1e1e;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #333;
+    color: #eee;
+    font-size: 14px;
+    cursor: move;
+    user-select: none;
+}
+
+#debug-resizer {
+    height: 6px;
+    background: #4daafc;
+    cursor: ns-resize;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    border-bottom: 1px solid #333;
+    z-index: 10;
+}
+
+#debug-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#debug-header-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.debug-header-btn {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-size: 18px;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.debug-header-btn:hover {
+    background-color: #333333;
+}
+
+#debug-close-btn:hover {
+    background-color: #c42b1c;
+}
+
+#debug-terminal-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#debug-terminal-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    color: #ccc;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    background-color: #0d0d0d;
+}
+
+#debug-command-input {
+    flex: 1;
+}
+
+#debug-command-input::placeholder {
+    color: #666;
+}
+
+/* 调试面板最小化状态 */
+#debug-panel.minimized #debug-terminal-container {
+    display: none;
+}
+
+#debug-panel.minimized {
+    height: 36px !important;
+    min-height: 36px !important;
+}
+
+/* 调试状态提示框 */
+#debug-status-message {
+    line-height: 1.6;
+}
+
+/* 调试按钮激活状态 */
+.sidebar-button.debug-active {
+    background-color: #4daafc;
+}
+
+/* GDB 输出颜色 */
+.debug-output-info {
+    color: #4daafc;
+}
+
+.debug-output-warning {
+    color: #cca700;
+}
+
+.debug-output-error {
+    color: #f48771;
+}
+
+.debug-output-success {
+    color: #6a9955;
+}
