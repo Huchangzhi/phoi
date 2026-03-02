@@ -13,6 +13,7 @@ import re
 import tempfile
 import shutil
 import time
+from security_check import check_security
 
 
 class PHCodeServer:
@@ -31,27 +32,6 @@ class PHCodeServer:
         # 安全配置
         self.TIMEOUT_SECONDS = 1
         self.MEMORY_LIMIT_MB = 512
-        # 危险词列表 - 包含即拒绝（不区分大小写）
-        self.DANGEROUS_WORDS = [
-            'system',        # system()
-            'exec',          # exec 系列
-            'fork',          # fork()
-            'popen',         # popen()
-            'kill',          # kill()
-            'windows.h',     # Windows API
-            'unistd.h',      # POSIX 系统调用
-            'fstream',       # 文件流
-            'freopen',       # 文件重定向
-            'fopen',         # 文件打开
-            'FILE',          # C 文件指针
-            'asm',           # 汇编
-            '__asm__',       # 内联汇编
-            'CreateProcess', # Windows 创建进程
-            'ShellExecute',  # Windows 执行
-            'WinExec',       # Windows 执行
-            'spawn',         # spawn 系列
-            '_wsystem',      # 宽字符 system
-        ]
 
         self.setup_routes()
         self.compiler_path = "g++"  # 默认编译器路径
@@ -74,14 +54,6 @@ class PHCodeServer:
         def easy_run_api():
             return self._handle_easy_run_api(request)
 
-    def check_security(self, code):
-        """检查代码是否包含危险特征 - 包含危险词即拒绝"""
-        code_lower = code.lower()
-        for word in self.DANGEROUS_WORDS:
-            if word.lower() in code_lower:
-                return False, f"Security Alert: Detected forbidden word '{word}'"
-        return True, ""
-
     def _handle_run_code(self, request):
         """处理代码运行请求"""
         try:
@@ -90,7 +62,7 @@ class PHCodeServer:
             stdin = data.get('input', '')
 
             # 安全检查
-            is_safe, message = self.check_security(code)
+            is_safe, message = check_security(code)
             if not is_safe:
                 return jsonify({
                     "Errors": message,
@@ -231,7 +203,7 @@ class PHCodeServer:
             code = urllib.parse.unquote(url_encoded_code)
 
             # 安全检查
-            is_safe, message = self.check_security(code)
+            is_safe, message = check_security(code)
             if not is_safe:
                 return jsonify({
                     "Errors": message,

@@ -7,6 +7,7 @@ import time
 import sys
 import urllib.parse
 from flask import Flask, render_template, request, jsonify
+from security_check import check_security
 
 app = Flask(__name__)
 
@@ -16,36 +17,6 @@ TIMEOUT_SECONDS = 1
 
 # 2. 内存限制 (MB)
 MEMORY_LIMIT_MB = 512
-
-# 3. 危险词列表 - 包含即拒绝（不区分大小写）
-DANGEROUS_WORDS = [
-    'system',        # system()
-    'exec',          # exec 系列
-    'fork',          # fork()
-    'popen',         # popen()
-    'kill',          # kill()
-    'windows.h',     # Windows API
-    'unistd.h',      # POSIX 系统调用
-    'fstream',       # 文件流
-    'freopen',       # 文件重定向
-    'fopen',         # 文件打开
-    'FILE',          # C 文件指针
-    'asm',           # 汇编
-    '__asm__',       # 内联汇编
-    'CreateProcess', # Windows 创建进程
-    'ShellExecute',  # Windows 执行
-    'WinExec',       # Windows 执行
-    'spawn',         # spawn 系列
-    '_wsystem',      # 宽字符 system
-]
-
-def check_security(code):
-    """检查代码是否包含危险特征 - 包含危险词即拒绝"""
-    code_lower = code.lower()
-    for word in DANGEROUS_WORDS:
-        if word.lower() in code_lower:
-            return False, f"Security Alert: Detected forbidden word '{word}'"
-    return True, ""
 
 def set_process_limits():
     """
