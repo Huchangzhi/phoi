@@ -259,8 +259,8 @@ function parseStructDefinitions(code) {
     const structDefs = {};
     
     // 匹配 struct 定义：struct StructName { members... }; 或 struct StructName { members... } var1, var2[100];
-    // 支持数组声明如 c, sz[123]
-    const structRegex = /\bstruct\s+([a-zA-Z_]\w*)\s*\{([^}]*)\}\s*([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)?\s*;/g;
+    // 支持数组声明如 c, sz[123]，也支持指针声明如 }*root
+    const structRegex = /\bstruct\s+([a-zA-Z_]\w*)\s*\{([^}]*)\}\s*(?:[*&]\s*)?([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*(?:[*&]\s*)?[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)?\s*;/g;
     let match;
     
     while ((match = structRegex.exec(code)) !== null) {
@@ -306,36 +306,52 @@ function parseStructMembers(membersStr) {
         const trimmed = line.trim();
         if (!trimmed) continue;
         
-        // 匹配成员声明：type memberName; 或 type member1, member2;
-        // 支持指针、引用、数组等
-        const memberRegex = /\b([a-zA-Z_]\w*(?:\s*[*&])?\s*(?:<[^>]*>)?)\s+([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?)*)/g;
-        let memberMatch;
+        // 先提取类型（第一个单词）
+        const typeMatch = trimmed.match(/^([a-zA-Z_]\w*)/);
+        if (!typeMatch) continue;
         
-        while ((memberMatch = memberRegex.exec(trimmed)) !== null) {
-            const memberType = memberMatch[1].trim();
-            const memberNamesStr = memberMatch[2];
+        const baseType = typeMatch[1];
+        // 去掉类型部分，获取剩余的成员名部分
+        let rest = trimmed.slice(typeMatch[0].length).trim();
+        
+        // 处理逗号分隔的多个成员
+        const parts = rest.split(',');
+        
+        for (let i = 0; i < parts.length; i++) {
+            const p = parts[i].trim();
+            if (!p) continue;
             
-            // 分割多个成员名（处理 int a, b; 这种情况）
-            const memberNamesList = memberNamesStr.split(',');
+            // 匹配成员名，可能带有指针、引用
+            const nameMatch = p.match(/^([*&]?\s*[a-zA-Z_]\w*)/);
+            if (!nameMatch) continue;
             
-            for (const memberNameWithInit of memberNamesList) {
-                // 提取成员名（去除初始化值）
-                const memberNameMatch = memberNameWithInit.trim().match(/^([a-zA-Z_]\w*)(?:\s*\[\s*\d+\s*\])?(?:\s*=\s*[^,;]+)?/);
-                if (!memberNameMatch) continue;
-                
-                const memberName = memberNameMatch[1];
-                
-                // 跳过访问修饰符
-                if (['public', 'private', 'protected', 'static', 'const', 'virtual'].includes(memberName)) {
-                    continue;
-                }
-                
-                members.push({
-                    name: memberName,
-                    type: memberType,
-                    isFunction: false
-                });
+            let memberName = nameMatch[1].trim();
+            let memberType = baseType;
+            
+            // 检查是否有额外的指针或引用
+            if (memberName.startsWith('*')) {
+                memberType = baseType + '*';
+                memberName = memberName.replace(/^\*+/, '').trim();
+            } else if (memberName.startsWith('&')) {
+                memberType = baseType + '&';
+                memberName = memberName.replace(/^&+/, '').trim();
             }
+            
+            // 检查是否是数组，去掉数组部分 [N]
+            const arrayMatch = memberName.match(/^([a-zA-Z_]\w*)/);
+            if (arrayMatch) {
+                memberName = arrayMatch[1];
+            }
+            
+            if (['public', 'private', 'protected', 'static', 'const', 'virtual'].includes(memberName)) {
+                continue;
+            }
+            
+            members.push({
+                name: memberName,
+                type: memberType,
+                isFunction: false
+            });
         }
         
         // 匹配成员函数：returnType funcName(params) { body } 或 returnType funcName(params);
@@ -425,7 +441,7 @@ function inferVariableTypes(code, structDefs) {
     }
     
     // 匹配普通变量声明（包括数组）
-    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)/g;
+    const varDeclarationRegex = /\b(?!struct\b)(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?(?:\s*,\s*[a-zA-Z_]\w*(?:\s*\[\s*\d+\s*\])?)*)/g;
     while ((match = varDeclarationRegex.exec(code)) !== null) {
         const varType = match[1];
         const varList = match[2];
@@ -515,7 +531,7 @@ function extractVariableNames(code) {
     const structDefs = parseStructDefinitions(code);
     
     // 匹配变量声明
-    const varDeclarationRegex = /\b(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
+    const varDeclarationRegex = /\b(?!struct\b)(auto|int|float|double|char|bool|long|short|unsigned|signed|void|size_t|string|vector|array|queue|stack|set|map|unordered_map|unordered_set|list|deque|priority_queue|complex|pair|[\w:<>]+)\s+([a-zA-Z_]\w*(?:\s*,\s*[a-zA-Z_]\w*)*)/g;
 
     while ((match = varDeclarationRegex.exec(code)) !== null) {
         const varList = match[2];
@@ -563,7 +579,7 @@ function extractVariableNames(code) {
     }
 
     // 匹配 struct 变量声明
-    for (const structName in structDefinitions) {
+    for (const structName in structDefs) {
         const structDeclRegex = new RegExp(`\\b(?:struct\\s+)?${structName}\\s+([a-zA-Z_]\\w*(?:\\s*,\\s*[a-zA-Z_]\\w*)*)`, 'g');
         while ((match = structDeclRegex.exec(code)) !== null) {
             const varList = match[1];
@@ -673,7 +689,10 @@ function registerCompletionProviders() {
                 const currentStructDefs = parseStructDefinitions(fullText);
                 const currentVarTypes = inferVariableTypes(fullText, currentStructDefs);
 
+
+
                 // 尝试查找 struct 变量
+                let foundStructMembers = false;
                 if (potentialContainerName && currentVarTypes[potentialContainerName]) {
                     const varInfo = currentVarTypes[potentialContainerName];
                     if (varInfo.isStruct) {
@@ -702,13 +721,12 @@ function registerCompletionProviders() {
                                     });
                                 }
                             }
-                            // 如果找到了 struct 成员，直接返回
-                            if (allSuggestions.length > 0) {
-                                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
-                            }
+                            foundStructMembers = allSuggestions.length > 0;
                         }
                     }
                 }
+                
+                // 如果没有找到 struct 成员，继续搜索其他类型的成员（如 STL 容器）
 
                 // ========== 3.2 处理 STL 容器补全 ==========
                 // 查找代码中使用的 STL 容器
@@ -731,7 +749,12 @@ function registerCompletionProviders() {
                         }
                     }
                 }
-
+                
+                // 只有在找到了 struct 成员的情况下才返回，否则继续处理 STL 容器
+                if (foundStructMembers) {
+                    return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
+                }
+                
                 // 添加容器方法建议
                 const containersToSuggest = specificContainer ? [specificContainer] : Array.from(usedContainers);
                 for (const containerName of containersToSuggest) {
@@ -764,10 +787,7 @@ function registerCompletionProviders() {
                     }
                 }
                 
-                // 如果有建议，直接返回
-                if (allSuggestions.length > 0) {
-                    return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
-                }
+                return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
             }
 
             // ========== 4. 常规情况：合并所有建议 ==========
