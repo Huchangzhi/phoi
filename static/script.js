@@ -262,7 +262,12 @@ require(['vs/editor/editor.main'], function() {
         // 显示选中的终端内容
         const selectedContent = document.getElementById(`terminal-${tabName}`);
         if (selectedContent) {
-            selectedContent.style.display = 'block';
+            // 调试终端使用 flex 布局，其他使用 block
+            if (tabName === 'debug') {
+                selectedContent.style.display = 'flex';
+            } else {
+                selectedContent.style.display = 'block';
+            }
         }
 
         // 特殊处理：如果是调试终端且正在调试，显示输入行

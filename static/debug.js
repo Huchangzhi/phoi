@@ -310,34 +310,58 @@
     // 命令历史
     let commandHistory = [];
     let historyIndex = -1;
-    let lastCommand = '';
+    let currentInput = ''; // 保存当前正在输入的内容
 
     function handleCommandKeydown(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             let command = e.target.value.trim();
             if (command) {
+                // 添加到历史记录
+                if (commandHistory.length === 0 || commandHistory[commandHistory.length - 1] !== command) {
+                    commandHistory.push(command);
+                }
+                historyIndex = -1;
+                currentInput = '';
                 sendCommand(command);
-                lastCommand = command;
                 e.target.value = '';
-            } else if (lastCommand) {
+            } else if (commandHistory.length > 0) {
                 // 直接回车执行上一次的命令
-                sendCommand(lastCommand);
+                sendCommand(commandHistory[commandHistory.length - 1]);
             }
         } else if (e.key === 'ArrowUp') {
-            // 上箭头：显示上一条命令
-            if (commandHistory.length > 0) {
-                historyIndex = Math.min(historyIndex + 1, commandHistory.length - 1);
-                e.target.value = commandHistory[historyIndex];
-            }
-        } else if (e.key === 'ArrowDown') {
-            // 下箭头：显示下一条命令
-            if (historyIndex > 0) {
+            // 上箭头：显示上一条命令（从最新的开始）
+            e.preventDefault();
+            if (commandHistory.length === 0) return;
+            
+            if (historyIndex === -1) {
+                // 第一次按上箭头，保存当前输入，并指向最新的命令
+                currentInput = e.target.value;
+                historyIndex = commandHistory.length - 1;
+            } else if (historyIndex > 0) {
+                // 继续向上翻
                 historyIndex--;
+            }
+            // 显示当前索引的命令
+            e.target.value = commandHistory[historyIndex];
+        } else if (e.key === 'ArrowDown') {
+            // 下箭头：显示下一条命令（向更新的方向）
+            e.preventDefault();
+            if (commandHistory.length === 0) return;
+            
+            if (historyIndex === -1) {
+                // 已经在最底部，无需操作
+                return;
+            }
+            
+            if (historyIndex < commandHistory.length - 1) {
+                // 向下翻一条
+                historyIndex++;
                 e.target.value = commandHistory[historyIndex];
             } else {
+                // 已经到最后一条，恢复当前输入
                 historyIndex = -1;
-                e.target.value = '';
+                e.target.value = currentInput;
             }
         }
     }
@@ -394,12 +418,6 @@
             appendTerminalOutput('[错误] 调试未运行\n', 'error');
             return;
         }
-
-        // 添加到历史记录
-        if (command && (!commandHistory.length || commandHistory[commandHistory.length - 1] !== command)) {
-            commandHistory.push(command);
-        }
-        historyIndex = -1;
 
         appendTerminalOutput(`(gdb) ${command}\n`);
 
