@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CPH (Contest Problem Helper) 插件
  * 功能: 当前文件的测试用例管理与运行
  */
@@ -523,16 +523,20 @@ class CPHPlugin {
             return;
         }
 
-        // 显示运行状态
-        const outputPanel = document.getElementById('output-panel');
-        const outputContent = document.getElementById('output-content');
-        if (outputPanel) {
-            outputPanel.style.display = 'flex';
+        // 显示运行状态 - 使用新的终端面板
+        const terminalPanel = document.getElementById('terminal-panel');
+        const terminalRunContent = document.getElementById('terminal-run-content');
+        if (terminalPanel) {
+            terminalPanel.style.display = 'flex';
+        }
+        // 切换到运行终端标签页
+        if (window.switchTerminalTab) {
+            window.switchTerminalTab('run');
         }
 
         // 清空输出内容
-        if (outputContent) {
-            outputContent.innerHTML = `<div class="debug-message system"><strong>系统:</strong> 开始运行 ${this.testCases.length} 个测试点...</div>`;
+        if (terminalRunContent) {
+            terminalRunContent.innerHTML = `<div class="debug-message system"><strong>系统:</strong> 开始运行 ${this.testCases.length} 个测试点...</div>`;
         }
 
         let allPassed = true;
@@ -543,9 +547,9 @@ class CPHPlugin {
             const stdin = testCase.stdin || '';
             
             // 显示当前测试点信息
-            if (outputContent) {
-                outputContent.innerHTML += `<div class="debug-message system"><strong>系统:</strong> 正在运行 ${testCase.name}...</div>`;
-                outputContent.scrollTop = outputContent.scrollHeight;
+            if (terminalRunContent) {
+                terminalRunContent.innerHTML += `<div class="debug-message system"><strong>系统:</strong> 正在运行 ${testCase.name}...</div>`;
+                terminalRunContent.scrollTop = terminalRunContent.scrollHeight;
             }
 
             try {
@@ -594,12 +598,12 @@ class CPHPlugin {
                 }
 
                 // 显示结果
-                if (outputContent) {
+                if (terminalRunContent) {
                     const resultDiv = document.createElement('div');
                     resultDiv.className = `debug-message ${status.includes('✅') && message === '' ? 'success' : status.includes('❌') ? 'error' : 'warning'}`;
                     resultDiv.innerHTML = `<strong>${testCase.name}:</strong> ${status}${message ? `<br>${message}` : ''}`;
-                    outputContent.appendChild(resultDiv);
-                    outputContent.scrollTop = outputContent.scrollHeight;
+                    terminalRunContent.appendChild(resultDiv);
+                    terminalRunContent.scrollTop = terminalRunContent.scrollHeight;
                 }
 
                 // 等待一小段时间，让用户看到结果
@@ -607,18 +611,18 @@ class CPHPlugin {
 
             } catch (error) {
                 allPassed = false;
-                if (outputContent) {
-                    outputContent.innerHTML += `<div class="debug-message error"><strong>系统:</strong> ${testCase.name} 运行出错: ${error.message}</div>`;
-                    outputContent.scrollTop = outputContent.scrollHeight;
+                if (terminalRunContent) {
+                    terminalRunContent.innerHTML += `<div class="debug-message error"><strong>系统:</strong> ${testCase.name} 运行出错: ${error.message}</div>`;
+                    terminalRunContent.scrollTop = terminalRunContent.scrollHeight;
                 }
             }
         }
 
         // 完成运行
-        if (outputContent) {
+        if (terminalRunContent) {
             const summary = allPassed ? '🎉 全部通过！' : '❌ 存在未通过的测试点';
-            outputContent.innerHTML += `<div class="debug-message system"><strong>系统:</strong> 所有测试点运行完成！${summary}</div>`;
-            outputContent.scrollTop = outputContent.scrollHeight;
+            terminalRunContent.innerHTML += `<div class="debug-message system"><strong>系统:</strong> 所有测试点运行完成！${summary}</div>`;
+            terminalRunContent.scrollTop = terminalRunContent.scrollHeight;
         }
     }
 }

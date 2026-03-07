@@ -8,10 +8,24 @@ const keyboardContainer = document.getElementById('keyboard-container');
 const toggleBtn = document.getElementById('mode-toggle-btn');
 const runBtn = document.getElementById('run-btn');
 const copyBtn = document.getElementById('copy-btn');
-const outputPanel = document.getElementById('output-panel');
-const outputContent = document.getElementById('output-content');
-const closeOutputBtn = document.getElementById('close-output');
 const linesContainer = document.getElementById('lines-container');
+
+// 终端面板元素（替代旧的 output-panel）
+const terminalPanel = document.getElementById('terminal-panel');
+const terminalTabs = document.querySelectorAll('.terminal-tab');
+const terminalContents = document.querySelectorAll('.terminal-content');
+const terminalResizer = document.getElementById('terminal-resizer');
+
+// 旧的 output-panel 元素（保留兼容性，但不再使用）
+const outputPanel = null; // 已废弃
+const closeOutputBtn = null; // 已废弃
+
+// 各终端内容区域
+const terminalRunContent = document.getElementById('terminal-run-content');
+const terminalInfoContent = document.getElementById('terminal-info-content');
+const terminalDebugContent = document.getElementById('terminal-debug-content');
+
+
 
 // 3行模式的元素
 const linePrev = document.getElementById('line-prev');
@@ -187,22 +201,24 @@ require(['vs/editor/editor.main'], function() {
         }
     }
 
-    // 添加输出面板调整大小功能
+    // 添加终端面板调整大小功能
     let isResizing = false;
-    const outputPanel = document.getElementById('output-panel');
-    const outputResizer = document.getElementById('output-resizer');
+    const terminalPanel = document.getElementById('terminal-panel');
+    const terminalResizer = document.getElementById('terminal-resizer');
     const globalToolbar = document.getElementById('global-toolbar');
 
     // 鼠标按下调整大小手柄时
-    outputResizer.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        document.body.style.cursor = 'ns-resize';
-        e.preventDefault();
-    });
+    if (terminalResizer) {
+        terminalResizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'ns-resize';
+            e.preventDefault();
+        });
+    }
 
-    // 鼠标移动时调整输出面板大小
+    // 鼠标移动时调整终端面板大小
     document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
+        if (!isResizing || !terminalPanel) return;
 
         // 计算新的高度（基于窗口高度和鼠标位置）
         const windowHeight = window.innerHeight;
@@ -217,16 +233,81 @@ require(['vs/editor/editor.main'], function() {
         // 应用边界限制
         const clampedHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
 
-        if (outputPanel) {
-            outputPanel.style.height = `${clampedHeight}px`;
+        if (terminalPanel) {
+            terminalPanel.style.height = `${clampedHeight}px`;
         }
     });
 
-    // 鼠标释放时结束调整大小
+    // 鼠标释放时停止调整大小
     document.addEventListener('mouseup', () => {
         isResizing = false;
         document.body.style.cursor = '';
     });
+
+    // 终端标签页切换功能
+    function switchTerminalTab(tabName) {
+        // 移除所有标签页的 active 类
+        terminalTabs.forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.dataset.tab === tabName) {
+                tab.classList.add('active');
+            }
+        });
+
+        // 隐藏所有终端内容
+        terminalContents.forEach(content => {
+            content.style.display = 'none';
+        });
+
+        // 显示选中的终端内容
+        const selectedContent = document.getElementById(`terminal-${tabName}`);
+        if (selectedContent) {
+            selectedContent.style.display = 'block';
+        }
+
+        // 特殊处理：如果是调试终端且正在调试，显示输入行
+        const debugInputLine = document.getElementById('debug-input-line');
+        if (debugInputLine) {
+            if (tabName === 'debug' && window.debugState && window.debugState.isDebugging) {
+                debugInputLine.style.display = 'flex';
+            } else {
+                debugInputLine.style.display = 'none';
+            }
+        }
+    }
+
+    // 暴露到全局作用域，供 debug.js 使用
+    window.switchTerminalTab = switchTerminalTab;
+
+    // 绑定标签页点击事件
+    terminalTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            switchTerminalTab(tab.dataset.tab);
+        });
+    });
+
+    // 终端面板关闭按钮
+    const terminalCloseBtn = document.getElementById('terminal-close-btn');
+    if (terminalCloseBtn) {
+        terminalCloseBtn.addEventListener('click', () => {
+            if (terminalPanel) {
+                terminalPanel.style.display = 'none';
+            }
+        });
+    }
+
+    // 终端面板最小化按钮
+    const terminalMinimizeBtn = document.getElementById('terminal-minimize-btn');
+    if (terminalMinimizeBtn && terminalPanel) {
+        terminalMinimizeBtn.addEventListener('click', () => {
+            terminalPanel.classList.toggle('minimized');
+            if (terminalPanel.classList.contains('minimized')) {
+                terminalPanel.style.height = '36px';
+            } else {
+                terminalPanel.style.height = '30%';
+            }
+        });
+    }
 });
 
 // --- 恢复保存的输入数据 ---
@@ -248,6 +329,25 @@ if (runBtn) {
         }
     });
 }
+
+// 终端菜单按钮
+const terminalMenu = document.getElementById('terminal-menu');
+if (terminalMenu) {
+    terminalMenu.addEventListener('click', () => {
+        if (terminalPanel) {
+            terminalPanel.style.display = 'flex';
+            terminalPanel.classList.remove('minimized');
+        }
+    });
+}
+
+// 全局函数：显示终端面板
+window.showTerminalPanel = function() {
+    if (terminalPanel) {
+        terminalPanel.style.display = 'flex';
+        terminalPanel.classList.remove('minimized');
+    }
+};
 if (modalCancel) {
     modalCancel.addEventListener('click', () => { 
         if (inputModal) {
@@ -267,11 +367,16 @@ if (modalRun) {
 }
 
 async function executeRunCode(stdin) {
-    if (outputPanel) {
-        outputPanel.style.display = 'flex';
+    // 显示终端面板并切换到"运行"标签页
+    if (terminalPanel) {
+        terminalPanel.style.display = 'flex';
     }
-    if (outputContent) {
-        outputContent.innerHTML = '<span style="color:#888;">Compiling and running...</span>';
+    // 切换到运行终端标签页
+    switchTerminalTab('run');
+
+    // 在运行终端显示内容
+    if (terminalRunContent) {
+        terminalRunContent.innerHTML = '<span style="color:#888;">Compiling and running...</span>';
     }
     try {
         const response = await fetch('/run', {
@@ -287,12 +392,12 @@ async function executeRunCode(stdin) {
         if(data.Result) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res">${escapeHtml(data.Result)}</div></div>`;
         else if(!data.Errors) html += `<div class="out-section"><span class="out-title">OUTPUT:</span><div class="out-res" style="color:#666">(No output)</div></div>`;
         if(data.Stats) html += `<div class="out-stat">${escapeHtml(data.Stats)}</div>`;
-        if (outputContent) {
-            outputContent.innerHTML = html;
+        if (terminalRunContent) {
+            terminalRunContent.innerHTML = html;
         }
     } catch (e) {
-        if (outputContent) {
-            outputContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>请确定网络状态良好并稍后再试</span>`;
+        if (terminalRunContent) {
+            terminalRunContent.innerHTML = `<span class="out-err">Server Connection Error: ${e.message}<br>请确定网络状态良好并稍后再试</span>`;
         }
     }
 }
@@ -305,13 +410,8 @@ function copyCode() {
 if (copyBtn) {
     copyBtn.addEventListener('click', copyCode);
 }
-if (closeOutputBtn) {
-    closeOutputBtn.addEventListener('click', () => {
-        if (outputPanel) {
-            outputPanel.style.display = 'none';
-        }
-    });
-}
+
+// 旧的 closeOutputBtn 已废弃，不再需要
 
 // Core Helpers
 function escapeHtml(t) { 

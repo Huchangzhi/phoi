@@ -572,9 +572,10 @@ class PHCodeServer:
                         'success': False,
                         'message': '禁止使用 shell 逃逸命令 (!)'
                     })
-                
-                # 检查是否包含管道、重定向等
-                if any(c in command for c in ['|', '>', '<', '&', ';', '`', '$']):
+
+                # 检查是否包含管道、重定向等（允许 & 和 ->）
+                # & 允许用于 GDB 的后台执行等命令，-> 允许用于结构体/联合体成员访问
+                if any(c in command for c in ['|', '>', '<', ';', '`', '$']):
                     return jsonify({
                         'success': False,
                         'message': '命令包含非法字符'

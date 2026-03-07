@@ -14,6 +14,7 @@
         <div id="menu-bar-left">
             <img src="/static/logo.png" alt="Logo" id="logo">
             <div class="menu-item" id="file-menu">文件</div>
+            <div class="menu-item" id="terminal-menu">终端</div>
             <div class="menu-item" id="about-menu">关于</div>
         </div>
         <div id="menu-bar-center">
@@ -169,34 +170,40 @@
         </div>
     </div>
 
-    <!-- 输出面板 -->
-    <div id="output-panel">
-        <div id="output-header">
-            <span>Terminal</span>
-            <span id="close-output">✕</span>
-        </div>
-        <div id="output-content"></div>
-        <div id="output-resizer" class="output-resizer"></div>
-    </div>
-
-    <!-- 调试终端面板 -->
-    <div id="debug-panel" style="display: none;">
-        <div id="debug-resizer" class="output-resizer"></div>
-        <div id="debug-header">
-            <div id="debug-header-left">
-                <span>GDB 调试终端</span>
-                <span id="debug-pairing-code" style="margin-left: 10px; color: #4daafc; font-size: 12px;"></span>
+    <!-- 统一终端面板 -->
+    <div id="terminal-panel" style="display: none;">
+        <div id="terminal-resizer" class="output-resizer"></div>
+        <div id="terminal-header">
+            <div id="terminal-header-left">
+                <div class="terminal-tabs">
+                    <button class="terminal-tab active" data-tab="run" title="运行终端">运行</button>
+                    <button class="terminal-tab" data-tab="info" title="信息终端">信息</button>
+                    <button class="terminal-tab" data-tab="debug" title="调试终端">调试</button>
+                </div>
+                <span id="terminal-pairing-code" style="margin-left: 10px; color: #4daafc; font-size: 12px; display: none;"></span>
+                <button id="terminal-stop-debug-btn" style="margin-left: 10px; padding: 4px 10px; background-color: #c53030; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; display: none;" title="终止调试">终止调试</button>
             </div>
-            <div id="debug-header-right">
-                <button id="debug-minimize-btn" class="debug-header-btn" title="折叠">−</button>
-                <button id="debug-close-btn" class="debug-header-btn" title="退出调试">✕</button>
+            <div id="terminal-header-right">
+                <button id="terminal-minimize-btn" class="debug-header-btn" title="折叠">−</button>
+                <button id="terminal-close-btn" class="debug-header-btn" title="关闭">✕</button>
             </div>
         </div>
-        <div id="debug-terminal-container">
-            <div id="debug-terminal-content"></div>
-            <div id="debug-input-line" style="display: flex; align-items: center; border-top: 1px solid #333; padding: 5px;">
-                <span style="color: #4daafc; margin-right: 8px;">(gdb)</span>
-                <input type="text" id="debug-command-input" placeholder="输入 GDB 命令..." style="flex: 1; background: transparent; border: none; color: #d4d4d4; outline: none; font-family: Consolas, monospace; font-size: 13px;">
+        <div id="terminal-container">
+            <!-- 运行终端 -->
+            <div id="terminal-run" class="terminal-content">
+                <div id="terminal-run-content" class="terminal-content-body"></div>
+            </div>
+            <!-- 信息终端 -->
+            <div id="terminal-info" class="terminal-content" style="display: none;">
+                <div id="terminal-info-content" class="terminal-content-body"></div>
+            </div>
+            <!-- 调试终端 -->
+            <div id="terminal-debug" class="terminal-content" style="display: none;">
+                <div id="terminal-debug-content" class="terminal-content-body"></div>
+                <div id="debug-input-line" style="display: none; align-items: center; border-top: 1px solid #333; padding: 5px;">
+                    <span style="color: #4daafc; margin-right: 8px;">(gdb)</span>
+                    <input type="text" id="debug-command-input" placeholder="输入 GDB 命令..." style="flex: 1; background: transparent; border: none; color: #d4d4d4; outline: none; font-family: Consolas, monospace; font-size: 13px;">
+                </div>
             </div>
         </div>
     </div>
@@ -305,7 +312,7 @@
             </div>
             <div class="modal-body">
                 <p><a href="https://github.com/huchangzhi/phoi" target="_blank">PH code(原名phoi v2)</a> - 适合OI的在线C++编辑器</p>
-                <p>版本: 2.2.6</p>
+                <p>版本: 2.3.0beta.1</p>
                 <p>这是一个专为信息学竞赛（OI）设计的在线C++编辑器，支持在手机等移动设备上编写和运行C++代码。</p>
             </div>
         </div>

@@ -29,18 +29,21 @@
 
     function onDOMReady() {
         elements.debugBtn = document.getElementById('debug-btn');
-        elements.debugPanel = document.getElementById('debug-panel');
-        elements.debugHeader = document.getElementById('debug-header');
-        elements.debugTerminalContent = document.getElementById('debug-terminal-content');
+        // 使用新的终端面板结构
+        elements.terminalPanel = document.getElementById('terminal-panel');
+        elements.terminalTabs = document.querySelectorAll('.terminal-tab');
+        elements.debugTerminalContent = document.getElementById('terminal-debug-content');
         elements.debugCommandInput = document.getElementById('debug-command-input');
-        elements.debugPairingCode = document.getElementById('debug-pairing-code');
-        elements.debugMinimizeBtn = document.getElementById('debug-minimize-btn');
-        elements.debugCloseBtn = document.getElementById('debug-close-btn');
+        elements.debugInputLine = document.getElementById('debug-input-line');
+        elements.terminalPairingCode = document.getElementById('terminal-pairing-code');
+        elements.terminalStopDebugBtn = document.getElementById('terminal-stop-debug-btn');
+        elements.terminalMinimizeBtn = document.getElementById('terminal-minimize-btn');
+        elements.terminalCloseBtn = document.getElementById('terminal-close-btn');
         elements.debugStatusModal = document.getElementById('debug-status-modal');
         elements.debugStatusMessage = document.getElementById('debug-status-message');
         elements.debugStatusCancel = document.getElementById('debug-status-cancel');
         elements.debugStatusConfirm = document.getElementById('debug-status-confirm');
-        elements.debugResizer = document.getElementById('debug-resizer');
+        elements.terminalResizer = document.getElementById('terminal-resizer');
 
         bindEvents();
         console.log('[Debug] 调试模块已初始化');
@@ -50,11 +53,11 @@
         if (elements.debugBtn) {
             elements.debugBtn.addEventListener('click', handleDebugBtnClick);
         }
-        if (elements.debugMinimizeBtn) {
-            elements.debugMinimizeBtn.addEventListener('click', toggleMinimize);
+        if (elements.terminalMinimizeBtn) {
+            elements.terminalMinimizeBtn.addEventListener('click', toggleMinimize);
         }
-        if (elements.debugCloseBtn) {
-            elements.debugCloseBtn.addEventListener('click', handleDebugClose);
+        if (elements.terminalCloseBtn) {
+            elements.terminalCloseBtn.addEventListener('click', handleDebugClose);
         }
         if (elements.debugCommandInput) {
             elements.debugCommandInput.addEventListener('keydown', handleCommandKeydown);
@@ -65,17 +68,17 @@
         if (elements.debugStatusConfirm) {
             elements.debugStatusConfirm.addEventListener('click', handleDebugConfirm);
         }
-        if (elements.debugResizer) {
-            bindResizerEvents();
+        if (elements.terminalStopDebugBtn) {
+            elements.terminalStopDebugBtn.addEventListener('click', stopDebug);
         }
-        if (elements.debugHeader) {
-            elements.debugHeader.addEventListener('dblclick', toggleMinimize);
+        if (elements.terminalResizer) {
+            bindResizerEvents();
         }
     }
 
     function bindResizerEvents() {
         let isResizing = false;
-        elements.debugResizer.addEventListener('mousedown', (e) => {
+        elements.terminalResizer.addEventListener('mousedown', (e) => {
             if (debugState.isMinimized) return;
             isResizing = true;
             document.body.style.cursor = 'ns-resize';
@@ -86,8 +89,8 @@
             const windowHeight = window.innerHeight;
             const newHeight = windowHeight - e.clientY;
             const clampedHeight = Math.max(200, Math.min(newHeight, windowHeight - 100));
-            if (elements.debugPanel) {
-                elements.debugPanel.style.height = `${clampedHeight}px`;
+            if (elements.terminalPanel) {
+                elements.terminalPanel.style.height = `${clampedHeight}px`;
             }
         });
         document.addEventListener('mouseup', () => {
@@ -215,15 +218,30 @@
         if (elements.debugBtn) {
             elements.debugBtn.classList.add('debug-active');
         }
-        if (elements.debugPanel) {
-            elements.debugPanel.style.display = 'flex';
-            elements.debugPanel.classList.remove('minimized');
+        // 显示终端面板并切换到调试标签页
+        if (elements.terminalPanel) {
+            elements.terminalPanel.style.display = 'flex';
+            elements.terminalPanel.classList.remove('minimized');
         }
-        if (elements.debugPairingCode) {
-            elements.debugPairingCode.textContent = `配对码：${pairingCode}`;
+        // 切换到调试终端标签页
+        if (window.switchTerminalTab) {
+            window.switchTerminalTab('debug');
         }
+        if (elements.terminalPairingCode) {
+            elements.terminalPairingCode.textContent = `配对码：${pairingCode}`;
+            elements.terminalPairingCode.style.display = 'inline';
+        }
+        // 显示终止调试按钮
+        if (elements.terminalStopDebugBtn) {
+            elements.terminalStopDebugBtn.style.display = 'inline-block';
+        }
+        // 清空并显示初始消息
         if (elements.debugTerminalContent) {
             elements.debugTerminalContent.innerHTML = '<span class="debug-output-info">正在连接调试服务器...</span>\n';
+        }
+        // 显示调试输入行
+        if (elements.debugInputLine) {
+            elements.debugInputLine.style.display = 'flex';
         }
 
         connectSSE();
@@ -411,24 +429,33 @@
     }
 
     function toggleDebugPanel() {
-        if (!elements.debugPanel) return;
+        if (!elements.terminalPanel) return;
         if (debugState.isPanelVisible) {
-            elements.debugPanel.style.display = 'none';
+            elements.terminalPanel.style.display = 'none';
             debugState.isPanelVisible = false;
         } else {
-            elements.debugPanel.style.display = 'flex';
+            elements.terminalPanel.style.display = 'flex';
             debugState.isPanelVisible = true;
+            if (!debugState.isDebugging) {
+                // 调试未启动，显示提示
+                if (window.switchTerminalTab) {
+                    window.switchTerminalTab('debug');
+                }
+                if (elements.debugTerminalContent) {
+                    elements.debugTerminalContent.innerHTML = '<span class="debug-output-warning">调试未启动，请重新启动调试</span>\n';
+                }
+            }
             focusCommandInput();
         }
     }
 
     function toggleMinimize() {
-        if (!elements.debugPanel) return;
+        if (!elements.terminalPanel) return;
         debugState.isMinimized = !debugState.isMinimized;
         if (debugState.isMinimized) {
-            elements.debugPanel.classList.add('minimized');
+            elements.terminalPanel.classList.add('minimized');
         } else {
-            elements.debugPanel.classList.remove('minimized');
+            elements.terminalPanel.classList.remove('minimized');
             debugState.isPanelVisible = true;
             focusCommandInput();
         }
@@ -436,7 +463,7 @@
 
     async function handleDebugClose() {
         if (!debugState.isDebugging) return;
-        if (confirm('确定要退出调试吗？')) {
+        if (confirm('确定要退出调试吗，若不将保留调试进程？')) {
             await stopDebug();
         }
     }
@@ -462,9 +489,16 @@
         if (elements.debugBtn) {
             elements.debugBtn.classList.remove('debug-active');
         }
-        if (elements.debugPanel) {
-            elements.debugPanel.style.display = 'none';
-            elements.debugPanel.classList.remove('minimized');
+        if (elements.terminalPairingCode) {
+            elements.terminalPairingCode.style.display = 'none';
+        }
+        // 隐藏终止调试按钮
+        if (elements.terminalStopDebugBtn) {
+            elements.terminalStopDebugBtn.style.display = 'none';
+        }
+        // 隐藏调试输入行
+        if (elements.debugInputLine) {
+            elements.debugInputLine.style.display = 'none';
         }
         if (elements.debugTerminalContent) {
             elements.debugTerminalContent.innerHTML = '';
@@ -476,6 +510,9 @@
         debugState.isPanelVisible = false;
         debugState.isMinimized = false;
     }
+
+    // 暴露 debugState 到全局作用域，供 switchTerminalTab 使用
+    window.debugState = debugState;
 
     window.DebugModule = {
         init: init,

@@ -347,8 +347,11 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 #modal-cancel { background-color: #3e3e42; }
 #modal-run { background-color: #0e639c; }
 
-/* 输出面板 */
-#output-panel {
+/* 输出面板 - 已废弃，使用终端面板替代 */
+/* #output-panel { ... } */
+
+/* 统一终端面板 - GDB 终端风格 */
+#terminal-panel {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -361,9 +364,10 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     display: none;
     flex-direction: column;
     box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
-    transition: height 0.1s ease; /* 平滑过渡效果 */
+    transition: height 0.1s ease;
 }
-#output-header {
+
+#terminal-header {
     height: 35px;
     background-color: #1e1e1e;
     display: flex;
@@ -377,12 +381,63 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     user-select: none;
 }
 
-/* 关闭按钮使用默认光标 */
-#close-output {
-    cursor: default;
+#terminal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
-#output-content {
+
+#terminal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 终端标签页 */
+.terminal-tabs {
+    display: flex;
+    gap: 0;
+}
+
+.terminal-tab {
+    background: transparent;
+    border: none;
+    color: #969696;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.terminal-tab:hover {
+    color: #eee;
+    background-color: #2a2a2a;
+}
+
+.terminal-tab.active {
+    color: #eee;
+    border-bottom-color: #007acc;
+    background-color: #0d0d0d;
+}
+
+#terminal-container {
     flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.terminal-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.terminal-content-body {
+    height: 100%;
     padding: 10px;
     overflow-y: auto;
     font-family: Consolas, monospace;
@@ -391,11 +446,12 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     color: #ccc;
     user-select: text;
     -webkit-user-select: text;
-    cursor: text; /* 显示文本光标 */
+    cursor: text;
 }
-/* 输出面板调整大小手柄 */
-#output-resizer {
-    height: 6px;
+
+/* 终端面板调整大小手柄 */
+#terminal-resizer {
+    height: 3px;
     background: #007acc;
     cursor: ns-resize;
     position: absolute;
@@ -404,6 +460,27 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     right: 0;
     border-bottom: 1px solid #333;
     z-index: 10;
+}
+
+/* 调试输入行 */
+#debug-input-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1e1e1e;
+    border-top: 1px solid #333 !important;
+}
+
+/* 最小化状态 */
+#terminal-panel.minimized #terminal-container,
+#terminal-panel.minimized #debug-input-line {
+    display: none;
+}
+
+#terminal-panel.minimized {
+    height: 36px !important;
+    min-height: 36px !important;
 }
 .out-section { margin-bottom: 10px; }
 .out-title { color: #569cd6; font-weight: bold; margin-bottom: 4px; display: block; }
@@ -927,60 +1004,14 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     padding-left: 20px;
 }
 
-/* 调试功能样式 */
-#debug-panel {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 40%;
-    min-height: 200px;
-    background-color: #0d0d0d;
-    border-top: 2px solid #4daafc;
-    z-index: 200;
-    display: none;
-    flex-direction: column;
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
-}
+/* 调试功能样式 - 已废弃，使用终端面板替代 */
+/* #debug-panel { ... } */
+/* #debug-resizer { ... } */
+/* #debug-terminal-container { ... } */
+/* #debug-command-input { ... } */
+/* #debug-panel.minimized { ... } */
 
-#debug-header {
-    height: 35px;
-    background-color: #1e1e1e;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 10px;
-    border-bottom: 1px solid #333;
-    color: #eee;
-    font-size: 14px;
-    cursor: move;
-    user-select: none;
-}
-
-#debug-resizer {
-    height: 6px;
-    background: #4daafc;
-    cursor: ns-resize;
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    border-bottom: 1px solid #333;
-    z-index: 10;
-}
-
-#debug-header-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#debug-header-right {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
+/* 终端面板调试按钮样式 */
 .debug-header-btn {
     background: transparent;
     border: none;
@@ -999,47 +1030,8 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     background-color: #333333;
 }
 
-#debug-close-btn:hover {
+#terminal-close-btn:hover {
     background-color: #c42b1c;
-}
-
-#debug-terminal-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-#debug-terminal-content {
-    flex: 1;
-    padding: 10px;
-    overflow-y: auto;
-    font-family: Consolas, monospace;
-    font-size: 13px;
-    white-space: pre-wrap;
-    color: #ccc;
-    user-select: text;
-    -webkit-user-select: text;
-    cursor: text;
-    background-color: #0d0d0d;
-}
-
-#debug-command-input {
-    flex: 1;
-}
-
-#debug-command-input::placeholder {
-    color: #666;
-}
-
-/* 调试面板最小化状态 */
-#debug-panel.minimized #debug-terminal-container {
-    display: none;
-}
-
-#debug-panel.minimized {
-    height: 36px !important;
-    min-height: 36px !important;
 }
 
 /* 调试状态提示框 */

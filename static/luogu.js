@@ -1,4 +1,4 @@
-// 洛谷插件相关代码
+﻿// 洛谷插件相关代码
 
 // 初始化洛谷插件设置变量
 window.luoguThemeEnabled = localStorage.getItem('phoi_luogu_theme_enabled') === 'true'; // 默认为false
@@ -2434,19 +2434,22 @@ function showMessage(content, sender) {
     messageDiv.innerHTML = `<strong>${sender === 'user' ? '用户:' : '系统:'}</strong> ${content}`;
 
     // 添加到输出面板
-    const outputContent = document.getElementById('output-content');
-    if (outputContent) {
-        outputContent.appendChild(messageDiv);
-        outputContent.scrollTop = outputContent.scrollHeight;
+    const terminalInfoContent = document.getElementById('terminal-info-content');
+    if (terminalInfoContent) {
+        terminalInfoContent.appendChild(messageDiv);
+        terminalInfoContent.scrollTop = terminalInfoContent.scrollHeight;
 
-        // 显示输出面板
-        const outputPanel = document.getElementById('output-panel');
-        if (outputPanel) {
-            outputPanel.style.display = 'flex';
+        // 显示终端面板并切换到信息标签页
+            if (window.switchTerminalTab) {
+                window.switchTerminalTab('info');
+            }
+        const terminalPanel = document.getElementById('terminal-panel');
+        if (terminalPanel) {
+            terminalPanel.style.display = 'flex';
 
             // 3秒后自动隐藏
             setTimeout(() => {
-                outputPanel.style.display = 'none';
+                terminalPanel.style.display = 'none';
             }, 3000);
         }
     }
