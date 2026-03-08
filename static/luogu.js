@@ -341,6 +341,8 @@ function loadLuoguProblem(problemId) {
             const resizer = document.getElementById('problem-display-resizer');
             if (resizer) {
                 resizer.style.display = 'block';
+                // 更新 resizer 位置以匹配当前面板宽度
+                resizer.style.left = 'calc(100% - ' + problemDisplay.offsetWidth + 'px)';
             }
         }
 
@@ -542,16 +544,16 @@ function createProblemDisplayArea() {
             resizer.id = 'problem-display-resizer';
             resizer.style.position = 'fixed';
             resizer.style.top = '36px';
-            resizer.style.right = '400px'; // 初始位置：面板宽度（面板靠右对齐）
-            resizer.style.width = '15px'; // 增加拖动区域宽度，方便调节
+            resizer.style.left = 'calc(100% - 400px)'; // 使用百分比定位，跟随面板左边缘
+            resizer.style.width = '15px';
             resizer.style.height = 'calc(100vh - 36px)';
             resizer.style.cursor = 'ew-resize';
             resizer.style.zIndex = '101';
             resizer.style.backgroundColor = 'transparent';
             resizer.style.transition = 'background-color 0.2s';
-            resizer.style.display = 'none'; // 初始隐藏，与面板同步
+            resizer.style.display = 'none';
             resizer.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = 'rgba(0, 122, 204, 0.3)'; // 降低透明度，使高亮更柔和
+                this.style.backgroundColor = 'rgba(0, 122, 204, 0.3)';
             });
             resizer.addEventListener('mouseleave', function() {
                 this.style.backgroundColor = 'transparent';
@@ -575,10 +577,10 @@ function createProblemDisplayArea() {
                 if (!isResizing) return;
                 const deltaX = startX - e.clientX;
                 const newWidth = startWidth + deltaX;
-                // 限制最小和最大宽度
                 if (newWidth >= 200 && newWidth <= window.innerWidth - 200) {
                     problemDisplay.style.width = newWidth + 'px';
-                    resizer.style.right = newWidth + 'px'; // 同步更新 resizer 位置
+                    // 使用 left 定位，跟随面板宽度变化
+                    resizer.style.left = 'calc(100% - ' + newWidth + 'px)';
                 }
             });
 
@@ -591,6 +593,14 @@ function createProblemDisplayArea() {
             });
 
             document.body.appendChild(resizer);
+            
+            // 监听窗口大小变化，自动调整 resizer 位置
+            window.addEventListener('resize', function() {
+                const resizer = document.getElementById('problem-display-resizer');
+                if (resizer && problemDisplay.style.display !== 'none') {
+                    resizer.style.left = 'calc(100% - ' + problemDisplay.offsetWidth + 'px)';
+                }
+            });
         }
     }
 
@@ -622,6 +632,8 @@ function displayLuoguProblem(problemData) {
         const resizer = document.getElementById('problem-display-resizer');
         if (resizer) {
             resizer.style.display = 'block';
+            // 更新 resizer 位置以匹配当前面板宽度
+            resizer.style.left = 'calc(100% - ' + problemDisplay.offsetWidth + 'px)';
         }
     }
 

@@ -108,7 +108,8 @@ const CPP_AUTOCOMPLETE_DELAY_KEY = 'phoi_cpp_autocomplete_delay';
 
 // 默认设置值
 let cppAutocompleteEnabled = localStorage.getItem(CPP_AUTOCOMPLETE_ENABLED_KEY) !== 'false'; // 默认为true
-let cppAutocompleteDelay = parseInt(localStorage.getItem(CPP_AUTOCOMPLETE_DELAY_KEY)) || 200; // 默认为200ms
+let cppAutocompleteDelayValue = localStorage.getItem(CPP_AUTOCOMPLETE_DELAY_KEY);
+let cppAutocompleteDelay = cppAutocompleteDelayValue !== null ? parseInt(cppAutocompleteDelayValue) : 200; // 默认为 200ms
 
 
 let isShiftActive = false;
@@ -1072,7 +1073,7 @@ function initPluginSettings() {
 
         // 添加事件监听器
         cppAutocompleteDelayInput.addEventListener('change', function() {
-            cppAutocompleteDelay = parseInt(this.value) || 200;
+            cppAutocompleteDelay = this.value !== '' ? parseInt(this.value) : 200;
             localStorage.setItem(CPP_AUTOCOMPLETE_DELAY_KEY, cppAutocompleteDelay);
 
             // 更新编辑器的自动补全延迟（仅在代码补全启用时）

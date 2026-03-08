@@ -328,8 +328,28 @@ function initializeVFS() {
             }
         };
 
-        // 保存到本地存储
-        localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
+        // 检查是否有保存的代码但 VFS 中没有对应的文件
+        // 这通常发生在新用户首次使用时
+        const savedCode = localStorage.getItem('phoi_savedCode');
+        const currentFile = localStorage.getItem('phoi_currentFileName') || 'new.cpp';
+        
+        // 如果 VFS 为空但有保存的代码，或者当前文件不存在于 VFS 中
+        // 则创建该文件并保存代码
+        if (!vfsStructure['/'].children[currentFile]) {
+            const codeToSave = savedCode || (localStorage.getItem('phoi_defaultCode') || `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`);
+            
+            vfsStructure['/'].children[currentFile] = {
+                type: 'file',
+                name: currentFile,
+                content: codeToSave
+            };
+            
+            // 保存到本地存储
+            localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
+        } else {
+            // 保存到本地存储
+            localStorage.setItem(VFS_STORAGE_KEY, JSON.stringify(vfsStructure));
+        }
     }
 }
 
