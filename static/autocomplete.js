@@ -1082,6 +1082,7 @@ function registerCompletionProviders() {
             // 统一排序所有建议
             return { suggestions: sortSuggestionsByIntelligence(allSuggestions, prefix, fullText, cursorPos) };
         },
-        triggerCharacters: ['.', '<', '#', '>']
+        // 触发字符：包括字母以便在用户输入时也能触发补全
+        triggerCharacters: ['.', '<', '#', '>', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '_', '/']
     });
 }
