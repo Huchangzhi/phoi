@@ -1,4 +1,5 @@
 import os
+import gzip
 import subprocess
 import tempfile
 import shutil
@@ -36,6 +37,14 @@ def set_process_limits():
     except (ImportError, AttributeError):
         # Windows 或者是没有 resource 模块的环境，跳过
         pass
+
+
+@app.after_request
+def add_security_headers(response):
+    """添加跨源隔离所需的 HTTP 头（用于 clangd WASM 的 SharedArrayBuffer）"""
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    return response
 
 @app.route('/')
 def index():

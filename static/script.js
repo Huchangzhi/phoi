@@ -171,6 +171,9 @@ require(['vs/editor/editor.main'], function() {
     // 添加一个标志来跟踪程序化更新
     window.isUpdatingProgrammatically = false;
 
+    // Initialize clangd LSP after Monaco Editor is ready
+    initializeClangdIntegration();
+
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
         if (!window.isUpdatingProgrammatically) {

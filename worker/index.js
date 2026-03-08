@@ -44,6 +44,13 @@ function createResponse(data, status = 200) {
     });
 }
 
+// Add COOP/COEP headers for clangd WASM (SharedArrayBuffer support)
+function addSecurityHeaders(headers) {
+    headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+    headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    return headers;
+}
+
 // Handle CORS preflight requests
 function handleOptions(request) {
     if (request.method === 'OPTIONS') {
@@ -77,12 +84,11 @@ export default {
                     const assetResponse = await env.ASSETS.fetch('/index.html');
 
                     if (assetResponse.status !== 404) {
-                        const body = await assetResponse.text(); // 读取响应体
+                        const body = await assetResponse.text();
+                        const newHeaders = new Headers(assetResponse.headers);
+                        addSecurityHeaders(newHeaders);
                         return new Response(body, {
-                            headers: {
-                                ...assetResponse.headers,
-                                'Content-Type': 'text/html',
-                            },
+                            headers: newHeaders,
                             status: assetResponse.status
                         });
                     }
@@ -103,12 +109,11 @@ export default {
                     const assetResponse = await env.ASSETS.fetch('/easyrun.html');
 
                     if (assetResponse.status !== 404) {
-                        const body = await assetResponse.text(); // 读取响应体
+                        const body = await assetResponse.text();
+                        const newHeaders = new Headers(assetResponse.headers);
+                        addSecurityHeaders(newHeaders);
                         return new Response(body, {
-                            headers: {
-                                ...assetResponse.headers,
-                                'Content-Type': 'text/html',
-                            },
+                            headers: newHeaders,
                             status: assetResponse.status
                         });
                     }
@@ -257,7 +262,12 @@ export default {
                         const assetResponse = await env.ASSETS.fetch(url.pathname);
 
                         if (assetResponse.status !== 404) {
-                            return assetResponse;
+                            const newHeaders = new Headers(assetResponse.headers);
+                            addSecurityHeaders(newHeaders);
+                            return new Response(assetResponse.body, {
+                                headers: newHeaders,
+                                status: assetResponse.status
+                            });
                         }
                     } catch (e) {
                         console.error('Error fetching static asset:', e);

@@ -1,11 +1,21 @@
 import os
+import gzip
 import requests
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file, Response
 import urllib.parse
 import re
 from security_check import check_security
 
 app = Flask(__name__)
+
+@app.after_request
+def add_security_headers(response):
+    """添加跨源隔离所需的 HTTP 头（用于 clangd WASM 的 SharedArrayBuffer）"""
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+    # 禁用 Flask 的自动 gzip 解压
+    response.headers['Content-Encoding'] = 'identity'
+    return response
 
 REXTESTER_URL = "https://rextester.com/rundotnet/Run"
 LANG_CPP_GCC = 7

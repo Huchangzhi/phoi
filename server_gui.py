@@ -1,5 +1,6 @@
 import sys
 import os
+import gzip
 import threading
 import subprocess
 import webbrowser

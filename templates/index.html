@@ -312,7 +312,7 @@
             </div>
             <div class="modal-body">
                 <p><a href="https://github.com/huchangzhi/phoi" target="_blank">PH code(原名phoi v2)</a> - 适合OI的在线C++编辑器</p>
-                <p>版本: 2.3.3</p>
+                <p>版本: 2.4.0beta.1</p>
                 <p>这是一个专为信息学竞赛（OI）设计的在线C++编辑器，支持在手机等移动设备上编写和运行C++代码。</p>
             </div>
         </div>
@@ -326,7 +326,13 @@
     <script src="/static/lib/katex.min.js"></script>
     <script src="/static/lib/auto-render.min.js"></script>
 
+    <!-- Monaco Editor -->
     <script src="/static/lib/monaco-editor/loader.js"></script>
+
+    <!-- pako.js for gzip decompression -->
+    <script src="/static/lib/pako.min.js"></script>
+
+    <!-- Core Scripts -->
     <script src="/static/vfs.js"></script>
     <script src="/static/script.js"></script>
     <script src="/static/code_features.js"></script>
@@ -334,6 +340,10 @@
     <script src="/static/habit_tracker.js"></script>
     <script src="/static/autocomplete.js"></script>
     <script src="/static/luogu.js"></script>
+
+    <!-- Clangd LSP Integration -->
+    <script src="/static/clangd_lsp.js"></script>
+
     <script src="/static/cph.js"></script>
     <script src="/static/mobile_autocomplete.js"></script>
     <script src="/static/debug.js"></script>
