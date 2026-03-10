@@ -76,6 +76,30 @@ export default {
 
         const url = new URL(request.url);
 
+        // 为所有静态文件请求添加 COOP/COEP 头
+        // Cloudflare ASSETS binding 不会自动添加这些头
+        if (env.ASSETS) {
+            const staticExtensions = ['.js', '.css', '.wasm', '.wasm.compressed', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.json', '.map'];
+            const isStaticFile = staticExtensions.some(ext => url.pathname.endsWith(ext));
+            
+            if (isStaticFile || url.pathname.startsWith('/static/')) {
+                try {
+                    const assetResponse = await env.ASSETS.fetch(request);
+                    if (assetResponse.status !== 404) {
+                        const newHeaders = new Headers(assetResponse.headers);
+                        addSecurityHeaders(newHeaders);
+                        return new Response(assetResponse.body, {
+                            headers: newHeaders,
+                            status: assetResponse.status,
+                            statusText: assetResponse.statusText
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching static asset:', e);
+                }
+            }
+        }
+
         // Route: / (GET) - Serve the main page
         if (request.method === 'GET' && url.pathname === '/') {
             // If we have ASSETS binding, try to serve index.html from there
@@ -89,7 +113,7 @@ export default {
                         addSecurityHeaders(newHeaders);
                         return new Response(body, {
                             headers: newHeaders,
-                            status: assetResponse.status
+                            status: 200
                         });
                     }
                 } catch (e) {

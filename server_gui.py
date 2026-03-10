@@ -39,6 +39,14 @@ class PHCodeServer:
 
     def setup_routes(self):
         """设置Flask路由"""
+                
+        @self.app.after_request
+        def add_security_headers(response):
+            """添加跨源隔离所需的 HTTP 头（用于 clangd WASM 的 SharedArrayBuffer）"""
+            response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+            response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+            return response
+        
         @self.app.route('/')
         def index():
             return render_template('index.html')
