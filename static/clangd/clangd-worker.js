@@ -115,6 +115,7 @@ const jsonStream = {
 const stdout = (charCode) => {
     const msg = jsonStream.insert(charCode);
     if (msg) {
+        console.log('[clangd-worker] LSP response:', msg.id ? 'Response #' + msg.id : msg.method, msg.result !== undefined ? 'result=' + JSON.stringify(msg.result).substring(0, 100) : '');
         self.postMessage({ type: 'lsp', message: msg });
     }
 };
@@ -201,6 +202,7 @@ self.onmessage = async function(e) {
             self.postMessage({ type: 'error', error: err.message });
         }
     } else if (type === 'lsp' && sendToClangd) {
+        console.log('[clangd-worker] Sending to clangd:', message.method || 'notification');
         sendToClangd(message);
     }
 };

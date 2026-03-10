@@ -280,38 +280,9 @@ class ClangdLSP {
     registerCompletionProvider() {
         if (!monaco) return;
 
-        // 仅注册错误诊断，不注册代码补全
+        // 仅注册错误诊断，不注册代码补全、悬停、签名帮助
         // clangd 会通过 textDocument/publishDiagnostics 发送错误/警告
         console.log('[Clangd] Diagnostic provider registered');
-
-        // 注册悬停提供器（鼠标悬停显示类型信息/文档）
-        monaco.languages.registerHoverProvider('cpp', {
-            provideHover: async (model, position) => {
-                if (!this.initialized) return null;
-                return await this.requestHover(model, position);
-            }
-        });
-
-        // 注册签名帮助提供器（函数参数提示）
-        monaco.languages.registerSignatureHelpProvider('cpp', {
-            signatureHelpTriggerCharacters: ['(', ','],
-            provideSignatureHelp: async (model, position) => {
-                if (!this.initialized) return null;
-                return await this.requestSignatureHelp(model, position);
-            }
-        });
-
-        // 代码补全已禁用 - 使用 autocomplete.js 作为备选方案
-        /*
-        monaco.languages.registerCompletionItemProvider('cpp', {
-            triggerCharacters: ['.', '<', '>', ':', '"', '/', '*', '(', '[', '{', ',', ';', ' ', '=', '+', '-', '|', '&', '!', '?', '#', '~', '%', '^', '@'],
-            provideCompletionItems: async (model, position) => {
-                if (!this.initialized) return { suggestions: [] };
-                const result = await this.requestCompletion(model, position);
-                return { suggestions: result || [], dispose: () => {} };
-            }
-        });
-        */
     }
 
     async requestCompletion(model, position) {
