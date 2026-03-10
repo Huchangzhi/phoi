@@ -141,6 +141,10 @@ async function initClangd(wasmUrl) {
         stderr,
         onExit: onAbort,
         onAbort,
+        // 增加内存配置
+        INITIAL_MEMORY: 2 * 1024 * 1024 * 1024, // 2GB 初始内存
+        MAXIMUM_MEMORY: 4 * 1024 * 1024 * 1024, // 4GB 最大内存
+        ALLOW_MEMORY_GROWTH: true,
     });
 
     clangdInstance = Module;
