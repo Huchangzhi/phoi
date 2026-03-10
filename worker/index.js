@@ -76,15 +76,123 @@ export default {
 
         const url = new URL(request.url);
 
-        // 为所有静态文件请求添加 COOP/COEP 头
-        // Cloudflare ASSETS binding 不会自动添加这些头
-        if (env.ASSETS) {
-            const staticExtensions = ['.js', '.css', '.wasm', '.wasm.compressed', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.json', '.map'];
-            const isStaticFile = staticExtensions.some(ext => url.pathname.endsWith(ext));
-            
-            if (isStaticFile || url.pathname.startsWith('/static/')) {
+        // 为所有请求添加 COOP/COEP 头（包括静态文件）
+        // 不使用 ASSETS binding 的自动服务，而是手动处理
+        async function handleRequest() {
+            // Route: /run (POST) - Execute code via Rextester
+            if (request.method === 'POST' && url.pathname === '/run') {
                 try {
-                    const assetResponse = await env.ASSETS.fetch(request);
+                    const { code, input } = await request.json();
+
+                    // Security check
+                    const securityCheck = checkSecurity(code || '');
+                    if (!securityCheck.safe) {
+                        return createResponse({
+                            Errors: securityCheck.message,
+                            Result: "",
+                            Stats: "Compilation aborted due to security violation."
+                        }, 400);
+                    }
+
+                    // Prepare payload for Rextester
+                    const payload = {
+                        LanguageChoiceWrapper: LANG_CPP_GCC,
+                        Program: code || '',
+                        Input: input || '',
+                        CompilerArgs: "-o a.out source_file.cpp -Wall -std=c++14 -O2"
+                    };
+
+                    // Send request to Rextester
+                    const resp = await fetch(REXTESTER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(payload)
+                    });
+
+                    if (!resp.ok) {
+                        throw new Error(`Rextester API error: ${resp.status}`);
+                    }
+
+                    const result = await resp.json();
+                    return createResponse(result);
+
+                } catch (error) {
+                    if (error.name === 'TimeoutError') {
+                        return createResponse({
+                            Errors: "Server Timeout: Request to compiler timed out, please try again later."
+                        }, 504);
+                    }
+                    return createResponse({
+                        Errors: `Internal Server Error: ${error.message}`
+                    }, 500);
+                }
+            }
+
+            // Route: /easyrun_api (GET) - Execute code from URL parameter
+            else if (request.method === 'GET' && url.pathname === '/easyrun_api') {
+                try {
+                    const urlEncodedCode = url.searchParams.get('url');
+                    if (!urlEncodedCode) {
+                        return createResponse({
+                            Errors: "No code provided"
+                        }, 400);
+                    }
+
+                    const code = decodeURIComponent(urlEncodedCode);
+                    const input = url.searchParams.get('input') || '';
+
+                    // Security check
+                    const securityCheck = checkSecurity(code);
+                    if (!securityCheck.safe) {
+                        return createResponse({
+                            Errors: securityCheck.message,
+                            Result: "",
+                            Stats: "Compilation aborted due to security violation."
+                        }, 400);
+                    }
+
+                    const payload = {
+                        LanguageChoiceWrapper: LANG_CPP_GCC,
+                        Program: code,
+                        Input: input,
+                        CompilerArgs: "-o a.out source_file.cpp -Wall -std=c++14 -O2 -pedantic-errors"
+                    };
+
+                    const resp = await fetch(REXTESTER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(payload)
+                    });
+
+                    if (!resp.ok) {
+                        throw new Error(`Rextester API error: ${resp.status}`);
+                    }
+
+                    const result = await resp.json();
+                    return createResponse(result);
+
+                } catch (error) {
+                    return createResponse({
+                        Errors: `Internal Server Error: ${error.message}`
+                    }, 500);
+                }
+            }
+
+            // 所有其他请求 - 从 ASSETS 获取静态文件
+            if (env.ASSETS) {
+                try {
+                    // 对于根路径，服务 index.html
+                    let assetPath = url.pathname;
+                    if (assetPath === '/') {
+                        assetPath = '/index.html';
+                    }
+
+                    const assetResponse = await env.ASSETS.fetch(new Request(url.origin + assetPath));
+
                     if (assetResponse.status !== 404) {
                         const newHeaders = new Headers(assetResponse.headers);
                         addSecurityHeaders(newHeaders);
@@ -95,233 +203,24 @@ export default {
                         });
                     }
                 } catch (e) {
-                    console.error('Error fetching static asset:', e);
+                    console.error('Error fetching asset:', e);
                 }
             }
+
+            // Fallback: 404
+            return new Response('Not Found', { status: 404 });
         }
 
-        // Route: / (GET) - Serve the main page
-        if (request.method === 'GET' && url.pathname === '/') {
-            // If we have ASSETS binding, try to serve index.html from there
-            if (env.ASSETS) {
-                try {
-                    const assetResponse = await env.ASSETS.fetch('/index.html');
+        const response = await handleRequest();
 
-                    if (assetResponse.status !== 404) {
-                        const body = await assetResponse.text();
-                        const newHeaders = new Headers(assetResponse.headers);
-                        addSecurityHeaders(newHeaders);
-                        return new Response(body, {
-                            headers: newHeaders,
-                            status: 200
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error fetching index.html:', e);
-                }
-            }
+        // 确保所有响应都有 COOP/COEP 头
+        const newHeaders = new Headers(response.headers);
+        addSecurityHeaders(newHeaders);
 
-            // Fallback: return error if asset not found
-            return new Response('Index page not found', { status: 404 });
-        }
-
-        // Route: /easyrun (GET) - Serve the easyrun page
-        else if (request.method === 'GET' && url.pathname === '/easyrun') {
-            // If we have ASSETS binding, try to serve easyrun.html from there
-            if (env.ASSETS) {
-                try {
-                    const assetResponse = await env.ASSETS.fetch('/easyrun.html');
-
-                    if (assetResponse.status !== 404) {
-                        const body = await assetResponse.text();
-                        const newHeaders = new Headers(assetResponse.headers);
-                        addSecurityHeaders(newHeaders);
-                        return new Response(body, {
-                            headers: newHeaders,
-                            status: assetResponse.status
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error fetching easyrun.html:', e);
-                }
-            }
-
-            // Fallback: return error if asset not found
-            return new Response('EasyRun page not found', { status: 404 });
-        }
-
-        // Route: /run (POST) - Execute code via Rextester
-        else if (request.method === 'POST' && url.pathname === '/run') {
-            try {
-                const { code, input } = await request.json();
-
-                // Security check
-                const securityCheck = checkSecurity(code || '');
-                if (!securityCheck.safe) {
-                    return createResponse({
-                        Errors: securityCheck.message,
-                        Result: "",
-                        Stats: "Compilation aborted due to security violation."
-                    }, 400);
-                }
-
-                // Prepare payload for Rextester
-                const payload = {
-                    LanguageChoiceWrapper: LANG_CPP_GCC,
-                    Program: code || '',
-                    Input: input || '',
-                    CompilerArgs: "-o a.out source_file.cpp -Wall -std=c++14 -O2"
-                };
-
-                // Send request to Rextester
-                const resp = await fetch(REXTESTER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(payload)
-                });
-
-                if (!resp.ok) {
-                    throw new Error(`Rextester API error: ${resp.status}`);
-                }
-
-                const result = await resp.json();
-                return createResponse(result);
-
-            } catch (error) {
-                if (error.name === 'TimeoutError') {
-                    return createResponse({
-                        Errors: "Server Timeout: Request to compiler timed out, please try again later."
-                    }, 504);
-                }
-                return createResponse({
-                    Errors: `Internal Server Error: ${error.message}`
-                }, 500);
-            }
-        }
-
-        // Route: /easyrun_api (GET) - Execute code from URL parameter
-        else if (request.method === 'GET' && url.pathname === '/easyrun_api') {
-            try {
-                const urlEncodedCode = url.searchParams.get('url');
-                if (!urlEncodedCode) {
-                    return createResponse({
-                        Errors: "Missing code in URL parameter"
-                    }, 400);
-                }
-
-                // Decode the URL-encoded code
-                const code = decodeURIComponent(urlEncodedCode);
-
-                // Security check
-                const securityCheck = checkSecurity(code);
-                if (!securityCheck.safe) {
-                    return createResponse({
-                        Errors: securityCheck.message,
-                        Result: "",
-                        Stats: "Compilation aborted due to security violation."
-                    }, 400);
-                }
-
-                // Get optional stdin
-                const stdin = url.searchParams.get('stdin') || '';
-
-                // Prepare payload for Rextester
-                const payload = {
-                    LanguageChoiceWrapper: LANG_CPP_GCC,
-                    Program: code,
-                    Input: stdin,
-                    CompilerArgs: "-o a.out source_file.cpp -Wall -std=c++14 -O2"
-                };
-
-                // Send request to Rextester
-                const resp = await fetch(REXTESTER_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams(payload)
-                });
-
-                if (!resp.ok) {
-                    throw new Error(`Rextester API error: ${resp.status}`);
-                }
-
-                const result = await resp.json();
-                return createResponse(result);
-
-            } catch (error) {
-                if (error.name === 'TimeoutError') {
-                    return createResponse({
-                        Errors: "Server Timeout: Request to compiler timed out, please try again later."
-                    }, 504);
-                }
-                return createResponse({
-                    Errors: `Internal Server Error: ${error.message}`
-                }, 500);
-            }
-        }
-
-        // Route: /health (GET) - Health check endpoint
-        else if (request.method === 'GET' && url.pathname === '/health') {
-            return createResponse({ status: 'OK', message: 'PH Code API is running' });
-        }
-
-        // For all other routes, let the static assets system handle it
-        else {
-            // For API routes that don't match, return 404
-            if (url.pathname.startsWith('/api/') || url.pathname === '/run' || url.pathname === '/easyrun_api' || url.pathname === '/health') {
-                return createResponse({
-                    Errors: "Endpoint not found",
-                    Result: "",
-                    Stats: "The requested endpoint does not exist"
-                }, 404);
-            }
-
-            // For routes that look like static assets, try to serve from the static directory
-            if (url.pathname.startsWith('/static/')) {
-                if (env.ASSETS) {
-                    try {
-                        const assetResponse = await env.ASSETS.fetch(url.pathname);
-
-                        if (assetResponse.status !== 404) {
-                            const newHeaders = new Headers(assetResponse.headers);
-                            addSecurityHeaders(newHeaders);
-                            return new Response(assetResponse.body, {
-                                headers: newHeaders,
-                                status: assetResponse.status
-                            });
-                        }
-                    } catch (e) {
-                        console.error('Error fetching static asset:', e);
-                    }
-                }
-                return new Response('Not Found', { status: 404 });
-            }
-
-            // For other routes, serve the main index page (SPA fallback)
-            if (env.ASSETS) {
-                try {
-                    const assetResponse = await env.ASSETS.fetch('/index.html');
-
-                    if (assetResponse.status !== 404) {
-                        const body = await assetResponse.text(); // 读取响应体
-                        return new Response(body, {
-                            headers: {
-                                ...assetResponse.headers,
-                                'Content-Type': 'text/html',
-                            },
-                            status: assetResponse.status
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error fetching fallback index.html:', e);
-                }
-            }
-
-            // Fallback: return error if asset not found
-            return new Response('Page not found', { status: 404 });
-        }
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: newHeaders
+        });
     }
 };
