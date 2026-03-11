@@ -1309,7 +1309,13 @@ function showPreferencesModal() {
     if (defaultCodeEditor) {
         defaultCodeEditor.value = currentDefaultCode;
     }
-    
+
+    // 加载 clangd 设置
+    const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
+    if (clangdEnabledCheckbox) {
+        clangdEnabledCheckbox.checked = localStorage.getItem('phoi_clangd_enabled') === 'true';
+    }
+
     // 显示弹窗
     if (preferencesModal) {
         preferencesModal.style.display = 'flex';
@@ -1329,13 +1335,26 @@ function savePreferencesChanges() {
         const newDefaultCode = defaultCodeEditor.value;
         localStorage.setItem('phoi_defaultCode', newDefaultCode);
         
-        // 更新当前的defaultCode变量
+        // 更新当前的 defaultCode 变量
         // 注意：这不会影响当前已打开的文件，只会影响新创建的文件
         showMessage('默认代码已保存！', 'system');
-        
-        // 隐藏弹窗
-        hidePreferencesModal();
     }
+
+    // 保存 clangd 设置
+    const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
+    if (clangdEnabledCheckbox) {
+        const isEnabled = clangdEnabledCheckbox.checked;
+        localStorage.setItem('phoi_clangd_enabled', isEnabled);
+
+        if (isEnabled) {
+            showMessage('Clangd 设置已保存！刷新页面后生效。', 'system');
+        } else {
+            showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
+        }
+    }
+
+    // 隐藏弹窗
+    hidePreferencesModal();
 }
 
 function resetToDefaultCode() {
@@ -1440,6 +1459,89 @@ function showLocalStorageInfo() {
     document.body.appendChild(overlay);
 }
 
+
+// 显示 Clangd 语言服务器信息
+function showClangdInfo() {
+    // 创建遮罩层
+    const overlay = document.createElement('div');
+    overlay.id = 'clangd-info-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+
+    // 创建弹窗内容
+    const modal = document.createElement('div');
+    modal.id = 'clangd-info-modal';
+    modal.style.backgroundColor = '#252526';
+    modal.style.padding = '20px';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+    modal.style.textAlign = 'left';
+    modal.style.maxWidth = '500px';
+    modal.style.width = '80%';
+    modal.style.color = '#cccccc';
+    modal.style.maxHeight = '80vh';
+    modal.style.overflowY = 'auto';
+
+    // 添加标题
+    const title = document.createElement('h3');
+    title.textContent = 'Clangd 前端语言服务器';
+    title.style.color = '#ffffff';
+    title.style.marginTop = '0';
+    title.style.marginBottom = '15px';
+    modal.appendChild(title);
+
+    // 添加说明内容
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <p>Clangd 是一个强大的 C/C++ 语言服务器，提供以下功能：</p>
+        <ul style="margin: 15px 0; padding-left: 20px;">
+            <li>实时错误诊断</li>
+        </ul>
+        <p><strong>注意事项：</strong></p>
+        <ul style="margin: 15px 0; padding-left: 20px;">
+            <li>此功能为实验性功能，可能存在不稳定因素</li>
+            <li>首次加载需要下载较大的 WASM 文件（约 25MB），请耐心等待</li>
+            <li>需要浏览器支持解压api</li>
+            <li>启用后会增加内存占用和初始加载时间</li>
+            <li>错误诊断延迟时间据电脑性能定</li>
+        </ul>
+        <p>如果您在移动设备上使用或网络条件不佳，建议禁用此功能。</p>
+    `;
+    modal.appendChild(content);
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.textAlign = 'right';
+    buttonContainer.style.marginTop = '20px';
+
+    // 确定按钮
+    const okButton = document.createElement('button');
+    okButton.textContent = '确定';
+    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.color = 'white';
+    okButton.style.border = 'none';
+    okButton.style.padding = '8px 16px';
+    okButton.style.borderRadius = '4px';
+    okButton.style.cursor = 'pointer';
+    okButton.onclick = function() {
+        document.body.removeChild(overlay);
+    };
+
+    buttonContainer.appendChild(okButton);
+    modal.appendChild(buttonContainer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
 // 首选项弹窗事件监听器
 if (preferencesBtn) {
     preferencesBtn.addEventListener('click', function() {
@@ -1453,6 +1555,10 @@ document.addEventListener('click', function(event) {
     if (event.target && event.target.id === 'local-storage-info') {
         event.stopPropagation(); // 阻止事件冒泡
         showLocalStorageInfo();
+    }
+    if (event.target && event.target.id === 'clangd-info') {
+        event.stopPropagation(); // 阻止事件冒泡
+        showClangdInfo();
     }
 });
 

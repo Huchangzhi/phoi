@@ -483,6 +483,14 @@ class ClangdLSP {
 window.clangdLSP = new ClangdLSP();
 
 async function initializeClangdIntegration() {
+    // 检查 clangd 是否启用
+    const clangdEnabled = localStorage.getItem('phoi_clangd_enabled') === 'true';
+    
+    if (!clangdEnabled) {
+        console.log('[Clangd] Clangd 被禁用，跳过初始化');
+        return;
+    }
+    
     console.log('[Clangd] Starting initialization...');
 
     window.clangdLSP.onStatusChange((status, progress, max) => {

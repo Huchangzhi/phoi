@@ -163,6 +163,102 @@ async function initClangd(wasmUrl) {
         '-Wall'
     ];
 
+    // 创建 bits/stdc++.h 虚拟文件
+    // 注意：移除 csetjmp/setjmp.h 等需要异常处理的头文件
+    // 这些头文件在 WASM 环境中需要 -mllvm -wasm-enable-sjlj 支持
+    const stdcPlusPlusContent = `// bits/stdc++.h - Virtual header for clangd
+// This file is used to satisfy clangd's dependency resolution
+// 注意：移除了需要 WASM 异常处理支持的头文件
+#ifndef _GLIBCXX_BITS_STDCC_H
+#define _GLIBCXX_BITS_STDCC_H
+
+// C++ 标准库头文件
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <queue>
+#include <stack>
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <climits>
+#include <cctype>
+#include <cassert>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+#include <bitset>
+#include <list>
+#include <array>
+#include <tuple>
+#include <utility>
+#include <memory>
+#include <functional>
+#include <iterator>
+#include <stdexcept>
+#include <exception>
+#include <new>
+#include <typeinfo>
+#include <type_traits>
+#include <chrono>
+#include <random>
+#include <regex>
+#include <atomic>
+// #include <mutex>              // 需要线程支持
+// #include <thread>             // 需要线程支持
+// #include <condition_variable> // 需要线程支持
+// #include <future>             // 需要线程支持
+#include <valarray>
+#include <complex>
+#include <numeric>
+#include <initializer_list>
+#include <cfenv>
+#include <cfloat>
+#include <cinttypes>
+#include <clocale>
+// #include <csetjmp>            // 需要异常处理支持，已移除
+// #include <csignal>            // 可能有问题，已移除
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
+#include <cwchar>
+#include <cwctype>
+// #include <tgmath.h>           // 可能有问题，已移除
+
+// C 标准库头文件（WASM 兼容的）
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <limits.h>
+#include <ctype.h>
+#include <math.h>
+#include <float.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#endif // _GLIBCXX_BITS_STDCC_H
+`;
+
+    // 写入虚拟的 bits/stdc++.h 文件
+    try {
+        Module.FS.createPath('/usr', 'include', true, true);
+        Module.FS.createPath('/usr/include', 'bits', true, true);
+        Module.FS.writeFile('/usr/include/bits/stdc++.h', stdcPlusPlusContent);
+        console.log('[clangd-worker] Created virtual bits/stdc++.h');
+    } catch (e) {
+        console.warn('[clangd-worker] Could not create bits/stdc++.h:', e);
+    }
+
     // 写入 .clangd 配置文件
     Module.FS.writeFile('/home/web_user/.clangd', JSON.stringify({
         CompileFlags: { Add: flags }
