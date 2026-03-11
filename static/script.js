@@ -375,6 +375,22 @@ if (modalRun) {
     });
 }
 
+// 监听数据输入框的按键事件
+if (modalTextarea) {
+    modalTextarea.addEventListener('keydown', function(e) {
+        // 检测到 Enter 键，且不是 Shift+Enter 或 Ctrl+Enter 时，执行运行
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+            e.preventDefault(); // 阻止默认的换行行为
+            if (inputModal) {
+                inputModal.style.display = 'none';
+            }
+            executeRunCode(modalTextarea.value);
+        }
+        // Shift+Enter 或 Ctrl+Enter 保持默认换行行为
+        // Alt+Enter 也允许换行
+    });
+}
+
 async function executeRunCode(stdin) {
     // 显示终端面板并切换到"运行"标签页
     if (terminalPanel) {
@@ -1351,6 +1367,9 @@ function savePreferencesChanges() {
         } else {
             showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
         }
+        
+        // 更新右键菜单状态
+        updateContextMenuState();
     }
 
     // 隐藏弹窗
@@ -1671,3 +1690,174 @@ window.addEventListener('click', function(event) {
         hidePreferencesModal();
     }
 });
+
+// ===== 右键菜单功能 =====
+
+// 使用 Monaco 编辑器的内置菜单系统注册右键菜单项
+function registerEditorContextMenu() {
+    // 注册查找命令
+    const findCommandId = 'phoi.find';
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, function() {
+        monacoEditor.trigger('contextmenu', 'actions.find', null);
+    });
+
+    // 注册替换命令
+    const replaceCommandId = 'phoi.replace';
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, function() {
+        monacoEditor.trigger('contextmenu', 'editor.action.startFindReplaceAction', null);
+    });
+
+    // 注册执行代码命令
+    const runCodeCommandId = 'phoi.runCode';
+    // 原有快捷键：Ctrl+Enter
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+        // 唤起数据输入框
+        if (inputModal) {
+            inputModal.style.display = 'flex';
+            if (modalTextarea) {
+                modalTextarea.focus();
+            }
+        }
+    });
+    // 新增快捷键：F8
+    monacoEditor.addCommand(monaco.KeyCode.F8, function() {
+        // 唤起数据输入框
+        if (inputModal) {
+            inputModal.style.display = 'flex';
+            if (modalTextarea) {
+                modalTextarea.focus();
+            }
+        }
+    });
+
+    // 注册CPH运行命令
+    const cphRunCommandId = 'phoi.cphRun';
+    // 原有快捷键：Alt+Enter
+    monacoEditor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, function() {
+        // 运行CPH所有测试点
+        if (window.cphPlugin && typeof window.cphPlugin.runAllTests === 'function') {
+            // 保存当前编辑器内容到全局变量，以便CPH使用
+            if (monacoEditor) {
+                globalText = monacoEditor.getValue();
+            }
+            window.cphPlugin.runAllTests();
+        } else {
+            showMessage('CPH 插件未加载或不可用', 'system');
+        }
+    });
+    // 新增快捷键：F9
+    monacoEditor.addCommand(monaco.KeyCode.F9, function() {
+        // 运行CPH所有测试点
+        if (window.cphPlugin && typeof window.cphPlugin.runAllTests === 'function') {
+            // 保存当前编辑器内容到全局变量，以便CPH使用
+            if (monacoEditor) {
+                globalText = monacoEditor.getValue();
+            }
+            window.cphPlugin.runAllTests();
+        } else {
+            showMessage('CPH 插件未加载或不可用', 'system');
+        }
+    });
+
+    // 查找菜单项
+    monacoEditor.addAction({
+        id: findCommandId,
+        label: '查找',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF],
+        contextMenuGroupId: '2_find',
+        contextMenuOrder: 1.1,
+        run: function() {
+            monacoEditor.trigger('contextmenu', 'actions.find', null);
+            return null;
+        }
+    });
+
+    // 替换菜单项
+    monacoEditor.addAction({
+        id: replaceCommandId,
+        label: '替换',
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH],
+        contextMenuGroupId: '2_find',
+        contextMenuOrder: 1.2,
+        run: function() {
+            monacoEditor.trigger('contextmenu', 'editor.action.startFindReplaceAction', null);
+            return null;
+        }
+    });
+
+    // 执行代码菜单项
+    monacoEditor.addAction({
+        id: runCodeCommandId,
+        label: '执行代码',
+        keybindings: [
+            monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,  // Ctrl+Enter
+            monaco.KeyCode.F8  // F8
+        ],
+        contextMenuGroupId: 'run_group',
+        contextMenuOrder: 1.1,
+        run: function() {
+            // 唤起数据输入框
+            if (inputModal) {
+                inputModal.style.display = 'flex';
+                if (modalTextarea) {
+                    modalTextarea.focus();
+                }
+            }
+            return null;
+        }
+    });
+
+    // CPH运行菜单项
+    monacoEditor.addAction({
+        id: cphRunCommandId,
+        label: 'CPH 运行',
+        keybindings: [
+            monaco.KeyMod.Alt | monaco.KeyCode.Enter,  // Alt+Enter
+            monaco.KeyCode.F9  // F9
+        ],
+        contextMenuGroupId: 'run_group',
+        contextMenuOrder: 1.2,
+        run: function() {
+            // 运行CPH所有测试点
+            if (window.cphPlugin && typeof window.cphPlugin.runAllTests === 'function') {
+                // 保存当前编辑器内容到全局变量，以便CPH使用
+                if (monacoEditor) {
+                    globalText = monacoEditor.getValue();
+                }
+                window.cphPlugin.runAllTests();
+            } else {
+                showMessage('CPH 插件未加载或不可用', 'system');
+            }
+            return null;
+        }
+    });
+}
+
+// 更新右键菜单状态
+function updateContextMenuState() {
+    if (monacoEditor) {
+        registerEditorContextMenu();
+    }
+}
+
+// 在编辑器初始化后注册右键菜单
+function initContextMenu() {
+    if (monacoEditor) {
+        registerEditorContextMenu();
+    }
+}
+
+// 等待编辑器初始化
+if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+    initContextMenu();
+} else {
+    // 等待编辑器初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        // 延迟一点时间，确保编辑器完全加载
+        setTimeout(() => {
+            if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+                initContextMenu();
+            }
+        }, 1000);
+    });
+}

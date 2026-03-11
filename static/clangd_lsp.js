@@ -511,6 +511,141 @@ class ClangdLSP {
     isUsingClangd() {
         return this.initialized && !this.usingFallback;
     }
+
+    // 格式化文档（4空格缩进）
+    async formatDocument() {
+        if (!this.editor || !this.initialized) return false;
+
+        const model = this.editor.getModel();
+        if (!model) return false;
+
+        const params = {
+            textDocument: { uri: this.documentUri },
+            options: {
+                tabSize: 4,
+                insertSpaces: true
+            }
+        };
+
+        try {
+            const result = await this.sendRequest('textDocument/formatting', params);
+            if (result && result.length > 0) {
+                // 应用格式化编辑
+                const edits = result.map(edit => ({
+                    range: {
+                        startLineNumber: edit.range.start.line + 1,
+                        startColumn: edit.range.start.character + 1,
+                        endLineNumber: edit.range.end.line + 1,
+                        endColumn: edit.range.end.character + 1
+                    },
+                    text: edit.newText
+                }));
+
+                model.applyEdits(edits);
+                console.log('[Clangd] Document formatted');
+                return true;
+            }
+        } catch (error) {
+            console.error('[Clangd] Format error:', error);
+        }
+        return false;
+    }
+
+    // 转到定义
+    async goToDefinition(position) {
+        if (!this.editor || !this.initialized) return null;
+
+        const model = this.editor.getModel();
+        if (!model) return null;
+
+        const params = {
+            textDocument: { uri: this.documentUri },
+            position: { line: position.lineNumber - 1, character: position.column - 1 }
+        };
+
+        try {
+            const result = await this.sendRequest('textDocument/definition', params);
+            if (result && result.length > 0) {
+                const location = result[0];
+                return {
+                    uri: location.uri,
+                    range: {
+                        startLineNumber: location.range.start.line + 1,
+                        startColumn: location.range.start.character + 1,
+                        endLineNumber: location.range.end.line + 1,
+                        endColumn: location.range.end.character + 1
+                    }
+                };
+            }
+        } catch (error) {
+            console.error('[Clangd] Go to definition error:', error);
+        }
+        return null;
+    }
+
+    // 转到类型定义
+    async goToTypeDefinition(position) {
+        if (!this.editor || !this.initialized) return null;
+
+        const model = this.editor.getModel();
+        if (!model) return null;
+
+        const params = {
+            textDocument: { uri: this.documentUri },
+            position: { line: position.lineNumber - 1, character: position.column - 1 }
+        };
+
+        try {
+            const result = await this.sendRequest('textDocument/typeDefinition', params);
+            if (result && result.length > 0) {
+                const location = result[0];
+                return {
+                    uri: location.uri,
+                    range: {
+                        startLineNumber: location.range.start.line + 1,
+                        startColumn: location.range.start.character + 1,
+                        endLineNumber: location.range.end.line + 1,
+                        endColumn: location.range.end.character + 1
+                    }
+                };
+            }
+        } catch (error) {
+            console.error('[Clangd] Go to type definition error:', error);
+        }
+        return null;
+    }
+
+    // 转到定义（全部引用）
+    async goToDefinitionAll(position) {
+        if (!this.editor || !this.initialized) return null;
+
+        const model = this.editor.getModel();
+        if (!model) return null;
+
+        const params = {
+            textDocument: { uri: this.documentUri },
+            position: { line: position.lineNumber - 1, character: position.column - 1 }
+        };
+
+        try {
+            const result = await this.sendRequest('textDocument/definition', params);
+            if (result && result.length > 0) {
+                const locations = result.map(location => ({
+                    uri: location.uri,
+                    range: {
+                        startLineNumber: location.range.start.line + 1,
+                        startColumn: location.range.start.character + 1,
+                        endLineNumber: location.range.end.line + 1,
+                        endColumn: location.range.end.character + 1
+                    }
+                }));
+                return locations;
+            }
+        } catch (error) {
+            console.error('[Clangd] Go to definition all error:', error);
+        }
+        return null;
+    }
 }
 
 // 导出单例
@@ -543,12 +678,12 @@ function updateClangdStatus(status, progress, max) {
     const statusElement = document.getElementById('clangd-status');
     if (statusElement) {
         const statusText = {
-            'loading': '正在加载 clangd...',
+            'loading': '正在加载 clangd...或未启用clangd',
             'downloading': `下载 wasm... ${Math.round(progress)}%`,
             'decompressing': `解压... ${Math.round(progress)}%`,
             'loading_module': '加载模块...',
-            'initializing': '初始化 LSP...',
-            'ready': '✓ clangd 已就绪',
+            'initializing': '初始化 LSP...或未启用clangd',
+            'ready': '✓ clangd 已就绪 初始化可能还要一会',
             'failed': '✗ clangd 失败，使用备用方案',
             'fallback': '使用备用代码补全'
         }[status] || status;
