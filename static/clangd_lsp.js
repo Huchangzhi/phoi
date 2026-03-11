@@ -17,6 +17,7 @@ class ClangdLSP {
         this.documentVersion = 0;
         this.documentUri = 'file:///home/web_user/main.cpp';
         this.completionCache = null;
+        this.diagnosticTimer = null;
     }
 
     onStatusChange(callback) {
@@ -246,6 +247,29 @@ class ClangdLSP {
     setupDocumentSync() {
         if (!this.editor) return;
 
+        // 每 5 秒请求一次诊断
+        this.diagnosticTimer = setInterval(() => {
+            if (!this.initialized) return;
+            
+            const model = this.editor.getModel();
+            if (!model) return;
+            
+            // 请求重新分析文档
+            this.sendToWorker({
+                jsonrpc: '2.0',
+                method: 'textDocument/didOpen',
+                params: {
+                    textDocument: {
+                        uri: this.documentUri,
+                        languageId: 'cpp',
+                        version: ++this.documentVersion,
+                        text: model.getValue()
+                    }
+                }
+            });
+        }, 5000);
+
+        // 仍然需要同步文档变化，但不立即请求诊断
         this.editor.onDidChangeModelContent((e) => {
             if (!this.initialized) return;
 
@@ -472,6 +496,16 @@ class ClangdLSP {
         if (this.loading) return 'loading';
         if (this.initialized) return 'ready';
         return 'idle';
+    }
+
+    dispose() {
+        if (this.diagnosticTimer) {
+            clearInterval(this.diagnosticTimer);
+            this.diagnosticTimer = null;
+        }
+        if (this.clangdWorker) {
+            this.clangdWorker.terminate();
+        }
     }
 
     isUsingClangd() {
