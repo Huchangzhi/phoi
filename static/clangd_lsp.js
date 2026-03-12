@@ -298,6 +298,33 @@ class ClangdLSP {
                     contentChanges: changes
                 }
             });
+            
+            // 新增：当输入 ; {} [] 时立刻请求一次诊断
+            const triggerChars = [';', '{', '}', '[', ']'];
+            const isTriggerChar = e.changes.some(change => {
+                return triggerChars.some(char => change.text.includes(char));
+            });
+            
+            if (isTriggerChar) {
+                setTimeout(() => {
+                    if (!this.initialized) return;
+                    const currentModel = this.editor.getModel();
+                    if (!currentModel) return;
+                    
+                    this.sendToWorker({
+                        jsonrpc: '2.0',
+                        method: 'textDocument/didOpen',
+                        params: {
+                            textDocument: {
+                                uri: this.documentUri,
+                                languageId: 'cpp',
+                                version: ++this.documentVersion,
+                                text: currentModel.getValue()
+                            }
+                        }
+                    });
+                }, 0);
+            }
         });
     }
 
