@@ -17,6 +17,19 @@ import webview
 from security_check import check_security
 
 
+def get_hidden_window_startupinfo():
+    """
+    获取用于隐藏控制台窗口的 startupinfo
+    仅在 Windows 系统上有效
+    """
+    if sys.platform == 'win32':
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        return startupinfo
+    return None
+
+
 def show_debug_confirm_dialog(pairing_code):
     """显示调试确认对话框（阻塞直到用户确认）"""
     try:
@@ -154,7 +167,8 @@ class DebugManager:
                 text=True,
                 timeout=30,
                 cwd=compiler_dir,  # 设置工作目录为编译器所在目录
-                env=env  # 使用更新后的环境变量
+                env=env,  # 使用更新后的环境变量
+                startupinfo=get_hidden_window_startupinfo()  # 隐藏控制台窗口
             )
 
             if compile_proc.returncode != 0:
@@ -207,7 +221,8 @@ class DebugManager:
                 encoding='utf-8',
                 errors='replace',
                 cwd=gdb_dir,  # 设置工作目录为 GDB 所在目录
-                env=env  # 使用更新后的环境变量
+                env=env,  # 使用更新后的环境变量
+                startupinfo=get_hidden_window_startupinfo()  # 隐藏控制台窗口
             )
 
             self.status = "busy"
@@ -357,7 +372,7 @@ class PHCodeServer:
 
         # 检查系统 PATH 中的 gdb
         try:
-            result = subprocess.run(['where', 'gdb'], capture_output=True, text=True)
+            result = subprocess.run(['where', 'gdb'], capture_output=True, text=True, startupinfo=get_hidden_window_startupinfo())
             if result.returncode == 0:
                 gdb_path = result.stdout.strip().split('\n')[0].strip()
                 print(f"使用系统 PATH 中的 GDB: {gdb_path}")
@@ -387,7 +402,7 @@ class PHCodeServer:
         
         # 检查系统 PATH 中的 g++
         try:
-            result = subprocess.run(['where', 'g++'], capture_output=True, text=True)
+            result = subprocess.run(['where', 'g++'], capture_output=True, text=True, startupinfo=get_hidden_window_startupinfo())
             if result.returncode == 0:
                 compiler_path = result.stdout.strip().split('\n')[0].strip()
                 print(f"使用系统 PATH 中的编译器：{compiler_path}")
@@ -726,7 +741,8 @@ class PHCodeServer:
                 text=True,
                 timeout=10,
                 cwd=compiler_dir,  # 设置工作目录为编译器所在目录
-                env=env  # 使用更新后的环境变量
+                env=env,  # 使用更新后的环境变量
+                startupinfo=get_hidden_window_startupinfo()  # 隐藏控制台窗口
             )
             
             print(f"[DEBUG] 编译返回码：{compile_proc.returncode}")
@@ -751,7 +767,8 @@ class PHCodeServer:
                         input=stdin,
                         capture_output=True,
                         text=True,
-                        timeout=self.TIMEOUT_SECONDS
+                        timeout=self.TIMEOUT_SECONDS,
+                        startupinfo=get_hidden_window_startupinfo()  # 隐藏控制台窗口
                     )
 
                     run_duration = time.time() - run_start
