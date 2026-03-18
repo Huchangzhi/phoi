@@ -350,6 +350,11 @@ class PHCodeServer:
         self.TIMEOUT_SECONDS = 1
         self.MEMORY_LIMIT_MB = 512
 
+        # Competitive Companion 数据存储
+        self.competitive_companion_data = None
+        self.companion_server_thread = None
+        self.companion_is_running = False
+
         self.setup_routes()
         self.compiler_path = self._get_compiler_path()  # 自动获取编译器路径
         self.gdb_path = self._get_gdb_path()  # 自动获取 GDB 路径
@@ -838,6 +843,99 @@ class PHCodeServer:
         self.server_thread.start()
         self.is_running = True
         print(f"服务器已在 {host}:{port} 启动")
+        
+        # 同时启动Competitive Companion接收服务器
+        self.start_companion_server()
+
+    def start_companion_server(self):
+        """启动Competitive Companion接收服务器（27121端口）"""
+        try:
+            self.companion_server_thread = threading.Thread(target=self._run_companion_server)
+            self.companion_server_thread.daemon = True
+            self.companion_server_thread.start()
+            self.companion_is_running = True
+            print(f"Competitive Companion接收服务器已在 127.0.0.1:27121 启动")
+        except Exception as e:
+            print(f"启动Competitive Companion服务器失败: {e}")
+            self.companion_is_running = False
+
+    def _run_companion_server(self):
+        """运行Competitive Companion专用服务器"""
+        # 创建一个独立的Flask应用
+        companion_app = Flask(__name__)
+        
+        # 添加CORS支持
+        @companion_app.after_request
+        def after_request(response):
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+        
+        # 处理OPTIONS预检请求
+        @companion_app.route('/', methods=['OPTIONS'])
+        def handle_options():
+            return '', 200
+        
+        @companion_app.route('/data', methods=['OPTIONS'])
+        def handle_data_options():
+            return '', 200
+        
+        @companion_app.route('/', methods=['POST'])
+        def receive_competitive_companion():
+            """接收 Competitive Companion 浏览器插件发送的数据"""
+            try:
+                import re
+                data = request.json
+                
+                # 提取题目名称作为文件名
+                name = data.get('name', '')
+                # 清理文件名：移除特殊字符，只保留字母、数字、下划线、连字符
+                clean_name = re.sub(r'[^\w\-]', '_', name)
+                # 确保文件名不为空
+                if not clean_name or clean_name == '_':
+                    clean_name = 'problem'
+                
+                filename = f"{clean_name}.cpp"
+                
+                # 提取测试用例
+                tests = data.get('tests', [])
+                
+                # 构造返回数据
+                result = {
+                    'success': True,
+                    'filename': filename,
+                    'name': name,
+                    'url': data.get('url', ''),
+                    'tests': tests,
+                    'timeLimit': data.get('timeLimit', 0),
+                    'memoryLimit': data.get('memoryLimit', 0)
+                }
+                
+                # 将数据存储到服务器实例变量
+                self.competitive_companion_data = result
+                
+                print(f"[Competitive Companion] 收到题目: {name}, 测试用例数: {len(tests)}")
+                
+                # 返回成功响应
+                return jsonify(result)
+            except Exception as e:
+                print(f"[ERROR] 接收 Competitive Companion 数据失败: {e}")
+                return jsonify({'success': False, 'message': str(e)}), 400
+        
+        @companion_app.route('/data', methods=['GET'])
+        def get_competitive_companion_data():
+            """获取 Competitive Companion 数据"""
+            if self.competitive_companion_data:
+                data = self.competitive_companion_data
+                # 清除已读取的数据
+                self.competitive_companion_data = None
+                return jsonify(data)
+            else:
+                return jsonify({'success': False, 'message': '没有新数据'})
+        
+        # 启动服务器
+        companion_app.run(host='127.0.0.1', port=27121, debug=False, use_reloader=False, threaded=True)
 
     def _run_flask_app(self):
         """运行 Flask 应用"""
@@ -859,13 +957,13 @@ class PHCodeWebViewApp:
     def run(self):
         """运行应用"""
         # 启动 Flask 服务器（仅本地访问）
-        self.server.start_server(host='127.0.0.1', port=5000)
+        self.server.start_server(host='127.0.0.1', port=27120)
         
         # 等待服务器启动
         time.sleep(1)
         
         # 使用 pywebview 创建窗口
-        url = 'http://127.0.0.1:5000'
+        url = 'http://127.0.0.1:27120'
         
         # 获取数据存储路径（在程序同级目录创建 phcode_data 文件夹）
         if getattr(sys, 'frozen', False):

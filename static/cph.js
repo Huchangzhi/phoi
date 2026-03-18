@@ -685,3 +685,94 @@ if (document.readyState === 'loading') {
 } else {
     initCPHPlugin();
 }
+
+// 全局函数：处理Competitive Companion数据
+window.handleCompetitiveCompanionData = async function(data) {
+    try {
+        if (!data.success) {
+            alert('接收数据失败: ' + data.message);
+            return;
+        }
+        
+        const filename = data.filename;
+        const tests = data.tests || [];
+        
+        // 使用PhoiAPI创建和打开文件
+        if (window.PhoiAPI) {
+            const fileList = await window.PhoiAPI.getFileList();
+            if (fileList.includes(filename)) {
+                await window.PhoiAPI.openFile(filename);
+            } else {
+                const defaultCode = localStorage.getItem('phoi_defaultCode') || 
+                    `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`;
+                await window.PhoiAPI.createNewFile(filename, defaultCode);
+                await window.PhoiAPI.openFile(filename);
+            }
+        } else {
+            alert('系统错误: PhoiAPI未初始化');
+            return;
+        }
+        
+        // 导入测试用例到CPH
+        if (window.cphPlugin) {
+            window.cphPlugin.currentFile = filename;
+            window.cphPlugin.testCases = [];
+            
+            tests.forEach((test, index) => {
+                window.cphPlugin.testCases.push({
+                    stdin: test.input || '',
+                    stdout: test.output || '',
+                    name: `测试点 ${index + 1}`
+                });
+            });
+            
+            window.cphPlugin.saveTestCases();
+            window.cphPlugin.renderTestCases();
+            window.cphPlugin.renderTestCasesMain();
+            window.cphPlugin.showCPHPanel();
+            
+            if (typeof showMessage === 'function') {
+                showMessage(`已成功导入 "${data.name}" 的 ${tests.length} 个测试用例`, 'success');
+            } else {
+                alert(`已成功导入 "${data.name}" 的 ${tests.length} 个测试用例`);
+            }
+        } else {
+            alert('CPH插件未启用，请先在插件中心启用CPH插件');
+        }
+        
+    } catch (error) {
+        alert('处理数据时出错: ' + error.message);
+    }
+};
+
+// Competitive Companion轮询失败计数器
+let companionPollFailureCount = 0;
+const MAX_COMPANION_FAILURES = 3;
+
+// 检查是否有新的Competitive Companion数据（桌面版自动接收）
+function checkCompetitiveCompanionData() {
+    fetch('http://127.0.0.1:27121/data', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.handleCompetitiveCompanionData(data);
+            companionPollFailureCount = 0; // 成功后重置计数器
+        }
+    })
+    .catch(() => {
+        companionPollFailureCount++;
+        // 静默失败，不显示错误（网页版可能没有这个功能）
+        if (companionPollFailureCount >= MAX_COMPANION_FAILURES) {
+            console.log('Competitive Companion轮询失败次数过多，停止轮询');
+            clearInterval(companionPollInterval);
+        }
+    });
+}
+
+// 每2秒检查一次是否有新的Competitive Companion数据
+const companionPollInterval = setInterval(checkCompetitiveCompanionData, 2000);
