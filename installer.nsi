@@ -53,12 +53,12 @@ Function .onInit
     IfErrors done_check
     StrCmp $R0 "" done_check 0
 
-    ; 检测到已安装版本 $R0
-    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "检测到已安装 ${PRODUCT_NAME} 版本 $R0 是否升级到新版本 ${PRODUCT_VERSION} $\n 是 - 升级保留用户数据 $\n 否 - 完全覆盖安装 $\n 取消 - 退出安装程序" IDYES upgrade IDNO no_upgrade IDCANCEL done_check
+    ; 检测到已安装版本
+    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "Found installed version $R0 Upgrade now $\n Yes Upgrade $\n No Overwrite $\n Cancel Exit" IDYES upgrade IDNO no_upgrade IDCANCEL done_check
 
     upgrade:
         ; 询问是否先卸载旧版本
-        MessageBox MB_YESNO|MB_ICONQUESTION "升级模式 建议先卸载旧版本再安装新版本 是否现在自动卸载旧版本" IDYES do_uninstall IDNO do_upgrade
+        MessageBox MB_YESNO|MB_ICONQUESTION "Upgrade mode Suggest uninstall old version first Uninstall now" IDYES do_uninstall IDNO do_upgrade
 
     do_uninstall:
         ; 执行卸载程序
@@ -71,7 +71,7 @@ Function .onInit
         Goto do_upgrade
 
     no_upgrade:
-        MessageBox MB_OK|MB_ICONWARNING "选择覆盖安装模式 注意 这可能会删除所有现有数据"
+        MessageBox MB_OK|MB_ICONWARNING "Overwrite mode This may delete all existing data"
         Goto do_upgrade
 
     do_upgrade:
@@ -145,7 +145,7 @@ Section "Uninstall"
     RMDir /r "$INSTDIR\w64devkit"
 
     ; 询问是否删除用户数据目录
-    MessageBox MB_YESNO|MB_ICONQUESTION "是否删除用户数据目录 包含用户设置和文件 选择否将保留phcode_data目录" IDYES delete_data IDNO keep_data
+    MessageBox MB_YESNO|MB_ICONQUESTION "Delete user data directory Contains user settings and files Select No to keep" IDYES delete_data IDNO keep_data
 
     delete_data:
         RMDir /r "$INSTDIR\phcode_data"
