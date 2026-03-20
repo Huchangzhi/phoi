@@ -91,13 +91,11 @@ Section "PH Code Editor" SecMain
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" \
         "NoRepair" 1
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" \
-        "EstimatedSize" ${SIZEOFINSTALLATION}
+        "EstimatedSize" 100000
 
-    ; 添加卸载事件
-    !insertmacro MUI_STARTMENU_WRITE_BEGIN PHOI
-        SetOutPath "$INSTDIR"
-        WriteUninstaller "$INSTDIR\uninstall.exe"
-    !insertmacro MUI_STARTMENU_WRITE_END
+    ; 添加卸载程序
+    SetOutPath "$INSTDIR"
+    WriteUninstaller "$INSTDIR\uninstall.exe"
 
 SectionEnd
 
@@ -127,9 +125,3 @@ Section "Uninstall"
     ; 删除安装目录
     RMDir /r "$INSTDIR"
 SectionEnd
-
-; 获取安装目录大小（字节）
-SectionGetInstSize 0 $0
-IntOp $0 $0 / 1024
-IntOp $0 $0 * 1024
-StrCpy ${SIZEOFINSTALLATION} $0
