@@ -3,8 +3,8 @@
 !define PRODUCT_PUBLISHER "PHOI"
 !define PRODUCT_WEB_SITE "https://github.com/huchangzhi/phoi"
 
-!define INSTALL_DIR "${PROGRAMFILES}\PH Code Editor"
-!define UNINSTALL_DIR "${PROGRAMFILES}\PH Code Editor"
+!define INSTALL_DIR "$PROGRAMFILES\PH Code Editor"
+!define UNINSTALL_DIR "$PROGRAMFILES\PH Code Editor"
 !define DESKTOP_SHORTCUT "${DESKTOP}\PH Code Editor.lnk"
 !define STARTMENU_SHORTCUT "$SMPROGRAMS\PHOI\PH Code Editor.lnk"
 
@@ -28,11 +28,10 @@ ShowInstDetails show
 ;!insertmacro MUI_PAGE_LICENSE "LICENSE"
 
 ; 安装目录选择
-!insertmacro MUI_PAGE_DIRECTORY
+    !insertmacro MUI_PAGE_DIRECTORY
 
 ; 安装进度
-!insertmacro MUI_PAGE_PROGRESSBAR
-
+    !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_UNPAGE_WELCOME
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
