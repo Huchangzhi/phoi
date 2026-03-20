@@ -10,7 +10,7 @@
 !define STARTMENU_SHORTCUT "$STARTMENU_DIR\PH Code Editor.lnk"
 !define UNINSTALL_SHORTCUT "$STARTMENU_DIR\卸载 PH Code Editor.lnk"
 
-; ?? 关键修复1: 添加管理员权限请求
+; ⚠️ 管理员权限请求（必须在全局）
 RequestExecutionLevel admin
 
 ; MUI 界面配置
@@ -26,8 +26,7 @@ ShowInstDetails show
 !define MUI_ICON "static\logo.ico"
 !define MUI_UNICON "static\logo.ico"
 
-; ?? 关键修复2: 设置所有用户上下文
-SetShellVarContext all
+; ⚠️ 移除全局的 SetShellVarContext（会报错）
 
 ; 欢迎页面
 !insertmacro MUI_PAGE_WELCOME
@@ -49,6 +48,9 @@ SetShellVarContext all
 ; 初始化 - 检测旧版本
 ; ----------------------------------------------------------
 Function .onInit
+    ; ⚠️ 在这里设置所有用户上下文
+    SetShellVarContext all
+    
     ReadRegStr $R0 HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayVersion"
     ReadRegStr $R1 HKLM "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
 
@@ -76,6 +78,9 @@ FunctionEnd
 ; 安装部分
 ; ----------------------------------------------------------
 Section "PH Code Editor" SecMain
+    ; ⚠️ 在Section内再次设置（确保生效）
+    SetShellVarContext all
+    
     SetOutPath "$INSTDIR"
 
     ; 复制主程序
@@ -96,16 +101,15 @@ Section "PH Code Editor" SecMain
     ; 复制数据目录
     SetOutPath "$INSTDIR\phcode_data"
 
-    ; ?? 关键修复3: 创建开始菜单目录
+    ; 创建开始菜单目录
     CreateDirectory "$STARTMENU_DIR"
     
-    ; ?? 关键修复4: 正确的快捷方式创建语法
-    ; 参数: 快捷方式文件 目标文件 参数 图标文件 图标索引 启动选项 键盘快捷键 描述
+    ; 创建快捷方式
     CreateShortcut "$STARTMENU_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "PH Code Editor"
     CreateShortcut "$UNINSTALL_SHORTCUT" "$INSTDIR\uninstall.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "卸载 PH Code Editor"
     CreateShortcut "$DESKTOP_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "PH Code Editor"
 
-    ; ?? 关键修复5: 写入注册表信息
+    ; 写入注册表信息
     WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
     WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -128,10 +132,10 @@ SectionEnd
 ; 卸载部分
 ; ----------------------------------------------------------
 Section "Uninstall"
-    ; ?? 关键修复6: 卸载时也需要设置所有用户上下文
+    ; ⚠️ 卸载Section内也必须设置
     SetShellVarContext all
     
-    ; ?? 关键修复7: 从注册表读取安装路径（如果$INSTDIR为空）
+    ; 从注册表读取安装路径（如果$INSTDIR为空）
     ReadRegStr $INSTDIR HKLM "${UNINSTALL_REGISTRY_KEY}" "InstallLocation"
     StrCmp $INSTDIR "" +2
         StrCpy $INSTDIR "$PROGRAMFILES\PH Code Editor"
@@ -156,14 +160,11 @@ Section "Uninstall"
         RMDir "$INSTDIR\phcode_data"
 
     shortcuts:
-        ; ?? 关键修复8: 删除快捷方式（使用绝对路径）
+        ; 删除快捷方式
         Delete "$STARTMENU_SHORTCUT"
         Delete "$UNINSTALL_SHORTCUT"
         RMDir "$STARTMENU_DIR"
         Delete "$DESKTOP_SHORTCUT"
-        
-        ; 也删除所有用户桌面的快捷方式（以防万一）
-        Delete "$ALLUSERSPROFILE\Desktop\PH Code Editor.lnk"
 
         ; 删除注册表项
         DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
