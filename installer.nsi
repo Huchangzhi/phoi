@@ -1,6 +1,5 @@
 ; ============================================================
 ; PH Code Editor 安装脚本
-; 支持：新用户可选路径 / 旧用户路径只读
 ; ============================================================
 
 !define PRODUCT_NAME "PH Code Editor"
@@ -9,7 +8,6 @@
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PHCodeEditor"
 !define DEFAULT_INSTALL_DIR "$PROGRAMFILES\PH Code Editor"
 
-; 管理员权限
 RequestExecutionLevel admin
 
 !include "MUI2.nsh"
@@ -24,7 +22,6 @@ ShowInstDetails show
 !define MUI_ICON "static\logo.ico"
 !define MUI_UNICON "static\logo.ico"
 
-; 页面
 !insertmacro MUI_PAGE_WELCOME
 !define MUI_PAGE_CUSTOMFUNCTION_PRE DirPre
 !insertmacro MUI_PAGE_DIRECTORY
@@ -36,25 +33,18 @@ ShowInstDetails show
 
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
-; 全局变量
-Var OldVersion
 Var OldInstallDir
 Var IsUpgrade
 
 ; ============================================================
-; 初始化：检测旧版本
+; 初始化
 ; ============================================================
 Function .onInit
     SetShellVarContext all
-    
-    ; 默认不是升级
     StrCpy $IsUpgrade 0
     
-    ; 读取旧版本信息
-    ReadRegStr $OldVersion HKLM "${UNINSTALL_KEY}" "DisplayVersion"
     ReadRegStr $OldInstallDir HKLM "${UNINSTALL_KEY}" "InstallLocation"
     
-    ; 检测到旧版本
     ${If} $OldInstallDir != ""
         StrCpy $IsUpgrade 1
         StrCpy $INSTDIR $OldInstallDir
@@ -62,14 +52,12 @@ Function .onInit
 FunctionEnd
 
 ; ============================================================
-; 目录页面预处理：旧版本路径只读
+; 目录页面：旧版本路径只读
 ; ============================================================
 Function DirPre
     ${If} $IsUpgrade == 1
-        ; 获取目录页面输入框控件 ID
         FindWindow $R0 "#32770" "" $HWNDPARENT
         GetDlgItem $R0 $R0 1019
-        ; 设置为只读
         EnableWindow $R0 0
     ${EndIf}
 FunctionEnd
@@ -81,7 +69,6 @@ Section "PH Code Editor"
     SetShellVarContext all
     SetOutPath "$INSTDIR"
     
-    ; 升级时先清理旧文件（保留用户数据）
     ${If} $IsUpgrade == 1
         Delete "$INSTDIR\phcode.exe"
         RMDir /r "$INSTDIR\templates"
@@ -89,7 +76,6 @@ Section "PH Code Editor"
         RMDir /r "$INSTDIR\w64devkit"
     ${EndIf}
     
-    ; 复制文件
     File "dist\phcode.exe"
     
     SetOutPath "$INSTDIR\templates"
@@ -103,16 +89,13 @@ Section "PH Code Editor"
     
     SetOutPath "$INSTDIR"
     
-    ; 创建快捷方式
     CreateDirectory "$SMPROGRAMS\PHCode"
     CreateShortcut "$SMPROGRAMS\PHCode\PH Code Editor.lnk" "$INSTDIR\phcode.exe"
     CreateShortcut "$SMPROGRAMS\PHCode\卸载.lnk" "$INSTDIR\uninstall.exe"
     CreateShortcut "$DESKTOP\PH Code Editor.lnk" "$INSTDIR\phcode.exe"
     
-    ; 写入卸载程序
     WriteUninstaller "$INSTDIR\uninstall.exe"
     
-    ; 注册表
     WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -144,24 +127,21 @@ FunctionEnd
 Section "Uninstall"
     SetShellVarContext all
     
-    ; 询问是否保留用户数据
     MessageBox MB_YESNO|MB_ICONQUESTION "是否删除用户数据目录？" IDYES del_data IDNO keep_data
     
-    del_
+    del_data:
         RMDir /r "$INSTDIR\phcode_data"
         Goto cont
         
-    keep_
-        ; 保留
+    keep_data:
+        ; 保留用户数据
     
     cont:
-        ; 删除快捷方式
         Delete "$SMPROGRAMS\PHCode\PH Code Editor.lnk"
         Delete "$SMPROGRAMS\PHCode\卸载.lnk"
         RMDir "$SMPROGRAMS\PHCode"
         Delete "$DESKTOP\PH Code Editor.lnk"
         
-        ; 删除文件
         Delete "$INSTDIR\phcode.exe"
         Delete "$INSTDIR\uninstall.exe"
         RMDir /r "$INSTDIR\templates"
@@ -169,7 +149,6 @@ Section "Uninstall"
         RMDir /r "$INSTDIR\w64devkit"
         RMDir "$INSTDIR"
         
-        ; 删除注册表
         DeleteRegKey HKLM "${UNINSTALL_KEY}"
         
 SectionEnd
