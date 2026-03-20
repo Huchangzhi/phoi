@@ -54,13 +54,10 @@ Function .onInit
     StrCmp $R0 "" done_check 0
 
     ; 检测到已安装版本
-    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "Found installed version $R0 Upgrade Yes Upgrade No Overwrite Cancel Exit" IDYES upgrade IDNO no_upgrade
+    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "Found installed version" IDYES upgrade IDNO no_upgrade
     Abort
 
     upgrade:
-        MessageBox MB_YESNO|MB_ICONQUESTION "Upgrade mode Uninstall old version now" IDYES do_uninstall do_upgrade
-
-    do_uninstall:
         ExecWait '$R1 /S _?=$INSTDIR'
         Delete "$INSTDIR\phcode.exe"
         RMDir /r "$INSTDIR\templates"
@@ -69,9 +66,6 @@ Function .onInit
         Goto done_check
 
     no_upgrade:
-        MessageBox MB_OK|MB_ICONWARNING "Overwrite mode may delete all data"
-
-    do_upgrade:
         Goto done_check
 
     done_check:
