@@ -56,17 +56,12 @@ Function .onInit
     ; 检测到已安装版本
     MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "Found installed version $R0 Upgrade Yes Upgrade No Overwrite Cancel Exit" IDYES upgrade IDNO no_upgrade
     Abort
-    Goto done_check
 
     upgrade:
-        ; 询问是否先卸载旧版本
-        MessageBox MB_YESNO|MB_ICONQUESTION "Upgrade mode Uninstall old version now" IDYES do_uninstall IDNO do_upgrade
-        Goto done_check
+        MessageBox MB_YESNO|MB_ICONQUESTION "Upgrade mode Uninstall old version now" IDYES do_uninstall do_upgrade
 
     do_uninstall:
-        ; 执行卸载程序
         ExecWait '$R1 /S _?=$INSTDIR'
-        ; 删除旧的安装目录（保留phcode_data）
         Delete "$INSTDIR\phcode.exe"
         RMDir /r "$INSTDIR\templates"
         RMDir /r "$INSTDIR\static"
@@ -75,30 +70,8 @@ Function .onInit
 
     no_upgrade:
         MessageBox MB_OK|MB_ICONWARNING "Overwrite mode may delete all data"
-        Goto do_upgrade
 
     do_upgrade:
-        ; 升级模式：保留phcode_data目录
-        Goto done_check
-        ; 询问是否先卸载旧版本
-        MessageBox MB_YESNO|MB_ICONQUESTION "Upgrade mode Uninstall old version now" IDYES do_uninstall IDNO do_upgrade
-
-    do_uninstall:
-        ; 执行卸载程序
-        ExecWait '$R1 /S _?=$INSTDIR'
-        ; 删除旧的安装目录（保留phcode_data）
-        Delete "$INSTDIR\phcode.exe"
-        RMDir /r "$INSTDIR\templates"
-        RMDir /r "$INSTDIR\static"
-        RMDir /r "$INSTDIR\w64devkit"
-        Goto do_upgrade
-
-    no_upgrade:
-        MessageBox MB_OK|MB_ICONWARNING "Overwrite mode may delete all data"
-        Goto do_upgrade
-
-    do_upgrade:
-        ; 升级模式：保留phcode_data目录
         Goto done_check
 
     done_check:
