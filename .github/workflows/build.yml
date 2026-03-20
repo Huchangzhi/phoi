@@ -145,6 +145,6 @@ jobs:
         prerelease: false
         files: |
           phcode-v${{ inputs.version }}.zip
-          phcode-installer-v${{ inputs.version }}.exe
+          phcode-installer-${{ inputs.version }}.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
