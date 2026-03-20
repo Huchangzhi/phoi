@@ -317,6 +317,11 @@ require(['vs/editor/editor.main'], function() {
             }
         });
     }
+
+    // 在 Monaco Editor 完全初始化后注册快捷键
+    if (typeof initContextMenu === 'function') {
+        initContextMenu();
+    }
 });
 
 // --- 恢复保存的输入数据 ---
@@ -1845,19 +1850,4 @@ function initContextMenu() {
     if (monacoEditor) {
         registerEditorContextMenu();
     }
-}
-
-// 等待编辑器初始化
-if (typeof monacoEditor !== 'undefined' && monacoEditor) {
-    initContextMenu();
-} else {
-    // 等待编辑器初始化
-    document.addEventListener('DOMContentLoaded', () => {
-        // 延迟一点时间，确保编辑器完全加载
-        setTimeout(() => {
-            if (typeof monacoEditor !== 'undefined' && monacoEditor) {
-                initContextMenu();
-            }
-        }, 1000);
-    });
 }
