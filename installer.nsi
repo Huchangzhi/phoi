@@ -2,13 +2,16 @@
 !define PRODUCT_VERSION "${VERSION}"
 !define PRODUCT_PUBLISHER "PHOI"
 !define PRODUCT_WEB_SITE "https://github.com/huchangzhi/phoi"
+!define UNINSTALL_REGISTRY_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 
 !define INSTALL_DIR "$PROGRAMFILES\PH Code Editor"
-!define UNINSTALL_DIR "$PROGRAMFILES\PH Code Editor"
 !define DESKTOP_SHORTCUT "$DESKTOP\PH Code Editor.lnk"
-!define STARTMENU_DIR "$SMPROGRAMS\PHOI"
+!define STARTMENU_DIR "$SMPROGRAMS\PHCode"
 !define STARTMENU_SHORTCUT "$STARTMENU_DIR\PH Code Editor.lnk"
 !define UNINSTALL_SHORTCUT "$STARTMENU_DIR\卸载 PH Code Editor.lnk"
+
+; ⚠️ 关键修复1: 添加管理员权限请求
+RequestExecutionLevel admin
 
 ; MUI 界面配置
 !include "MUI2.nsh"
@@ -23,38 +26,36 @@ ShowInstDetails show
 !define MUI_ICON "static\logo.ico"
 !define MUI_UNICON "static\logo.ico"
 
+; ⚠️ 关键修复2: 设置所有用户上下文
+SetShellVarContext all
+
 ; 欢迎页面
 !insertmacro MUI_PAGE_WELCOME
 
-; 许可协议（可选）
-;!insertmacro MUI_PAGE_LICENSE "LICENSE"
-
 ; 安装目录选择
-    !insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_DIRECTORY
 
 ; 安装进度
-    !insertmacro MUI_PAGE_INSTFILES
+!insertmacro MUI_PAGE_INSTFILES
+
 !insertmacro MUI_UNPAGE_WELCOME
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
-!insertmacro MUI_LANGUAGE "SimpChinese" ; 支持简体中文
+!insertmacro MUI_LANGUAGE "SimpChinese"
 
 ; ----------------------------------------------------------
-; 检测旧版本
+; 初始化 - 检测旧版本
 ; ----------------------------------------------------------
 Function .onInit
-    ; 读取注册表中的旧版本信息
-    ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayVersion"
-    ReadRegStr $R1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "UninstallString"
+    ReadRegStr $R0 HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayVersion"
+    ReadRegStr $R1 HKLM "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
 
-    ; 如果检测到旧版本
     IfErrors done_check
     StrCmp $R0 "" done_check 0
 
-    ; 检测到已安装版本
-    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "Found installed version" IDYES upgrade IDNO no_upgrade
+    MessageBox MB_YESNOCANCEL|MB_ICONQUESTION "发现已安装版本，是否升级？" IDYES upgrade IDNO no_upgrade
     Abort
 
     upgrade:
@@ -88,32 +89,34 @@ Section "PH Code Editor" SecMain
     SetOutPath "$INSTDIR\static"
     File /r "static\*.*"
 
-    ; 复制编译器工具（w64devkit）
+    ; 复制编译器工具
     SetOutPath "$INSTDIR\w64devkit"
     File /r "w64devkit\*.*"
 
     ; 复制数据目录
     SetOutPath "$INSTDIR\phcode_data"
 
-    ; 创建开始菜单快捷方式
+    ; ⚠️ 关键修复3: 创建开始菜单目录
     CreateDirectory "$STARTMENU_DIR"
-    CreateShortcut "$STARTMENU_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0
-    CreateShortcut "$UNINSTALL_SHORTCUT" "$INSTDIR\uninstall.exe" "" "$INSTDIR\phcode.exe" 0
+    
+    ; ⚠️ 关键修复4: 正确的快捷方式创建语法
+    ; 参数: 快捷方式文件 目标文件 参数 图标文件 图标索引 启动选项 键盘快捷键 描述
+    CreateShortcut "$STARTMENU_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "PH Code Editor"
+    CreateShortcut "$UNINSTALL_SHORTCUT" "$INSTDIR\uninstall.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "卸载 PH Code Editor"
+    CreateShortcut "$DESKTOP_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0 "" "" "PH Code Editor"
 
-    ; 创建桌面快捷方式
-    CreateShortcut "$DESKTOP_SHORTCUT" "$INSTDIR\phcode.exe" "" "$INSTDIR\phcode.exe" 0
-
-    ; 写入注册表信息（用于卸载）
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayName" "${PRODUCT_NAME}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayVersion" "${PRODUCT_VERSION}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "Publisher" "${PRODUCT_PUBLISHER}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "InstallLocation" "$INSTDIR"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayIcon" "$INSTDIR\phcode.exe"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "UninstallString" "$INSTDIR\uninstall.exe"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "NoModify" 1
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "NoRepair" 1
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "EstimatedSize" 100000
+    ; ⚠️ 关键修复5: 写入注册表信息
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayName" "${PRODUCT_NAME}"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "InstallLocation" "$INSTDIR"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "DisplayIcon" "$INSTDIR\phcode.exe,0"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "UninstallString" "$INSTDIR\uninstall.exe"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "QuietUninstallString" "$INSTDIR\uninstall.exe /S"
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "NoModify" 1
+    WriteRegStr HKLM "${UNINSTALL_REGISTRY_KEY}" "NoRepair" 1
+    WriteRegDWORD HKLM "${UNINSTALL_REGISTRY_KEY}" "EstimatedSize" 100000
 
     ; 添加卸载程序
     SetOutPath "$INSTDIR"
@@ -125,6 +128,14 @@ SectionEnd
 ; 卸载部分
 ; ----------------------------------------------------------
 Section "Uninstall"
+    ; ⚠️ 关键修复6: 卸载时也需要设置所有用户上下文
+    SetShellVarContext all
+    
+    ; ⚠️ 关键修复7: 从注册表读取安装路径（如果$INSTDIR为空）
+    ReadRegStr $INSTDIR HKLM "${UNINSTALL_REGISTRY_KEY}" "InstallLocation"
+    StrCmp $INSTDIR "" +2
+        StrCpy $INSTDIR "$PROGRAMFILES\PH Code Editor"
+
     ; 删除主程序文件
     Delete "$INSTDIR\phcode.exe"
     Delete "$INSTDIR\uninstall.exe"
@@ -135,26 +146,28 @@ Section "Uninstall"
     RMDir /r "$INSTDIR\w64devkit"
 
     ; 询问是否删除用户数据目录
-    MessageBox MB_YESNO|MB_ICONQUESTION "Delete user data directory" IDYES delete_data IDNO keep_data
+    MessageBox MB_YESNO|MB_ICONQUESTION "是否删除用户数据目录？" IDYES delete_data IDNO keep_data
 
     delete_data:
         RMDir /r "$INSTDIR\phcode_data"
         Goto shortcuts
 
     keep_data:
-        ; 保留用户数据目录，只删除空目录
         RMDir "$INSTDIR\phcode_data"
 
     shortcuts:
-        ; 删除快捷方式
+        ; ⚠️ 关键修复8: 删除快捷方式（使用绝对路径）
         Delete "$STARTMENU_SHORTCUT"
         Delete "$UNINSTALL_SHORTCUT"
         RMDir "$STARTMENU_DIR"
         Delete "$DESKTOP_SHORTCUT"
+        
+        ; 也删除所有用户桌面的快捷方式（以防万一）
+        Delete "$ALLUSERSPROFILE\Desktop\PH Code Editor.lnk"
 
         ; 删除注册表项
-        DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+        DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
 
-        ; 尝试删除安装目录（如果是空的）
+        ; 尝试删除安装目录
         RMDir "$INSTDIR"
 SectionEnd
