@@ -112,7 +112,7 @@ jobs:
         $installerScript = "installer.nsi"
         
         Write-Host "正在编译安装程序，版本：$version"
-        makensis /DVERSION=$version $installerScript
+        makensis /INPUTCHARSET UTF8 /DVERSION=$version $installerScript
         
         # 验证安装程序是否创建
         $installerExe = "phcode-installer-$version.exe"

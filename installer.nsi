@@ -6,7 +6,7 @@
 !define INSTALL_DIR "$PROGRAMFILES\PH Code Editor"
 !define UNINSTALL_DIR "$PROGRAMFILES\PH Code Editor"
 !define DESKTOP_SHORTCUT "${DESKTOP}\PH Code Editor.lnk"
-!define STARTMENU_SHORTCUT "$SMPROGRAMS\PHOI\PH Code Editor.lnk"
+!define STARTMENU_SHORTCUT "$SMPROGRAMS\PH Code Editor.lnk"
 
 ; MUI 界面配置
 !include "MUI2.nsh"
