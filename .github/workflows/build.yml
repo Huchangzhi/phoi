@@ -92,12 +92,64 @@ jobs:
 
         Write-Host "Created ZIP archive: $zipFileName"
 
+    - name: Install NSIS
+      shell: pwsh
+      run: |
+        # 下载并安装 NSIS
+        $nsisUrl = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.10/nsis-3.10-setup.exe/download"
+        $nsisInstaller = "nsis-setup.exe"
+        
+        Write-Host "正在下载 NSIS..."
+        Invoke-WebRequest -Uri $nsisUrl -OutFile $nsisInstaller -UseBasicParsing
+        
+        Write-Host "正在安装 NSIS..."
+        Start-Process -FilePath $nsisInstaller -ArgumentList "/S" -Wait
+        
+        # 验证 NSIS 安装
+        $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+        if (Test-Path $nsisPath) {
+          Write-Host "✓ NSIS 安装成功：$nsisPath"
+        } else {
+          Write-Error "NSIS 安装失败"
+          exit 1
+        }
+
+    - name: Create installer with NSIS
+      shell: pwsh
+      run: |
+        # 定义版本号
+        if ("${{ inputs.version }}" -ne "") {
+          $version = "${{ inputs.version }}"
+        } else {
+          $version = "1.0.0"
+        }
+
+        # 使用 NSIS 编译安装程序
+        $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+        $installerScript = "installer.nsi"
+        
+        Write-Host "正在编译安装程序，版本：$version"
+        & $nsisPath /DVERSION=$version $installerScript
+        
+        # 验证安装程序是否创建
+        $installerExe = "phcode-installer-$version.exe"
+        if (Test-Path $installerExe) {
+          Write-Host "✓ 安装程序创建成功：$installerExe"
+          $installerSize = (Get-Item $installerExe).Length / 1MB
+          Write-Host "安装程序大小：$([math]::Round($installerSize, 2)) MB"
+        } else {
+          Write-Error "安装程序创建失败"
+          Get-ChildItem -Filter "*.exe"
+          exit 1
+        }
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: phcode-build
         path: |
           *.zip
+          *.exe
           dist/phcode.exe
 
     - name: Create Release
@@ -108,6 +160,8 @@ jobs:
         release_name: Release v${{ inputs.version }}
         draft: false
         prerelease: false
-        files: phcode-v${{ inputs.version }}.zip
+        files: |
+          phcode-v${{ inputs.version }}.zip
+          phcode-installer-v${{ inputs.version }}.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
