@@ -69,7 +69,7 @@ FunctionEnd
 ; ============================================================
 Function CheckWebView2
     ; 更新状态
-    SendMessage $WebView2Label ${WM_SETTEXT} 0 "STR:正在检查 WebView2 运行时..."
+    SendMessage $WebView2Label ${WM_SETTEXT} 0 "STR:正在检查 WebView2 运行时...请点击下一步"
 
     ; 检查 WebView2 是否已安装
     ReadRegStr $WebView2Installed HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
@@ -86,7 +86,7 @@ Function CheckWebView2
         SendMessage $WebView2Label ${WM_SETTEXT} 0 "STR:✗ WebView2 运行时未安装"
         SendMessage $WebView2Status ${WM_SETTEXT} 0 "STR:PH Code Editor 需要 WebView2 运行时才能运行"
 
-        MessageBox MB_YESNO|MB_ICONQUESTION "✗ WebView2 运行时未安装$\r$\n$\r$\nPH Code Editor 需要 WebView2 运行时才能运行。$\r$\n$\r$\n是否现在自动下载并安装 WebView2 运行时？$\r$\n（约 2-3 MB 下载 + 1-2 分钟安装，需要网络连接）" IDYES install_webview2 IDNO cancel_install
+        MessageBox MB_YESNO|MB_ICONQUESTION "✗ WebView2 运行时未安装$\r$\n$\r$\nPH Code Editor 需要 WebView2 运行时才能运行。$\r$\n$\r$\n是否现在自动下载并安装 WebView2 运行时？$\r$\n（约 2-3 MB 下载 + 1-2 分钟安装，需要网络连接，安装时该程序会无响应）" IDYES install_webview2 IDNO cancel_install
 
         install_webview2:
             ; 更新状态
