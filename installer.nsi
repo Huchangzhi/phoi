@@ -23,6 +23,7 @@ ShowInstDetails show
 !define MUI_UNICON "static\logo.ico"
 
 !insertmacro MUI_PAGE_WELCOME
+Page custom WebView2CheckPage WebView2CheckPageLeave
 !define MUI_PAGE_CUSTOMFUNCTION_PRE DirPre
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -35,6 +36,102 @@ ShowInstDetails show
 
 Var OldInstallDir
 Var IsUpgrade
+Var WebView2Installed
+Var WebView2CheckMessage
+
+; ============================================================
+; WebView2 检测页面创建
+; ============================================================
+Function WebView2CheckPage
+    !insertmacro MUI_HEADER_TEXT "依赖项检查" "检查 WebView2 运行时"
+
+    nsDialogs::Create 1018
+    Pop $0
+
+    ${NSD_CreateLabel} 0 0 100% 20u "正在检查系统依赖项..."
+    Pop $0
+
+    nsDialogs::Show
+FunctionEnd
+
+; ============================================================
+; WebView2 检测页面离开
+; ============================================================
+Function WebView2CheckPageLeave
+    ; 检查 WebView2 是否已安装
+    ReadRegStr $WebView2Installed HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ${If} $WebView2Installed == ""
+        ReadRegStr $WebView2Installed HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ${EndIf}
+
+    ${If} $WebView2Installed != ""
+        ; WebView2 已安装
+        MessageBox MB_OK "✓ 依赖项齐全$\r$\n$\r$\nWebView2 运行时已安装，版本：$WebView2Installed"
+    ${Else}
+        ; WebView2 未安装，询问是否自动安装
+        MessageBox MB_YESNO|MB_ICONQUESTION "✗ WebView2 运行时未安装$\r$\n$\r$\nPH Code Editor 需要 WebView2 运行时才能运行。$\r$\n$\r$\n是否现在自动下载并安装 WebView2 运行时？$\r$\n（约 2-3 MB 下载 + 1-2 分钟安装，需要网络连接）" IDYES install_webview2 IDNO cancel_install
+
+        install_webview2:
+            ; 自动下载并安装 WebView2
+            SetDetailsPrint both
+            DetailPrint "正在从 Microsoft 官方服务器下载 WebView2 Runtime..."
+            SetDetailsPrint listonly
+
+            InitPluginsDir
+            CreateDirectory "$pluginsdir\webview2"
+            SetOutPath "$pluginsdir\webview2"
+
+            ; 设置环境变量供 PowerShell 使用
+            System::Call 'kernel32::SetEnvironmentVariable(t,t)i("WV2PATH", "$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe")'
+
+            ; 使用 PowerShell 下载
+            ExecWait 'powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://go.microsoft.com/fwlink/p/?LinkId=2124703 -OutFile $env:WV2PATH"' $1
+
+            ; 检查是否下载成功
+            ${IfNot} ${FileExists} "$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe"
+                MessageBox MB_YESNO|MB_ICONEXCLAMATION "下载 WebView2 Runtime 失败。$\r$\n$\r$\n是否继续安装 PH Code Editor？$\r$\n（程序可能无法正常运行）" IDYES continue_install IDNO cancel_install
+                Goto continue_install
+            ${EndIf}
+
+            DetailPrint "正在安装 WebView2 Runtime..."
+
+            ; 静默安装 WebView2
+            ExecWait '"$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe" /silent /install' $0
+
+            ; 清理临时文件
+            Delete "$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe"
+            RMDir "$pluginsdir\webview2"
+
+            SetDetailsPrint both
+
+            ; 检查安装结果
+            ${If} $0 == 0
+                ; 安装成功，重新检查
+                ReadRegStr $WebView2Installed HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+                ${If} $WebView2Installed == ""
+                    ReadRegStr $WebView2Installed HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+                ${EndIf}
+
+                ${If} $WebView2Installed != ""
+                    MessageBox MB_OK "✓ WebView2 Runtime 安装成功$\r$\n$\r$\n版本：$WebView2Installed"
+                ${Else}
+                    MessageBox MB_YESNO|MB_ICONEXCLAMATION "WebView2 安装程序已运行，但未检测到安装完成。$\r$\n$\r$\n这可能是因为需要重启系统或安装正在后台进行。$\r$\n$\r$\n是否继续安装 PH Code Editor？" IDYES continue_install IDNO cancel_install
+                ${EndIf}
+            ${Else}
+                ; 安装失败
+                MessageBox MB_YESNO|MB_ICONEXCLAMATION "WebView2 Runtime 安装失败（错误代码：$0）$\r$\n$\r$\n是否继续安装 PH Code Editor？$\r$\n（程序可能无法正常运行）" IDYES continue_install IDNO cancel_install
+            ${EndIf}
+
+            Goto continue_install
+
+        cancel_install:
+            ; 用户拒绝安装或安装失败，退出安装程序
+            Abort
+
+        continue_install:
+            ; 继续安装
+    ${EndIf}
+FunctionEnd
 
 ; ============================================================
 ; 初始化

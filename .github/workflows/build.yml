@@ -210,11 +210,11 @@ jobs:
         $notes = ""
 
         if ($version -eq "nightly") {
-          $notes = "## PH Code Nightly Build`n`n当前版本为开发中版本，可能包含最新功能但也可能存在未解决的 bug。"
+          $notes = "## PH Code Nightly Build 当前版本为开发中版本，可能包含最新功能但也可能存在未解决的 bug。"
         } elseif ($version -like "*beta*") {
-          $notes = "## PH Code $version`n`n当前版本为预览版，可能存在未知的 bug，建议仅在测试环境中使用。"
+          $notes = "## PH Code Beta build 当前版本为预览版，可能存在未知的 bug，建议仅在测试环境中使用。"
         } else {
-          $notes = "## PH Code $version`n`n这是一个稳定版本。"
+          $notes = "## PH Code 稳定版本。"
         }
 
         # 设置 step output
