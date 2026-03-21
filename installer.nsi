@@ -39,9 +39,6 @@ Var IsUpgrade
 Var WebView2Installed
 Var WebView2CheckMessage
 
-; Windows 消息常量
-!define WM_SETTEXT 0x000C
-
 ; ============================================================
 ; WebView2 检测页面创建
 ; ============================================================
