@@ -17,15 +17,21 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 > win10及以上   
 
-> webview2 
+> [webview2](https://developer.microsoft.com/zh-cn/microsoft-edge/webview2)
 
 安装：
 
-Release里面下载（推荐2.2.5+，不建议beta版本）
+Release里面下载
 
 功能区别:
 
 gdb调试，但是翻译功能仍是使用云端接口
+
+cph浏览器插件传送数据至phcode
+
+端口使用:27120(主程序)，27121(cph)
+
+
 
 ---
 

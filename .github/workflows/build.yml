@@ -1,10 +1,12 @@
 name: Build and Release PH Code
 
 on:
+  push:
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (leave empty for build only)'
+        description: 'Version number (leave empty for nightly build)'
         required: false
         type: string
 
@@ -19,6 +21,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -43,13 +47,13 @@ jobs:
       run: |
         # 使用自解压方式解压（会创建 w64devkit 子目录）
         Start-Process -FilePath ".\w64devkit-installer.exe" -ArgumentList "-ow64devkit_extract", "-y" -Wait -NoNewWindow
-        
+
         # 移动 w64devkit 子目录到根目录
         if (Test-Path "w64devkit_extract\w64devkit") {
           Move-Item -Path "w64devkit_extract\w64devkit" -Destination "w64devkit" -Force
           Remove-Item -Path "w64devkit_extract" -Recurse -Force
         }
-        
+
         # 验证
         if (Test-Path "w64devkit\bin\g++.exe") {
           Write-Host "✓ g++ 编译器已准备就绪：w64devkit\bin\g++.exe"
@@ -58,6 +62,73 @@ jobs:
           Get-ChildItem -Path "." -Directory | Select-Object Name
           exit 1
         }
+
+    - name: Determine version
+      shell: pwsh
+      id: version
+      run: |
+        # 确定版本号
+        if ("${{ inputs.version }}" -ne "") {
+          $version = "${{ inputs.version }}"
+        } elseif ("${{ github.event_name }}" -eq "push") {
+          $version = "nightly"
+        } else {
+          $version = "nightly"
+        }
+
+        # 设置环境变量
+        Write-Host "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+        # 判断是否为 prerelease
+        $isPrerelease = "false"
+        if ($version -eq "nightly" -or $version -like "*beta*") {
+          $isPrerelease = "true"
+        }
+        Write-Host "isPrerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+        Write-Host "Version: $version"
+        Write-Host "Is Prerelease: $isPrerelease"
+
+    - name: Delete old nightly release and tag
+      if: env.version == 'nightly'
+      shell: pwsh
+      run: |
+        # 删除旧的 nightly release 和 tag
+        $tag = "nightly"
+
+        # 获取所有 releases
+        $releases = gh api repos/:owner/:repo/releases --jq '.[] | select(.tag_name == "nightly") | .id'
+
+        if ($releases) {
+          foreach ($releaseId in $releases) {
+            Write-Host "Deleting release ID: $releaseId"
+            gh api --method DELETE repos/:owner/:repo/releases/$releaseId
+          }
+        }
+
+        # 删除 tag
+        $tags = git tag -l "nightly"
+        if ($tags) {
+          git push origin :refs/tags/nightly
+          git tag -d nightly
+          Write-Host "Deleted old nightly tag"
+        }
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update version in index.html
+      shell: pwsh
+      run: |
+        # 使用环境变量中的版本号
+        $version = "${{ env.version }}"
+
+        # 替换 index.html 中的版本号
+        $filePath = "templates\index.html"
+        $content = Get-Content -Path $filePath -Raw -Encoding UTF8
+        $content = $content -replace '<p>web版本</p>', "<p>版本号：$version</p>"
+        Set-Content -Path $filePath -Value $content -Encoding UTF8 -NoNewline
+
+        Write-Host "✓ 已更新版本号为：$version"
 
     - name: Build executable with PyInstaller
       run: |
@@ -71,10 +142,11 @@ jobs:
       shell: pwsh
       run: |
         # 创建包含可执行文件、w64devkit 和资源的 ZIP 归档
-        if ("${{ inputs.version }}" -ne "") {
-          $zipFileName = "phcode-v${{ inputs.version }}.zip"
+        $version = "${{ env.version }}"
+        if ($version -eq "nightly") {
+          $zipFileName = "phcode-nightly.zip"
         } else {
-          $zipFileName = "phcode-build.zip"
+          $zipFileName = "phcode-v$version.zip"
         }
 
         # 创建临时目录并将所有文件复制进去
@@ -101,19 +173,15 @@ jobs:
     - name: Create installer with NSIS
       shell: pwsh
       run: |
-        # 定义版本号
-        if ("${{ inputs.version }}" -ne "") {
-          $version = "${{ inputs.version }}"
-        } else {
-          $version = "1.0.0"
-        }
+        # 定义版本号（直接使用环境变量中的版本号）
+        $version = "${{ env.version }}"
 
         # NSIS 已添加到 PATH，直接使用 makensis 命令
         $installerScript = "installer.nsi"
-        
+
         Write-Host "正在编译安装程序，版本：$version"
         makensis /INPUTCHARSET UTF8 /DVERSION=$version $installerScript
-        
+
         # 验证安装程序是否创建
         $installerExe = "phcode-installer-$version.exe"
         if (Test-Path $installerExe) {
@@ -135,16 +203,57 @@ jobs:
           *.exe
           dist/phcode.exe
 
+    - name: Generate release notes
+      shell: pwsh
+      id: release_notes
+      run: |
+        $version = "${{ env.version }}"
+        $notes = ""
+
+        if ($version -eq "nightly") {
+          $notes = "## PH Code Nightly Build`n`n当前版本为开发中版本，可能包含最新功能但也可能存在未解决的 bug。"
+        } elseif ($version -like "*beta*") {
+          $notes = "## PH Code $version`n`n当前版本为预览版，可能存在未知的 bug，建议仅在测试环境中使用。"
+        } else {
+          $notes = "## PH Code $version`n`n这是一个稳定版本。"
+        }
+
+        Write-Host "notes=$notes" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Host "Release notes generated"
+
     - name: Create Release
-      if: ${{ inputs.version != '' }}
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ inputs.version }}
-        release_name: Release v${{ inputs.version }}
-        draft: false
-        prerelease: false
-        files: |
-          phcode-v${{ inputs.version }}.zip
-          phcode-installer-${{ inputs.version }}.exe
+      shell: pwsh
+      run: |
+        $version = "${{ env.version }}"
+        $notes = "${{ env.notes }}"
+        $isPrerelease = "${{ env.isPrerelease }}"
+
+        # 设置 tag 名称和文件名
+        if ($version -eq "nightly") {
+          $tagName = "nightly"
+          $releaseName = "Nightly Build"
+          $zipFile = "phcode-nightly.zip"
+          $installerFile = "phcode-installer-nightly.exe"
+        } else {
+          $tagName = "v$version"
+          $releaseName = "Release v$version"
+          $zipFile = "phcode-v$version.zip"
+          $installerFile = "phcode-installer-$version.exe"
+        }
+
+        # 创建 tag
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -f $tagName
+        git push -f origin $tagName
+
+        # 创建 release
+        gh release create $tagName `
+          --title "$releaseName" `
+          --notes "$notes" `
+          --prerelease=$isPrerelease `
+          $zipFile $installerFile
+
+        Write-Host "✓ Release created: $releaseName"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
