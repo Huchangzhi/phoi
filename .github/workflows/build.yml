@@ -76,21 +76,20 @@ jobs:
           $version = "nightly"
         }
 
-        # 设置环境变量
-        Write-Host "version=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
         # 判断是否为 prerelease
         $isPrerelease = "false"
         if ($version -eq "nightly" -or $version -like "*beta*") {
           $isPrerelease = "true"
         }
-        Write-Host "isPrerelease=$isPrerelease" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-        Write-Host "Version: $version"
-        Write-Host "Is Prerelease: $isPrerelease"
+        # 设置 step outputs
+        Write-Host "version=$version"
+        Write-Host "::set-output name=version::$version"
+        Write-Host "isPrerelease=$isPrerelease"
+        Write-Host "::set-output name=isPrerelease::$isPrerelease"
 
     - name: Delete old nightly release and tag
-      if: env.version == 'nightly'
+      if: steps.version.outputs.version == 'nightly'
       shell: pwsh
       run: |
         # 删除旧的 nightly release 和 tag
@@ -119,8 +118,8 @@ jobs:
     - name: Update version in index.html
       shell: pwsh
       run: |
-        # 使用环境变量中的版本号
-        $version = "${{ env.version }}"
+        # 使用步骤输出中的版本号
+        $version = "${{ steps.version.outputs.version }}"
 
         # 替换 index.html 中的版本号
         $filePath = "templates\index.html"
@@ -142,7 +141,7 @@ jobs:
       shell: pwsh
       run: |
         # 创建包含可执行文件、w64devkit 和资源的 ZIP 归档
-        $version = "${{ env.version }}"
+        $version = "${{ steps.version.outputs.version }}"
         if ($version -eq "nightly") {
           $zipFileName = "phcode-nightly.zip"
         } else {
@@ -173,8 +172,8 @@ jobs:
     - name: Create installer with NSIS
       shell: pwsh
       run: |
-        # 定义版本号（直接使用环境变量中的版本号）
-        $version = "${{ env.version }}"
+        # 定义版本号（直接使用步骤输出中的版本号）
+        $version = "${{ steps.version.outputs.version }}"
 
         # NSIS 已添加到 PATH，直接使用 makensis 命令
         $installerScript = "installer.nsi"
@@ -207,7 +206,7 @@ jobs:
       shell: pwsh
       id: release_notes
       run: |
-        $version = "${{ env.version }}"
+        $version = "${{ steps.version.outputs.version }}"
         $notes = ""
 
         if ($version -eq "nightly") {
@@ -218,15 +217,17 @@ jobs:
           $notes = "## PH Code $version`n`n这是一个稳定版本。"
         }
 
-        Write-Host "notes=$notes" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        # 设置 step output
+        Write-Host "notes=$notes"
+        Write-Host "::set-output name=notes::$notes"
         Write-Host "Release notes generated"
 
     - name: Create Release
       shell: pwsh
       run: |
-        $version = "${{ env.version }}"
-        $notes = "${{ env.notes }}"
-        $isPrerelease = "${{ env.isPrerelease }}"
+        $version = "${{ steps.version.outputs.version }}"
+        $notes = "${{ steps.release_notes.outputs.notes }}"
+        $isPrerelease = "${{ steps.version.outputs.isPrerelease }}"
 
         # 设置 tag 名称和文件名
         if ($version -eq "nightly") {
