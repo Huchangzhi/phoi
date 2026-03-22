@@ -47,12 +47,12 @@ Var WebView2Status
 Var WebView2InstallButton
 
 Function WebView2CheckPage
-    !insertmacro MUI_HEADER_TEXT "依赖项检查" "检查 WebView2 运行时"
+    !insertmacro MUI_HEADER_TEXT "依赖项检查安装" "检查并安装 WebView2 运行时"
 
     nsDialogs::Create 1018
     Pop $0
 
-    ${NSD_CreateLabel} 0 0 100% 30u "正在检查系统依赖项..."
+    ${NSD_CreateLabel} 0 0 100% 30u "点击下一步检查系统依赖项..."
     Pop $WebView2Label
 
     ${NSD_CreateLabel} 0 40u 100% 20u ""
