@@ -114,14 +114,14 @@ Function CheckWebView2
                 Goto continue_install
             ${EndIf}
 
-            ; 更新状态
+; 更新状态
             SendMessage $WebView2Label ${WM_SETTEXT} 0 "STR:正在安装 WebView2 Runtime..."
-            SendMessage $WebView2Status ${WM_SETTEXT} 0 "STR:安装中，请稍候（可能需要 1-2 分钟）..."
+            SendMessage $WebView2Status ${WM_SETTEXT} 0 "STR:安装程序已启动，请在弹出窗口中完成安装"
 
-            DetailPrint "正在安装 WebView2 Runtime..."
+            DetailPrint "正在启动 WebView2 Runtime 安装程序..."
 
-            ; 静默安装 WebView2
-            ExecWait '"$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe" /silent /install' $0
+            ; 启动 WebView2 安装程序（显示界面）
+            ExecWait '"$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe"' $0
 
             ; 清理临时文件
             Delete "$pluginsdir\webview2\MicrosoftEdgeWebview2Setup.exe"
