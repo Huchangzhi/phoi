@@ -76,9 +76,16 @@ jobs:
           $version = "nightly"
         }
 
+        # 如果是 nightly，添加构建时间（精确到时，格式：yyyyMMddHH）
+        if ($version -eq "nightly") {
+          # 获取 UTC 时间
+          $buildTime = (Get-Date).ToUniversalTime().ToString("yyyyMMddHH")
+          $version = "nightly-$buildTime"
+        }
+
         # 判断是否为 prerelease
         $isPrerelease = "false"
-        if ($version -eq "nightly" -or $version -like "*beta*") {
+        if ($version -like "nightly-*" -or $version -like "*beta*") {
           $isPrerelease = "true"
         }
 
@@ -89,7 +96,7 @@ jobs:
         Write-Host "::set-output name=isPrerelease::$isPrerelease"
 
     - name: Delete old nightly release and tag
-      if: steps.version.outputs.version == 'nightly'
+      if: steps.version.outputs.version -like 'nightly-*'
       shell: pwsh
       run: |
         # 删除旧的 nightly release 和 tag
@@ -142,8 +149,8 @@ jobs:
       run: |
         # 创建包含可执行文件、w64devkit 和资源的 ZIP 归档
         $version = "${{ steps.version.outputs.version }}"
-        if ($version -eq "nightly") {
-          $zipFileName = "phcode-nightly.zip"
+        if ($version -like "nightly-*") {
+          $zipFileName = "phcode-$version.zip"
         } else {
           $zipFileName = "phcode-v$version.zip"
         }
@@ -209,7 +216,7 @@ jobs:
         $version = "${{ steps.version.outputs.version }}"
         $notes = ""
 
-        if ($version -eq "nightly") {
+        if ($version -like "nightly-*") {
           $notes = "## PH Code Nightly Build 当前版本为开发中版本，可能包含最新功能但也可能存在未解决的 bug。"
         } elseif ($version -like "*beta*") {
           $notes = "## PH Code Beta build 当前版本为预览版，可能存在未知的 bug，建议仅在测试环境中使用。"
@@ -230,11 +237,11 @@ jobs:
         $isPrerelease = "${{ steps.version.outputs.isPrerelease }}"
 
         # 设置 tag 名称和文件名
-        if ($version -eq "nightly") {
+        if ($version -like "nightly-*") {
           $tagName = "nightly"
-          $releaseName = "Nightly Build"
-          $zipFile = "phcode-nightly.zip"
-          $installerFile = "phcode-installer-nightly.exe"
+          $releaseName = "Nightly Build - $version"
+          $zipFile = "phcode-$version.zip"
+          $installerFile = "phcode-installer-$version.exe"
         } else {
           $tagName = "v$version"
           $releaseName = "Release v$version"
