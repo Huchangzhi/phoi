@@ -18,6 +18,7 @@ class ClangdLSP {
         this.documentUri = 'file:///home/web_user/main.cpp';
         this.completionCache = null;
         this.diagnosticTimer = null;
+        this.completionProvider = null;
     }
 
     onStatusChange(callback) {
@@ -346,9 +347,47 @@ class ClangdLSP {
     registerCompletionProvider() {
         if (!monaco) return;
 
-        // 仅注册错误诊断，不注册代码补全、悬停、签名帮助
-        // clangd 会通过 textDocument/publishDiagnostics 发送错误/警告
-        console.log('[Clangd] Diagnostic provider registered');
+        // 检查是否启用了 clangd 代码提示
+        const clangdCompletionEnabled = localStorage.getItem('phoi_clangd_completion_enabled') === 'true';
+        if (!clangdCompletionEnabled) {
+            console.log('[Clangd] Completion provider not registered (disabled in settings), using autocomplete.js');
+            // 使用 fallback 的 autocomplete.js
+            if (typeof registerCompletionProviders === 'function') {
+                registerCompletionProviders();
+            }
+            return;
+        }
+
+        // 注册 clangd 的代码补全提供器
+        const provider = monaco.languages.registerCompletionItemProvider('cpp', {
+            triggerCharacters: ['.', '>', ':', '#'],
+            provideCompletionItems: async (model, position) => {
+                if (!this.initialized || !this.clangdWorker) {
+                    return { suggestions: [] };
+                }
+
+                try {
+                    const items = await this.requestCompletion(model, position);
+                    return { 
+                        suggestions: items,
+                        incomplete: true  // 允许后续请求
+                    };
+                } catch (error) {
+                    console.warn('[Clangd] Completion error:', error);
+                    return { suggestions: [] };
+                }
+            }
+        });
+
+        this.completionProvider = provider;
+        console.log('[Clangd] Completion provider registered');
+    }
+
+    disposeCompletionProvider() {
+        if (this.completionProvider) {
+            this.completionProvider.dispose();
+            this.completionProvider = null;
+        }
     }
 
     async requestCompletion(model, position) {
@@ -400,17 +439,38 @@ class ClangdLSP {
             insertText = item.insertText;
         }
 
+        // 过滤 ANSI 控制字符和乱码
+        const cleanLabel = this.cleanString(item.label);
+        const cleanDetail = this.cleanString(item.detail || '');
+        const cleanDocumentation = this.cleanString(
+            item.documentation ? 
+                (typeof item.documentation === 'string' ? item.documentation : item.documentation.value) : ''
+        );
+        const cleanInsertText = this.cleanString(insertText);
+
         return {
-            label: item.label,
+            label: cleanLabel,
             kind: kindMap[item.kind] || monaco.languages.CompletionItemKind.Text,
-            detail: item.detail || '',
-            documentation: item.documentation ? 
-                (typeof item.documentation === 'string' ? item.documentation : item.documentation.value) : '',
-            insertText: insertText,
+            detail: cleanDetail,
+            documentation: cleanDocumentation,
+            insertText: cleanInsertText,
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
             sortText: item.sortText || item.label,
             filterText: item.filterText || item.label
         };
+    }
+
+    // 清理字符串中的 ANSI 控制字符和乱码
+    cleanString(str) {
+        if (!str) return '';
+        
+        // 移除 ANSI 转义序列 (例如: \x1b[31m)
+        return str
+            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // ANSI 控制序列
+            .replace(/\x1b\][0-9;]*\x07/g, '')       // OSC 序列
+            .replace(/[\x00-\x1f\x7f-\x9f]/g, '')    // 控制字符
+            .replace(/[^\x20-\x7E\u4e00-\u9fff]/g, '') // 保留 ASCII 可打印字符和中文
+            .trim();
     }
 
     async requestHover(model, position) {
@@ -540,6 +600,14 @@ class ClangdLSP {
     async useFallback() {
         console.log('[Clangd] Using fallback autocomplete.js');
         this.usingFallback = true;
+        
+        // 清理 clangd 补全提供器
+        this.disposeCompletionProvider();
+        
+        // 启用 autocomplete.js 的补全
+        if (typeof registerCompletionProviders === 'function') {
+            registerCompletionProviders();
+        }
     }
 
     getStatus() {
@@ -556,6 +624,9 @@ class ClangdLSP {
             clearInterval(this.diagnosticTimer);
             this.diagnosticTimer = null;
         }
+        
+        // 清理补全提供器
+        this.disposeCompletionProvider();
         
         // 清理所有待处理的请求
         for (const [id, pending] of this.pendingRequests) {

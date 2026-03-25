@@ -198,12 +198,17 @@ require(['vs/editor/editor.main'], function() {
     });
 
     // 根据设置决定是否注册代码补全提供程序
-    if (cppAutocompleteEnabled) {
-        // 确保autocomplete.js已加载后再注册补全提供程序
+    // 如果 clangd 启用，由 clangd_lsp.js 决定使用哪个补全
+    // 如果 clangd 未启用，使用 autocomplete.js
+    const clangdEnabled = localStorage.getItem('phoi_clangd_enabled') === 'true';
+    
+    if (cppAutocompleteEnabled && !clangdEnabled) {
+        // clangd 未启用，使用 autocomplete.js
         if (typeof registerCompletionProviders === 'function') {
             registerCompletionProviders();
         }
     }
+    // 如果 clangd 启用，由 clangd_lsp.js 的 registerCompletionProvider() 处理
 
     // 添加终端面板调整大小功能
     let isResizing = false;
@@ -1336,6 +1341,31 @@ function showPreferencesModal() {
     if (clangdEnabledCheckbox) {
         clangdEnabledCheckbox.checked = localStorage.getItem('phoi_clangd_enabled') === 'true';
     }
+    
+    // 加载 clangd 代码提示设置
+    const clangdCompletionCheckbox = document.getElementById('clangd-completion-enabled');
+    if (clangdCompletionCheckbox) {
+        clangdCompletionCheckbox.checked = localStorage.getItem('phoi_clangd_completion_enabled') === 'true';
+        // 根据 clangd 是否启用显示/隐藏此选项
+        const settingDiv = document.getElementById('clangd-completion-setting');
+        if (settingDiv) {
+            settingDiv.style.display = clangdEnabledCheckbox?.checked ? 'block' : 'none';
+        }
+    }
+    
+    // 添加 clangd 启用状态变化监听（使用 onchange 避免重复绑定）
+    if (clangdEnabledCheckbox) {
+        clangdEnabledCheckbox.onchange = function() {
+            const settingDiv = document.getElementById('clangd-completion-setting');
+            if (settingDiv) {
+                settingDiv.style.display = this.checked ? 'block' : 'none';
+            }
+            // 如果关闭 clangd，同时取消代码提示勾选
+            if (!this.checked && clangdCompletionCheckbox) {
+                clangdCompletionCheckbox.checked = false;
+            }
+        };
+    }
 
     // 显示弹窗
     if (preferencesModal) {
@@ -1363,6 +1393,7 @@ function savePreferencesChanges() {
 
     // 保存 clangd 设置
     const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
+    const clangdCompletionCheckbox = document.getElementById('clangd-completion-enabled');
     if (clangdEnabledCheckbox) {
         const isEnabled = clangdEnabledCheckbox.checked;
         localStorage.setItem('phoi_clangd_enabled', isEnabled);
@@ -1373,8 +1404,20 @@ function savePreferencesChanges() {
             showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
         }
         
+        // 保存 clangd 代码提示设置
+        if (clangdCompletionCheckbox) {
+            const isCompletionEnabled = clangdCompletionCheckbox.checked;
+            localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
+        }
+        
         // 更新右键菜单状态
         updateContextMenuState();
+    } else {
+        // 保存 clangd 代码提示设置（即使 clangd 未启用也要保存）
+        if (clangdCompletionCheckbox) {
+            const isCompletionEnabled = clangdCompletionCheckbox.checked;
+            localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
+        }
     }
 
     // 隐藏弹窗
