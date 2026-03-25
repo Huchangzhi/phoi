@@ -101,6 +101,9 @@ class ClangdLSP {
             // 3. 创建 clangd worker
             this.updateStatus('loading_module', 50, 100);
             await this.createWorker(wasmUrl);
+            
+            // 释放 Object URL，避免内存泄漏
+            URL.revokeObjectURL(wasmUrl);
 
             // 4. 初始化 LSP
             this.updateStatus('initializing', 70, 100);
@@ -175,35 +178,35 @@ class ClangdLSP {
 
         console.log('[Clangd] LSP initialization...');
 
-        const initRequest = {
-            jsonrpc: '2.0',
-            id: ++this.requestId,
-            method: 'initialize',
-            params: {
-                processId: null,
-                rootUri: null,
-                capabilities: {
-                    textDocument: {
-                        publishDiagnostics: { relatedInformation: true },
-                        completion: {
-                            completionItem: {
-                                snippetSupport: true,
-                                commitCharactersSupport: true,
-                                documentationFormat: ['plaintext', 'markdown']
-                            }
-                        },
-                        hover: { contentFormat: ['plaintext', 'markdown'] },
-                        signatureHelp: { signatureInformation: { documentationFormat: ['plaintext'] } }
-                    }
+        const initParams = {
+            processId: null,
+            rootUri: null,
+            capabilities: {
+                textDocument: {
+                    publishDiagnostics: { relatedInformation: true },
+                    completion: {
+                        completionItem: {
+                            snippetSupport: true,
+                            commitCharactersSupport: true,
+                            documentationFormat: ['plaintext', 'markdown']
+                        }
+                    },
+                    hover: { contentFormat: ['plaintext', 'markdown'] },
+                    signatureHelp: { signatureInformation: { documentationFormat: ['plaintext'] } }
                 }
             }
         };
 
-        // 发送 initialize 请求
-        this.sendToWorker(initRequest);
-
-        // 等待响应
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // 发送 initialize 请求并等待响应
+        console.log('[Clangd] Sending initialize request...');
+        const initResult = await this.sendRequest('initialize', initParams);
+        
+        if (!initResult) {
+            console.warn('[Clangd] Initialize request timeout or failed');
+            throw new Error('clangd initialize timeout');
+        }
+        
+        console.log('[Clangd] Initialize response received');
 
         // 发送 initialized 通知
         this.sendToWorker({
@@ -217,6 +220,8 @@ class ClangdLSP {
 
         // 设置文档变更监听
         this.setupDocumentSync();
+        
+        console.log('[Clangd] LSP initialization completed');
     }
 
     sendToWorker(message) {
@@ -249,10 +254,16 @@ class ClangdLSP {
 
         // 每 5 秒请求一次诊断
         this.diagnosticTimer = setInterval(() => {
-            if (!this.initialized) return;
+            if (!this.initialized || !this.clangdWorker) {
+                console.log('[Clangd] Timer skipped: not ready');
+                return;
+            }
             
             const model = this.editor.getModel();
-            if (!model) return;
+            if (!model) {
+                console.log('[Clangd] Timer skipped: no model');
+                return;
+            }
             
             // 请求重新分析文档
             this.sendToWorker({
@@ -271,7 +282,7 @@ class ClangdLSP {
 
         // 仍然需要同步文档变化，但不立即请求诊断
         this.editor.onDidChangeModelContent((e) => {
-            if (!this.initialized) return;
+            if (!this.initialized || !this.clangdWorker) return;
 
             const model = this.editor.getModel();
             if (!model) return;
@@ -299,18 +310,22 @@ class ClangdLSP {
                 }
             });
             
-            // 新增：当输入 ; {} [] 时立刻请求一次诊断
+            // 新增：当输入 ; {} [] 时立刻请求一次诊断（排除注释和字符串）
             const triggerChars = [';', '{', '}', '[', ']'];
             const isTriggerChar = e.changes.some(change => {
-                return triggerChars.some(char => change.text.includes(char));
+                // 只检测单个字符的输入，避免误触发
+                if (change.text.length !== 1) return false;
+                return triggerChars.includes(change.text);
             });
             
             if (isTriggerChar) {
                 setTimeout(() => {
-                    if (!this.initialized) return;
+                    if (!this.initialized || !this.clangdWorker) return;
                     const currentModel = this.editor.getModel();
                     if (!currentModel) return;
                     
+                    // 使用当前版本号 +1，避免重复递增
+                    const triggerVersion = this.documentVersion + 1;
                     this.sendToWorker({
                         jsonrpc: '2.0',
                         method: 'textDocument/didOpen',
@@ -318,12 +333,12 @@ class ClangdLSP {
                             textDocument: {
                                 uri: this.documentUri,
                                 languageId: 'cpp',
-                                version: ++this.documentVersion,
+                                version: triggerVersion,
                                 text: currentModel.getValue()
                             }
                         }
                     });
-                }, 0);
+                }, 300); // 延迟 300ms 避免过于频繁
             }
         });
     }
@@ -452,23 +467,30 @@ class ClangdLSP {
                 params
             };
 
-            this.pendingRequests.set(id, { resolve, reject, method, timeout: null });
+            const pendingRequest = { resolve, reject, method, timeout: null };
+            this.pendingRequests.set(id, pendingRequest);
 
             this.sendToWorker(request);
+            
+            console.log(`[Clangd] Sent request: ${method} (id=${id})`);
 
-            // 超时处理
+            // 超时处理 - 60 秒
             const timeout = setTimeout(() => {
-                if (this.pendingRequests.has(id)) {
+                const pending = this.pendingRequests.get(id);
+                if (pending) {
                     this.pendingRequests.delete(id);
-                    resolve(null);
+                    console.error(`[Clangd] Request timeout after 60s: ${method} (id=${id})`);
+                    pending.resolve(null);
                 }
-            }, 5000);
+            }, 60000);
 
-            this.pendingRequests.get(id).timeout = timeout;
+            pendingRequest.timeout = timeout;
         });
     }
 
     handleLSPMessage(message) {
+        console.log('[Clangd] Received LSP message:', JSON.stringify(message).substring(0, 200));
+        
         if (message.id !== undefined) {
             // 这是响应消息
             const pending = this.pendingRequests.get(message.id);
@@ -479,8 +501,11 @@ class ClangdLSP {
                     console.warn('[Clangd] LSP error:', message.error);
                     pending.resolve(null);
                 } else {
+                    console.log(`[Clangd] Request resolved: id=${message.id}`);
                     pending.resolve(message.result);
                 }
+            } else {
+                console.warn(`[Clangd] Received response for unknown request: id=${message.id}`);
             }
         } else if (message.method) {
             // 这是服务器通知
@@ -526,13 +551,32 @@ class ClangdLSP {
     }
 
     dispose() {
+        // 清理定时器
         if (this.diagnosticTimer) {
             clearInterval(this.diagnosticTimer);
             this.diagnosticTimer = null;
         }
+        
+        // 清理所有待处理的请求
+        for (const [id, pending] of this.pendingRequests) {
+            if (pending.timeout) {
+                clearTimeout(pending.timeout);
+            }
+            pending.resolve(null);
+        }
+        this.pendingRequests.clear();
+        
+        // 清理 worker
         if (this.clangdWorker) {
             this.clangdWorker.terminate();
+            this.clangdWorker = null;
         }
+        
+        // 清理 editor 引用
+        this.editor = null;
+        this.initialized = false;
+        
+        console.log('[Clangd] Disposed');
     }
 
     isUsingClangd() {
@@ -728,4 +772,11 @@ document.addEventListener('DOMContentLoaded', () => {
         statusDiv.textContent = 'clangd: 等待初始化...';
         terminalInfoContent.appendChild(statusDiv);
     }
+    
+    // 页面卸载时清理 clangd 资源
+    window.addEventListener('beforeunload', () => {
+        if (window.clangdLSP) {
+            window.clangdLSP.dispose();
+        }
+    });
 });

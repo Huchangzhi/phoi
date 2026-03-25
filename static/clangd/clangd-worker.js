@@ -74,6 +74,7 @@ const stdin = () => {
             return null;
         }
         const nextChunk = stdinChunks.shift();
+        // 添加 null 终止符，这是 Emscripten 期望的格式
         currentStdinChunk.push(...textEncoder.encode(nextChunk), null);
     }
     return currentStdinChunk.shift();
@@ -81,7 +82,9 @@ const stdin = () => {
 
 const stdinReady = async () => {
     if (stdinChunks.length === 0) {
-        return new Promise(resolve => resolveStdinReady = resolve);
+        return new Promise(resolve => {
+            resolveStdinReady = resolve;
+        });
     }
 };
 
@@ -90,39 +93,57 @@ const jsonStream = {
     insert: (charCode) => {
         const char = String.fromCharCode(charCode);
         jsonStream.buffer += char;
-        if (jsonStream.buffer.endsWith('\r\n\r\n')) {
+        
+        // 循环解析所有完整的消息
+        while (true) {
             const headerEnd = jsonStream.buffer.indexOf('\r\n\r\n');
+            if (headerEnd === -1) {
+                return null;
+            }
+            
             const header = jsonStream.buffer.substring(0, headerEnd);
             const lengthMatch = header.match(/Content-Length: (\d+)/i);
-            if (lengthMatch) {
-                const contentLength = parseInt(lengthMatch[1]);
-                const contentStart = headerEnd + 4;
-                if (jsonStream.buffer.length >= contentStart + contentLength) {
-                    const content = jsonStream.buffer.substring(contentStart, contentStart + contentLength);
-                    jsonStream.buffer = jsonStream.buffer.substring(contentStart + contentLength);
-                    try {
-                        return JSON.parse(content);
-                    } catch (e) {
-                        console.error('[clangd-worker] Failed to parse JSON:', e);
-                    }
-                }
+            
+            if (!lengthMatch) {
+                // 无效的头部，清空缓冲
+                console.warn('[clangd-worker] Invalid LSP header:', header.substring(0, 100));
+                jsonStream.buffer = jsonStream.buffer.substring(headerEnd + 4);
+                continue;
+            }
+            
+            const contentLength = parseInt(lengthMatch[1]);
+            const contentStart = headerEnd + 4;
+            
+            if (jsonStream.buffer.length < contentStart + contentLength) {
+                // 数据不完整，等待更多
+                return null;
+            }
+            
+            const content = jsonStream.buffer.substring(contentStart, contentStart + contentLength);
+            jsonStream.buffer = jsonStream.buffer.substring(contentStart + contentLength);
+            
+            try {
+                const msg = JSON.parse(content);
+                console.log('[clangd-worker] Parsed LSP message:', msg.id ? 'Response #' + msg.id : msg.method);
+                return msg;
+            } catch (e) {
+                console.error('[clangd-worker] Failed to parse JSON:', e, 'Content:', content.substring(0, 100));
+                return null;
             }
         }
-        return null;
     }
 };
 
-const stdout = (charCode) => {
+const stdout = async (charCode) => {
     const msg = jsonStream.insert(charCode);
     if (msg) {
-        console.log('[clangd-worker] LSP response:', msg.id ? 'Response #' + msg.id : msg.method, msg.result !== undefined ? 'result=' + JSON.stringify(msg.result).substring(0, 100) : '');
+        console.log('[clangd-worker] LSP response:', msg.id ? 'Response #' + msg.id : msg.method);
         self.postMessage({ type: 'lsp', message: msg });
     }
 };
 
-const stderr = (charCode) => {
-    // 移除 stderr 输出到控制台
-    // console.log('[clangd-worker] stderr:', String.fromCharCode(charCode));
+const stderr = async (charCode) => {
+    // 静默处理 stderr
 };
 
 const onAbort = () => {
@@ -269,17 +290,22 @@ async function initClangd(wasmUrl) {
 
     console.log('[clangd-worker] Starting clangd server...');
 
-    // 启动 clangd
-    Module.callMain([]);
-
-    console.log('[clangd-worker] clangd started!');
-
-    // 设置发送函数
+    // 设置发送函数 - 必须在 callMain 之前设置
     sendToClangd = (data) => {
-        const content = protocol.write(data);
-        stdinChunks.push(content);
+        // 按照 TypeFox 的方式，分三部分 push
+        const body = JSON.stringify(data);
+        const header = `Content-Length: ${body.length}\r\n`;
+        const delimiter = '\r\n';
+        stdinChunks.push(header, delimiter, body);
         resolveStdinReady();
     };
+
+    // 启动 clangd - 这会阻塞直到 clangd 进入事件循环
+    // Emscripten 的 Asyncify 会在 clangd 等待 stdin 时暂停执行
+    // 让 JavaScript 事件循环继续运行
+    Module.callMain([]);
+    
+    console.log('[clangd-worker] clangd started!');
 
     return Module;
 }
@@ -298,7 +324,6 @@ self.onmessage = async function(e) {
             self.postMessage({ type: 'error', error: err.message });
         }
     } else if (type === 'lsp' && sendToClangd) {
-        console.log('[clangd-worker] Sending to clangd:', message.method || 'notification');
         sendToClangd(message);
     }
 };
