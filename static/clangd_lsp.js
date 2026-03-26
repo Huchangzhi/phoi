@@ -19,6 +19,11 @@ class ClangdLSP {
         this.completionCache = null;
         this.diagnosticTimer = null;
         this.completionProvider = null;
+        this.signatureHelpDebounceTimer = null;
+        this.lastSignatureHelpPosition = null;
+        this.semanticTokensProvider = null;
+        this.semanticTokensResultId = null;
+        this.previousSemanticTokens = null;
     }
 
     onStatusChange(callback) {
@@ -112,6 +117,12 @@ class ClangdLSP {
 
             // 5. 注册 Monaco 补全提供器
             this.registerCompletionProvider();
+
+            // 6. 注册悬停提示提供器
+            this.registerHoverProvider();
+
+            // 7. 注册函数提示标签提供器
+            this.registerSignatureHelpProvider();
 
             this.updateStatus('ready', 100, 100);
             this.initialized = true;
@@ -390,6 +401,113 @@ class ClangdLSP {
         }
     }
 
+    registerHoverProvider() {
+        if (!monaco) return;
+
+        const provider = monaco.languages.registerHoverProvider('cpp', {
+            provideHover: async (model, position, token) => {
+                if (!this.initialized || !this.clangdWorker) {
+                    return null;
+                }
+
+                try {
+                    const result = await this.requestHover(model, position);
+                    return result;
+                } catch (error) {
+                    console.warn('[Clangd] Hover error:', error);
+                    return null;
+                }
+            }
+        });
+
+        this.hoverProvider = provider;
+        console.log('[Clangd] Hover provider registered');
+    }
+
+    disposeHoverProvider() {
+        if (this.hoverProvider) {
+            this.hoverProvider.dispose();
+            this.hoverProvider = null;
+        }
+    }
+
+    registerSignatureHelpProvider() {
+        if (!monaco) return;
+
+        const provider = monaco.languages.registerSignatureHelpProvider('cpp', {
+            signatureHelpTriggerCharacters: ['(', ','],
+            provideSignatureHelp: async (model, position, token, context) => {
+                if (!this.initialized || !this.clangdWorker) {
+                    return null;
+                }
+
+                // 检查是否在函数调用上下文中
+                const lineContent = model.getLineContent(position.lineNumber);
+                const beforeCursor = lineContent.substring(0, position.column - 1);
+                const hasOpenParen = beforeCursor.lastIndexOf('(') > beforeCursor.lastIndexOf(')');
+                const hasCloseParen = beforeCursor.lastIndexOf(')') > beforeCursor.lastIndexOf('(');
+
+                // 如果没有匹配的括号，不请求
+                if (!hasOpenParen || hasCloseParen) {
+                    return null;
+                }
+
+                // 清除之前的防抖计时器
+                if (this.signatureHelpDebounceTimer) {
+                    clearTimeout(this.signatureHelpDebounceTimer);
+                    this.signatureHelpDebounceTimer = null;
+                }
+
+                // 如果是触发字符（'(' 或 ','），立即请求
+                const isTriggerChar = context.triggerKind === 1 &&
+                                     (context.triggerCharacter === '(' || context.triggerCharacter === ',');
+
+                if (isTriggerChar) {
+                    const posKey = `${position.lineNumber}:${position.column}`;
+                    this.lastSignatureHelpPosition = posKey;
+                    try {
+                        const result = await this.requestSignatureHelp(model, position);
+                        return result;
+                    } catch (error) {
+                        console.warn('[Clangd] Signature help error:', error);
+                        return null;
+                    }
+                } else {
+                    // 光标移动，延迟 50ms 后请求（更短的延迟）
+                    return new Promise((resolve) => {
+                        this.signatureHelpDebounceTimer = setTimeout(async () => {
+                            // 再次检查 token 是否被取消
+                            if (token.isCancellationRequested) {
+                                resolve(null);
+                                return;
+                            }
+
+                            const posKey = `${position.lineNumber}:${position.column}`;
+                            this.lastSignatureHelpPosition = posKey;
+                            try {
+                                const result = await this.requestSignatureHelp(model, position);
+                                resolve(result);
+                            } catch (error) {
+                                console.warn('[Clangd] Signature help error:', error);
+                                resolve(null);
+                            }
+                        }, 50); // 减少延迟到 50ms
+                    });
+                }
+            }
+        });
+
+        this.signatureHelpProvider = provider;
+        console.log('[Clangd] Signature help provider registered');
+    }
+
+    disposeSignatureHelpProvider() {
+        if (this.signatureHelpProvider) {
+            this.signatureHelpProvider.dispose();
+            this.signatureHelpProvider = null;
+        }
+    }
+
     async requestCompletion(model, position) {
         const params = {
             textDocument: { uri: this.documentUri },
@@ -463,14 +581,19 @@ class ClangdLSP {
     // 清理字符串中的 ANSI 控制字符和乱码
     cleanString(str) {
         if (!str) return '';
-        
+
         // 移除 ANSI 转义序列 (例如: \x1b[31m)
-        return str
+        let cleaned = str
             .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // ANSI 控制序列
-            .replace(/\x1b\][0-9;]*\x07/g, '')       // OSC 序列
-            .replace(/[\x00-\x1f\x7f-\x9f]/g, '')    // 控制字符
-            .replace(/[^\x20-\x7E\u4e00-\u9fff]/g, '') // 保留 ASCII 可打印字符和中文
-            .trim();
+            .replace(/\x1b\][0-9;]*\x07/g, '');      // OSC 序列
+
+        // 移除控制字符，但保留换行符 (\n = \x0a) 和制表符 (\t = \x09)
+        cleaned = cleaned.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, '');
+
+        // 只保留 ASCII 可打印字符、中文、换行符和制表符
+        cleaned = cleaned.replace(/[^\x20-\x7E\u4e00-\u9fff\n\t\r]/g, '');
+
+        return cleaned;
     }
 
     async requestHover(model, position) {
@@ -482,38 +605,202 @@ class ClangdLSP {
         const result = await this.sendRequest('textDocument/hover', params);
         if (!result || !result.contents) return null;
 
-        let contents = '';
-        if (typeof result.contents === 'string') {
-            contents = result.contents;
-        } else if (result.contents.value) {
-            contents = result.contents.value;
-        } else if (result.contents.language) {
-            contents = result.contents.value;
+        // 处理 LSP hover 结果
+        let hoverContents = [];
+
+        const processContent = (content) => {
+            if (typeof content === 'string') {
+                // 字符串类型，清理后使用代码块格式显示
+                const cleaned = this.cleanString(content);
+                if (cleaned) {
+                    // 检查是否包含代码块标记
+                    if (cleaned.includes('```')) {
+                        // 已经包含代码块标记，直接使用
+                        hoverContents.push({
+                            value: cleaned,
+                            isTrusted: true,
+                            supportHtml: false
+                        });
+                    } else {
+                        // 使用文本代码块格式来保留换行
+                        hoverContents.push({
+                            value: `\`\`\`text\n${cleaned}\n\`\`\``,
+                            isTrusted: true,
+                            supportHtml: false
+                        });
+                    }
+                }
+            } else if (content && typeof content === 'object') {
+                // 对象类型
+                if (content.kind === 'plaintext' && content.value) {
+                    const cleaned = this.cleanString(content.value);
+                    if (cleaned) {
+                        // 使用文本代码块格式来保留换行
+                        hoverContents.push({
+                            value: `\`\`\`text\n${cleaned}\n\`\`\``,
+                            isTrusted: true,
+                            supportHtml: false
+                        });
+                    }
+                } else if (content.language && content.value) {
+                    // 代码块类型
+                    const cleaned = this.cleanString(content.value);
+                    if (cleaned) {
+                        hoverContents.push({
+                            value: `\`\`\`${content.language}\n${cleaned}\n\`\`\``,
+                            isTrusted: true,
+                            supportHtml: false
+                        });
+                    }
+                } else if (content.value) {
+                    // 其他情况，作为纯文本处理
+                    const cleaned = this.cleanString(content.value);
+                    if (cleaned) {
+                        // 使用文本代码块格式来保留换行
+                        hoverContents.push({
+                            value: `\`\`\`text\n${cleaned}\n\`\`\``,
+                            isTrusted: true,
+                            supportHtml: false
+                        });
+                    }
+                }
+            }
+        };
+
+        if (Array.isArray(result.contents)) {
+            // 数组类型：逐个处理
+            result.contents.forEach(processContent);
+        } else {
+            // 字符串或对象类型
+            processContent(result.contents);
+        }
+
+        if (hoverContents.length === 0) {
+            return null;
         }
 
         return {
-            contents: [
-                { value: '```cpp\n' + contents + '\n```' }
-            ]
+            range: result.range ? {
+                startLineNumber: result.range.start.line + 1,
+                startColumn: result.range.start.character + 1,
+                endLineNumber: result.range.end.line + 1,
+                endColumn: result.range.end.character + 1
+            } : undefined,
+            contents: hoverContents
         };
     }
 
-    async requestSignatureHelp(model, position) {
+    calculateActiveParameter(model, position) {
+        try {
+            const line = model.getLineContent(position.lineNumber);
+            const cursorPos = position.column - 1;
+
+            // 从光标位置向前查找最近的 '('
+            let parenStart = -1;
+            let parenDepth = 0;
+
+            for (let i = cursorPos - 1; i >= 0; i--) {
+                if (line[i] === ')') {
+                    parenDepth++;
+                } else if (line[i] === '(') {
+                    if (parenDepth === 0) {
+                        parenStart = i;
+                        break;
+                    } else {
+                        parenDepth--;
+                    }
+                }
+            }
+
+            if (parenStart === -1) {
+                return 0;
+            }
+
+            // 从 '(' 到光标位置之间计算逗号数量
+            let commaCount = 0;
+            let inString = false;
+            let stringChar = '';
+            let depth = 0;
+
+            for (let i = parenStart + 1; i < cursorPos; i++) {
+                const char = line[i];
+
+                // 处理字符串
+                if ((char === '"' || char === '\'') && (i === 0 || line[i - 1] !== '\\')) {
+                    if (!inString) {
+                        inString = true;
+                        stringChar = char;
+                    } else if (char === stringChar) {
+                        inString = false;
+                    }
+                    continue;
+                }
+
+                if (inString) continue;
+
+                // 处理括号嵌套
+                if (char === '(' || char === '{' || char === '[') {
+                    depth++;
+                } else if (char === ')' || char === '}' || char === ']') {
+                    depth--;
+                }
+
+                // 只有在顶层（depth === 0）时才计算逗号
+                if (char === ',' && depth === 0) {
+                    commaCount++;
+                }
+            }
+
+            return commaCount;
+        } catch (error) {
+            console.warn('[Clangd] Error calculating active parameter:', error);
+            return 0;
+        }
+    }
+
+async requestSignatureHelp(model, position) {
         const params = {
             textDocument: { uri: this.documentUri },
             position: { line: position.lineNumber - 1, character: position.column - 1 }
         };
 
         const result = await this.sendRequest('textDocument/signatureHelp', params);
-        if (!result || !result.signatures) return null;
+        if (!result || !result.signatures || result.signatures.length === 0) {
+            return null;
+        }
+
+        // 处理签名信息
+        const signatures = result.signatures.map(sig => {
+            let documentation = '';
+            if (sig.documentation) {
+                if (typeof sig.documentation === 'string') {
+                    documentation = this.cleanString(sig.documentation);
+                } else if (sig.documentation.value) {
+                    documentation = this.cleanString(sig.documentation.value);
+                }
+            }
+
+            return {
+                label: this.cleanString(sig.label),
+                documentation: documentation || undefined,
+                parameters: sig.parameters ? sig.parameters.map(param => ({
+                    label: param.label,
+                    documentation: param.documentation ?
+                        this.cleanString(typeof param.documentation === 'string' ? param.documentation : param.documentation.value) : undefined
+                })) : []
+            };
+        });
+
+        // 计算光标所在的参数索引
+        const activeParameter = this.calculateActiveParameter(model, position);
 
         return {
-            value: result,
-            signatures: result.signatures.map(sig => ({
-                label: sig.label,
-                documentation: sig.documentation ? 
-                    (typeof sig.documentation === 'string' ? sig.documentation : sig.documentation.value) : ''
-            }))
+            value: {
+                signatures: signatures,
+                activeSignature: result.activeSignature !== undefined ? result.activeSignature : 0,
+                activeParameter: activeParameter
+            },
+            dispose: () => {}
         };
     }
 
@@ -600,10 +887,16 @@ class ClangdLSP {
     async useFallback() {
         console.log('[Clangd] Using fallback autocomplete.js');
         this.usingFallback = true;
-        
+
         // 清理 clangd 补全提供器
         this.disposeCompletionProvider();
-        
+
+        // 清理悬停提示提供器
+        this.disposeHoverProvider();
+
+        // 清理函数提示标签提供器
+        this.disposeSignatureHelpProvider();
+
         // 启用 autocomplete.js 的补全
         if (typeof registerCompletionProviders === 'function') {
             registerCompletionProviders();
@@ -624,10 +917,22 @@ class ClangdLSP {
             clearInterval(this.diagnosticTimer);
             this.diagnosticTimer = null;
         }
-        
+
+        // 清理防抖计时器
+        if (this.signatureHelpDebounceTimer) {
+            clearTimeout(this.signatureHelpDebounceTimer);
+            this.signatureHelpDebounceTimer = null;
+        }
+
         // 清理补全提供器
         this.disposeCompletionProvider();
-        
+
+        // 清理悬停提示提供器
+        this.disposeHoverProvider();
+
+        // 清理函数提示标签提供器
+        this.disposeSignatureHelpProvider();
+
         // 清理所有待处理的请求
         for (const [id, pending] of this.pendingRequests) {
             if (pending.timeout) {
@@ -636,17 +941,17 @@ class ClangdLSP {
             pending.resolve(null);
         }
         this.pendingRequests.clear();
-        
+
         // 清理 worker
         if (this.clangdWorker) {
             this.clangdWorker.terminate();
             this.clangdWorker = null;
         }
-        
+
         // 清理 editor 引用
         this.editor = null;
         this.initialized = false;
-        
+
         console.log('[Clangd] Disposed');
     }
 
