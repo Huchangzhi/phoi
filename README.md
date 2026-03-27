@@ -6,7 +6,11 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 运行器：[rextester](https://rextester.com/)
 
-体验:[点我](https://hcz1017.pythonanywhere.com/)
+体验:
+
+[主站](https://ide.hcz1017.dpdns.org/)
+
+[备用](https://hcz1017.pythonanywhere.com/)
 
 另外,ph code桌面版自v2.2.2版本已打包发布至release
 运行要求:
@@ -44,7 +48,7 @@ cph浏览器插件传送数据至phcode
 
 注：洛谷题目来自https://cdn.luogu.com.cn/problemset-open/latest.ndjson.gz
 
-部署:
+## 部署:
 ```sh
 pip install -r requirements.txt
 ```
@@ -61,3 +65,13 @@ gui版本
 ```sh
 python server_gui.py
 ```
+
+cloudflare部署:
+
+1.克隆此仓库
+2.在cloudflare workers里面选择克隆的仓库创建worker
+3.配置
+<img width="441" height="82" alt="image" src="https://github.com/user-attachments/assets/0ba5e98c-6792-4866-b1e9-265126010664" />
+
+<img width="594" height="1202" alt="image" src="https://github.com/user-attachments/assets/ba53f0ad-a8cb-4ac0-a4d2-06b6428534f3" />
+
