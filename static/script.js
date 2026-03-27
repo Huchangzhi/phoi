@@ -47,14 +47,23 @@ const modalCancel = document.getElementById('modal-cancel');
 // VS Code 风格新元素 - 需要检查这些元素是否存在
 const topMenuBar = document.getElementById('top-menu-bar');
 const fileMenu = document.getElementById('file-menu');
+const windowMenu = document.getElementById('window-menu');
+const terminalMenu = document.getElementById('terminal-menu');
 const aboutMenu = document.getElementById('about-menu');
 const fileDropdown = document.getElementById('file-dropdown');
+const windowDropdown = document.getElementById('window-dropdown');
 const uploadFileBtn = document.getElementById('upload-file');
 const downloadFileBtn = document.getElementById('download-file');
 const saveAsBtn = document.getElementById('save-as');
 const preferencesBtn = document.getElementById('preferences');
 const newFileBtn = document.getElementById('new-file');
 const newFolderBtn = document.getElementById('new-folder');
+
+// 窗口控制按钮
+const windowZoomInBtn = document.getElementById('window-zoom-in');
+const windowZoomOutBtn = document.getElementById('window-zoom-out');
+const windowZoomResetBtn = document.getElementById('window-zoom-reset');
+const windowReloadBtn = document.getElementById('window-reload');
 
 // 首选项弹窗相关元素
 const preferencesModal = document.getElementById('preferences-modal');
@@ -352,7 +361,6 @@ if (runBtn) {
 }
 
 // 终端菜单按钮
-const terminalMenu = document.getElementById('terminal-menu');
 if (terminalMenu) {
     terminalMenu.addEventListener('click', () => {
         if (terminalPanel) {
@@ -914,6 +922,16 @@ if (fileMenu) {
     });
 }
 
+// 窗口菜单事件
+if (windowMenu) {
+    windowMenu.addEventListener('click', function() {
+        // 显示窗口下拉菜单
+        if (windowDropdown) {
+            windowDropdown.style.display = 'block';
+        }
+    });
+}
+
 // 获取关于弹窗元素
 const aboutModal = document.getElementById('about-modal');
 const closeAbout = document.getElementById('close-about');
@@ -950,6 +968,9 @@ document.addEventListener('click', function(event) {
     if (fileMenu && fileDropdown && !fileMenu.contains(event.target) && !fileDropdown.contains(event.target)) {
         fileDropdown.style.display = 'none';
     }
+    if (windowMenu && windowDropdown && !windowMenu.contains(event.target) && !windowDropdown.contains(event.target)) {
+        windowDropdown.style.display = 'none';
+    }
 });
 
 // 文件操作按钮事件 - 需要检查元素是否存在
@@ -981,6 +1002,127 @@ if (newFileBtn) {
         }
     });
 }
+
+// 窗口控制按钮事件
+// 当前缩放级别，从localStorage读取，默认为1
+let currentScale = parseFloat(localStorage.getItem('phoi_zoomScale')) || 1;
+
+function applyScale() {
+    // 清理transform设置
+    document.body.style.transform = '';
+    document.body.style.transformOrigin = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+
+    // 使用 zoom 属性缩放
+    document.documentElement.style.zoom = currentScale;
+
+    // 确保html和body都能正确显示内容
+    document.documentElement.style.width = '100%';
+    document.documentElement.style.height = '100%';
+    document.documentElement.style.overflow = 'auto';
+
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'auto';
+
+    // 保存到localStorage
+    localStorage.setItem('phoi_zoomScale', currentScale.toString());
+
+    // 触发Monaco编辑器重新布局（如果存在）
+    if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+        try {
+            setTimeout(() => monacoEditor.layout(), 100);
+        } catch (e) {
+            console.log('Monaco layout error:', e);
+        }
+    }
+}
+
+// 页面加载时应用保存的缩放比例
+window.addEventListener('load', function() {
+    applyScale();
+});
+
+if (windowZoomInBtn) {
+    windowZoomInBtn.addEventListener('click', function() {
+        // 放大页面
+        if (currentScale < 2.0) {
+            currentScale += 0.1;
+            applyScale();
+        }
+        windowDropdown.style.display = 'none';
+    });
+}
+
+if (windowZoomOutBtn) {
+    windowZoomOutBtn.addEventListener('click', function() {
+        // 缩小页面
+        if (currentScale > 0.5) {
+            currentScale -= 0.1;
+            applyScale();
+        }
+        windowDropdown.style.display = 'none';
+    });
+}
+
+if (windowZoomResetBtn) {
+    windowZoomResetBtn.addEventListener('click', function() {
+        // 重置缩放
+        currentScale = 1;
+        applyScale();
+        windowDropdown.style.display = 'none';
+    });
+}
+
+if (windowReloadBtn) {
+    windowReloadBtn.addEventListener('click', function() {
+        // 重载页面
+        location.reload();
+        windowDropdown.style.display = 'none';
+    });
+}
+
+// 键盘事件：Ctrl+上/下箭头缩放
+document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey) {
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (currentScale < 2.0) {
+                currentScale += 0.1;
+                applyScale();
+            }
+        } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (currentScale > 0.5) {
+                currentScale -= 0.1;
+                applyScale();
+            }
+        }
+    }
+});
+
+// 滚轮事件：Ctrl+滚轮缩放
+document.addEventListener('wheel', function(event) {
+    if (event.ctrlKey) {
+        event.preventDefault();
+        const delta = event.deltaY;
+        if (delta < 0) {
+            // 滚轮向上，放大
+            if (currentScale < 2.0) {
+                currentScale += 0.1;
+                applyScale();
+            }
+        } else {
+            // 滚轮向下，缩小
+            if (currentScale > 0.5) {
+                currentScale -= 0.1;
+                applyScale();
+            }
+        }
+    }
+}, { passive: false });
 
 
 // 插件中心面板切换功能

@@ -14,6 +14,7 @@
         <div id="menu-bar-left">
             <img src="/static/logo.png" alt="Logo" id="logo">
             <div class="menu-item" id="file-menu">文件</div>
+            <div class="menu-item" id="window-menu">窗口</div>
             <div class="menu-item" id="terminal-menu">终端</div>
             <div class="menu-item" id="about-menu">关于</div>
         </div>
@@ -37,6 +38,15 @@
         <div class="dropdown-item" id="preferences">首选项</div>
         <div class="dropdown-divider"></div>
         <div class="dropdown-item" id="new-file">新建文件</div>
+    </div>
+
+    <!-- 窗口下拉菜单 -->
+    <div id="window-dropdown" class="dropdown-menu" style="display: none;">
+        <div class="dropdown-item" id="window-zoom-in">放大</div>
+        <div class="dropdown-item" id="window-zoom-out">缩小</div>
+        <div class="dropdown-item" id="window-zoom-reset">重置缩放</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item" id="window-reload">重载</div>
     </div>
 
     <!-- 左侧边栏 -->
