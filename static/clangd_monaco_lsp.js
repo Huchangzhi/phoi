@@ -20,6 +20,7 @@ class MonacoClangdLSP {
         this.pendingRequests = new Map();
         this.semanticTokensProvider = null;
         this.semanticTokensLegend = null;
+        this.wasmObjectUrl = null;  // 保存 wasm Object URL，以便重启时重用
     }
 
     onStatusChange(callback) {
@@ -100,12 +101,12 @@ class MonacoClangdLSP {
             const wasmBlob = new Blob([wasmData], { type: 'application/wasm' });
             const wasmUrl = URL.createObjectURL(wasmBlob);
 
+            // 保存 wasm Object URL 以便重启时重用
+            this.wasmObjectUrl = wasmUrl;
+
             // 3. 创建 clangd worker
             this.updateStatus('loading_module', 50, 100);
             await this.createWorker(wasmUrl);
-
-            // 释放 Object URL
-            URL.revokeObjectURL(wasmUrl);
 
             // 4. 使用 Monaco 内置 LSP 客户端连接到 worker
             this.updateStatus('initializing', 70, 100);
@@ -994,6 +995,12 @@ class MonacoClangdLSP {
             this.clangdWorker = null;
         }
 
+        // 释放 wasm Object URL
+        if (this.wasmObjectUrl) {
+            URL.revokeObjectURL(this.wasmObjectUrl);
+            this.wasmObjectUrl = null;
+        }
+
         // 清理 editor 引用
         this.editor = null;
         this.initialized = false;
@@ -1047,6 +1054,16 @@ function updateClangdStatus(status, progress, max) {
 
         statusElement.textContent = statusText;
     }
+
+    // 控制重启按钮的显示/隐藏
+    const restartBtn = document.getElementById('restart-clangd-btn');
+    if (restartBtn) {
+        if (status === 'ready' || status === 'failed' || status === 'fallback') {
+            restartBtn.style.display = 'inline-block';
+        } else {
+            restartBtn.style.display = 'none';
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1057,6 +1074,64 @@ document.addEventListener('DOMContentLoaded', () => {
         statusDiv.style.cssText = 'padding: 10px; color: #4daafc; font-size: 13px;';
         statusDiv.textContent = 'clangd: 等待初始化...';
         terminalInfoContent.appendChild(statusDiv);
+    }
+
+    // 重启 clangd 按钮点击事件
+    const restartBtn = document.getElementById('restart-clangd-btn');
+    if (restartBtn) {
+        restartBtn.addEventListener('click', async () => {
+            if (!window.monacoClangdLSP) {
+                console.warn('[MonacoClangd] MonacoClangdLSP instance not found');
+                return;
+            }
+
+            const statusElement = document.getElementById('clangd-status');
+            if (statusElement) {
+                statusElement.textContent = '正在重启 clangd...';
+            }
+            restartBtn.style.display = 'none';
+
+            try {
+                // 保存当前的 wasm Object URL（如果有）
+                const wasmObjectUrl = window.monacoClangdLSP.wasmObjectUrl;
+
+                // 清理当前实例（但不释放 wasm Object URL）
+                const tempWasmObjectUrl = window.monacoClangdLSP.wasmObjectUrl;
+                window.monacoClangdLSP.wasmObjectUrl = null;  // 暂时移除，防止 dispose 释放
+                window.monacoClangdLSP.dispose();
+
+                // 创建新实例
+                window.monacoClangdLSP = new MonacoClangdLSP();
+
+                // 重新设置状态回调
+                window.monacoClangdLSP.onStatusChange((status, progress, max) => {
+                    updateClangdStatus(status, progress, max);
+                });
+
+                // 如果有保存的 wasm Object URL，直接使用
+                if (tempWasmObjectUrl) {
+                    window.monacoClangdLSP.wasmObjectUrl = tempWasmObjectUrl;
+                    // 重新初始化（跳过 wasm 下载和解压）
+                    await window.monacoClangdLSP.createWorker(tempWasmObjectUrl);
+                    window.monacoClangdLSP.updateStatus('initializing', 70, 100);
+                    await window.monacoClangdLSP.initializeLSP();
+                    window.monacoClangdLSP.openCurrentDocument();
+                    window.monacoClangdLSP.setupDocumentSync();
+                    window.monacoClangdLSP.initialized = true;
+                    window.monacoClangdLSP.updateStatus('ready', 100, 100);
+                } else {
+                    // 没有 wasm Object URL，需要完整初始化
+                    await window.monacoClangdLSP.initialize(monacoEditor);
+                }
+                console.log('[MonacoClangd] Restart successful!');
+            } catch (error) {
+                console.error('[MonacoClangd] Restart failed:', error);
+                if (statusElement) {
+                    statusElement.textContent = '✗ clangd 重启失败';
+                }
+                restartBtn.style.display = 'inline-block';
+            }
+        });
     }
 
     window.addEventListener('beforeunload', () => {

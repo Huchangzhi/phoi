@@ -158,7 +158,7 @@ async function initClangd(wasmUrl) {
         '-isystem/usr/include',
         '-isystem/usr/include/wasm32-wasi',
         '-xc++',
-        '-std=c++20',
+        '-std=c++14',
         '-pedantic-errors',
         '-Wall'
     ];

@@ -150,6 +150,10 @@ let monacoEditor = null; // Global reference to the Monaco editor instance
 
 require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 require(['vs/editor/editor.main'], function() {
+    // 在初始化 Monaco 之前应用缩放
+    applyScale();
+
+    // 根据设置确定初始的quickSuggestionsDelay值
     // 根据设置确定初始的quickSuggestionsDelay值
     const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
     
@@ -1039,11 +1043,6 @@ function applyScale() {
         }
     }
 }
-
-// 页面加载时应用保存的缩放比例
-window.addEventListener('load', function() {
-    applyScale();
-});
 
 if (windowZoomInBtn) {
     windowZoomInBtn.addEventListener('click', function() {
