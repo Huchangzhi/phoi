@@ -887,6 +887,29 @@ class MonacoClangdLSP {
 
         this.semanticTokensProvider = monaco.languages.registerDocumentSemanticTokensProvider('cpp', provider);
         console.log('[MonacoClangd] Semantic tokens provider registered');
+        
+        // 应用自定义语义 token 颜色
+        this.applyCustomSemanticTokenColors();
+    }
+
+    applyCustomSemanticTokenColors() {
+        // 使用 CSS 覆盖语义 token 颜色
+        const style = document.createElement('style');
+        style.id = 'clangd-semantic-token-colors';
+        style.textContent = `
+            /* 覆盖 function 和 method 的颜色为 #D0DCAA */
+            .mtk1 { color: #D0DCAA !important; }
+        `;
+        
+        // 移除旧的样式（如果存在）
+        const oldStyle = document.getElementById('clangd-semantic-token-colors');
+        if (oldStyle) {
+            oldStyle.remove();
+        }
+        
+        // 添加新样式
+        document.head.appendChild(style);
+        console.log('[MonacoClangd] Applied custom semantic token colors via CSS');
     }
 
     async requestSemanticTokens(model, token) {
