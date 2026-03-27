@@ -172,6 +172,11 @@
                         <input type="checkbox" id="clangd-completion-enabled"> 使用 Clangd 进行代码提示 (实验性)
                     </label>
                 </div>
+                <div class="setting-item" id="clangd-semantic-setting" style="display: none; margin-left: 20px;">
+                    <label for="clangd-semantic-enabled">
+                        <input type="checkbox" id="clangd-semantic-enabled"> 使用 Clangd 进行语法高亮 (实验性，若卡顿请关闭)
+                    </label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="reset-default-code" class="modal-btn">重置为默认</button>
@@ -352,8 +357,8 @@
     <script src="/static/autocomplete.js"></script>
     <script src="/static/luogu.js"></script>
 
-    <!-- Clangd LSP Integration - 仅错误诊断 -->
-    <script src="/static/clangd_lsp.js"></script>
+    <!-- Clangd LSP Integration - 使用 Monaco 内置 LSP 客户端 -->
+    <script src="/static/clangd_monaco_lsp.js"></script>
 
     <script src="/static/cph.js"></script>
     <script src="/static/mobile_autocomplete.js"></script>

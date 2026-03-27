@@ -143,12 +143,14 @@ require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
 require(['vs/editor/editor.main'], function() {
     // 根据设置确定初始的quickSuggestionsDelay值
     const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
-
+    
     monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
         value: globalText,
         language: 'cpp',
         theme: 'vs-dark', // 使用暗色主题
         automaticLayout: true,
+        // 启用语义高亮
+        'semanticHighlighting.enabled': true,
         // 设置代码补全的延迟时间
         quickSuggestions: cppAutocompleteEnabled,  // 根据设置启用或禁用快速建议
         quickSuggestionsDelay: initialQuickSuggestionsDelay,  // 根据设置和延迟值确定
@@ -171,8 +173,8 @@ require(['vs/editor/editor.main'], function() {
     // 添加一个标志来跟踪程序化更新
     window.isUpdatingProgrammatically = false;
 
-    // Initialize clangd LSP after Monaco Editor is ready
-    initializeClangdIntegration();
+    // Initialize clangd LSP after Monaco Editor is ready (使用 Monaco 内置 LSP 客户端)
+    initializeMonacoClangdIntegration();
 
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
@@ -1352,17 +1354,38 @@ function showPreferencesModal() {
             settingDiv.style.display = clangdEnabledCheckbox?.checked ? 'block' : 'none';
         }
     }
-    
+
+    // 加载 clangd 语义高亮设置
+    const clangdSemanticCheckbox = document.getElementById('clangd-semantic-enabled');
+    if (clangdSemanticCheckbox) {
+        // 默认禁用语义高亮
+        clangdSemanticCheckbox.checked = localStorage.getItem('phoi_clangd_semantic_enabled') === 'true';
+        // 根据 clangd 是否启用显示/隐藏此选项
+        const settingDiv = document.getElementById('clangd-semantic-setting');
+        if (settingDiv) {
+            settingDiv.style.display = clangdEnabledCheckbox?.checked ? 'block' : 'none';
+        }
+    }
+
     // 添加 clangd 启用状态变化监听（使用 onchange 避免重复绑定）
     if (clangdEnabledCheckbox) {
         clangdEnabledCheckbox.onchange = function() {
-            const settingDiv = document.getElementById('clangd-completion-setting');
-            if (settingDiv) {
-                settingDiv.style.display = this.checked ? 'block' : 'none';
+            const completionSettingDiv = document.getElementById('clangd-completion-setting');
+            if (completionSettingDiv) {
+                completionSettingDiv.style.display = this.checked ? 'block' : 'none';
             }
-            // 如果关闭 clangd，同时取消代码提示勾选
-            if (!this.checked && clangdCompletionCheckbox) {
-                clangdCompletionCheckbox.checked = false;
+            const semanticSettingDiv = document.getElementById('clangd-semantic-setting');
+            if (semanticSettingDiv) {
+                semanticSettingDiv.style.display = this.checked ? 'block' : 'none';
+            }
+            // 如果关闭 clangd，同时取消代码提示和语义高亮勾选
+            if (!this.checked) {
+                if (clangdCompletionCheckbox) {
+                    clangdCompletionCheckbox.checked = false;
+                }
+                if (clangdSemanticCheckbox) {
+                    clangdSemanticCheckbox.checked = false;
+                }
             }
         };
     }
@@ -1394,6 +1417,7 @@ function savePreferencesChanges() {
     // 保存 clangd 设置
     const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
     const clangdCompletionCheckbox = document.getElementById('clangd-completion-enabled');
+    const clangdSemanticCheckbox = document.getElementById('clangd-semantic-enabled');
     if (clangdEnabledCheckbox) {
         const isEnabled = clangdEnabledCheckbox.checked;
         localStorage.setItem('phoi_clangd_enabled', isEnabled);
@@ -1403,13 +1427,19 @@ function savePreferencesChanges() {
         } else {
             showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
         }
-        
+
         // 保存 clangd 代码提示设置
         if (clangdCompletionCheckbox) {
             const isCompletionEnabled = clangdCompletionCheckbox.checked;
             localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
         }
-        
+
+        // 保存 clangd 语义高亮设置
+        if (clangdSemanticCheckbox) {
+            const isSemanticEnabled = clangdSemanticCheckbox.checked;
+            localStorage.setItem('phoi_clangd_semantic_enabled', isSemanticEnabled);
+        }
+
         // 更新右键菜单状态
         updateContextMenuState();
     } else {
@@ -1417,6 +1447,11 @@ function savePreferencesChanges() {
         if (clangdCompletionCheckbox) {
             const isCompletionEnabled = clangdCompletionCheckbox.checked;
             localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
+        }
+        // 保存 clangd 语义高亮设置
+        if (clangdSemanticCheckbox) {
+            const isSemanticEnabled = clangdSemanticCheckbox.checked;
+            localStorage.setItem('phoi_clangd_semantic_enabled', isSemanticEnabled);
         }
     }
 
