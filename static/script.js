@@ -1747,6 +1747,10 @@ function showClangdInfo() {
         <p>Clangd 是一个强大的 C/C++ 语言服务器，提供以下功能：</p>
         <ul style="margin: 15px 0; padding-left: 20px;">
             <li>实时错误诊断</li>
+            <li>代码提示</li>
+            <li>函数参数标签</li>
+            <li>鼠标悬停提示</li>
+            <li>语法高亮</li>
         </ul>
         <p><strong>注意事项：</strong></p>
         <ul style="margin: 15px 0; padding-left: 20px;">
