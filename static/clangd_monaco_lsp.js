@@ -1092,36 +1092,82 @@ document.addEventListener('DOMContentLoaded', () => {
             restartBtn.style.display = 'none';
 
             try {
-                // 保存当前的 wasm Object URL（如果有）
-                const wasmObjectUrl = window.monacoClangdLSP.wasmObjectUrl;
-
-                // 清理当前实例（但不释放 wasm Object URL）
+                // 保存 wasm Object URL
                 const tempWasmObjectUrl = window.monacoClangdLSP.wasmObjectUrl;
-                window.monacoClangdLSP.wasmObjectUrl = null;  // 暂时移除，防止 dispose 释放
-                window.monacoClangdLSP.dispose();
 
-                // 创建新实例
-                window.monacoClangdLSP = new MonacoClangdLSP();
+                // 完全清理当前实例
+                const lspInstance = window.monacoClangdLSP;
 
-                // 重新设置状态回调
-                window.monacoClangdLSP.onStatusChange((status, progress, max) => {
-                    updateClangdStatus(status, progress, max);
-                });
+                // 清理所有 disposable
+                for (const disposable of lspInstance.disposables) {
+                    if (disposable) disposable.dispose();
+                }
+                lspInstance.disposables = [];
 
-                // 如果有保存的 wasm Object URL，直接使用
+                // 清理所有待处理的请求
+                for (const [id, pending] of lspInstance.pendingRequests) {
+                    if (pending.timeout) clearTimeout(pending.timeout);
+                    pending.resolve(null);
+                }
+                lspInstance.pendingRequests.clear();
+
+                // 清理提供器
+                lspInstance.disposeCompletionProvider();
+                lspInstance.disposeHoverProvider();
+                lspInstance.disposeSignatureHelpProvider();
+                lspInstance.disposeSemanticTokensProvider();
+
+                // 清理定时器
+                if (lspInstance.semanticRefreshTimer) {
+                    clearTimeout(lspInstance.semanticRefreshTimer);
+                    lspInstance.semanticRefreshTimer = null;
+                }
+                if (lspInstance.documentSyncInterval) {
+                    clearInterval(lspInstance.documentSyncInterval);
+                    lspInstance.documentSyncInterval = null;
+                }
+                if (lspInstance.initTimeout) {
+                    clearTimeout(lspInstance.initTimeout);
+                    lspInstance.initTimeout = null;
+                }
+
+                // 清理 worker
+                if (lspInstance.clangdWorker) {
+                    lspInstance.clangdWorker.terminate();
+                    lspInstance.clangdWorker = null;
+                }
+
+                // 重置状态
+                lspInstance.initialized = false;
+                lspInstance.failed = false;
+                lspInstance.loading = false;
+                lspInstance.usingFallback = false;
+                lspInstance.isRestarting = false;
+                lspInstance.restartCount = 0;
+                lspInstance.lspClient = null;
+                lspInstance.requestId = 0;
+                lspInstance.semanticTokensProvider = null;
+                lspInstance.semanticTokensLegend = null;
+
+                // 重新设置 wasmObjectUrl
+                lspInstance.wasmObjectUrl = tempWasmObjectUrl;
+
+                // 重新初始化
                 if (tempWasmObjectUrl) {
-                    window.monacoClangdLSP.wasmObjectUrl = tempWasmObjectUrl;
-                    // 重新初始化（跳过 wasm 下载和解压）
-                    await window.monacoClangdLSP.createWorker(tempWasmObjectUrl);
-                    window.monacoClangdLSP.updateStatus('initializing', 70, 100);
-                    await window.monacoClangdLSP.initializeLSP();
-                    window.monacoClangdLSP.openCurrentDocument();
-                    window.monacoClangdLSP.setupDocumentSync();
-                    window.monacoClangdLSP.initialized = true;
-                    window.monacoClangdLSP.updateStatus('ready', 100, 100);
+                    // 重新创建 worker
+                    await lspInstance.createWorker(tempWasmObjectUrl);
+                    lspInstance.updateStatus('initializing', 70, 100);
+                    // 重新初始化 LSP
+                    await lspInstance.initializeLSP();
+                    // 重新打开文档
+                    lspInstance.openCurrentDocument();
+                    // 重新设置文档同步
+                    lspInstance.setupDocumentSync();
+                    lspInstance.initialized = true;
+                    lspInstance.updateStatus('ready', 100, 100);
                 } else {
-                    // 没有 wasm Object URL，需要完整初始化
-                    await window.monacoClangdLSP.initialize(monacoEditor);
+                    // 没有 wasm Object URL，完整初始化
+                    await lspInstance.initialize(monacoEditor);
                 }
                 console.log('[MonacoClangd] Restart successful!');
             } catch (error) {
