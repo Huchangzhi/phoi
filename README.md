@@ -12,6 +12,17 @@ UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自V
 
 [备用](https://hcz1017.pythonanywhere.com/)
 
+
+## 为什么停止维护
+
+最近学习压力很大，再加上功能已经基本完整，于是决定暂停开发，若有问题请邮箱联系：hcz1017@outlook.com
+
+目前不知道多久恢复开发
+
+
+
+
+
 另外,ph code桌面版自v2.2.2版本已打包发布至release
 运行要求:
 
