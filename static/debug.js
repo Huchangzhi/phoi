@@ -259,6 +259,8 @@
         debugState.eventSource.onopen = () => {
             console.log('[Debug] 已连接到调试服务器');
             appendTerminalOutput('[系统] 已连接到调试服务器\n', 'info');
+            // 自动设置 max-value-size 为无限制，避免大数据结构显示被截断
+            sendSingleCommand('set max-value-size unlimited');
         };
 
         debugState.eventSource.onmessage = (event) => {
