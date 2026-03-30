@@ -17,6 +17,7 @@
             <div class="menu-item" id="window-menu">窗口</div>
             <div class="menu-item" id="terminal-menu">终端</div>
             <!-- <div id="restart-clangd-btn" class="menu-item" style="display: none; cursor: pointer;">重启clangd</div> -->
+            <div class="menu-item" id="help-menu">帮助</div>
             <div class="menu-item" id="about-menu">关于</div>
         </div>
         <div id="menu-bar-center">
@@ -48,6 +49,14 @@
         <div class="dropdown-item" id="window-zoom-reset">重置缩放</div>
         <div class="dropdown-divider"></div>
         <div class="dropdown-item" id="window-reload">重载</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item" id="restart-clangd-btn" style="cursor: pointer;">重启clangd</div>
+    </div>
+
+    <!-- 帮助下拉菜单 -->
+    <div id="help-dropdown" class="dropdown-menu" style="display: none;">
+        <div class="dropdown-item" id="help-tutorial">🎓 新手教程</div>
+        <div class="dropdown-item" id="help-shortcuts">⌨️ 快捷键</div>
     </div>
 
     <!-- 左侧边栏 -->
@@ -188,6 +197,9 @@
                         <input type="checkbox" id="clangd-semantic-enabled"> 使用 Clangd 进行语法高亮 (实验性，若卡顿请关闭)
                     </label>
                 </div>
+                <div class="setting-item">
+                    <button id="show-tutorial-btn" class="modal-btn" style="background-color: #0e639c; width: 100%;">🎓 重新显示新手教程</button>
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="reset-default-code" class="modal-btn">重置为默认</button>
@@ -243,6 +255,26 @@
             <div id="debug-status-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
                 <button id="debug-status-cancel" class="modal-btn" style="background-color: #3e3e42;">取消</button>
                 <button id="debug-status-confirm" class="modal-btn" style="background-color: #0e639c; display: none;">开始调试</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新手教程模态框 -->
+    <div id="tutorial-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content tutorial-modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>🎓 新手教程</h2>
+                <span id="close-tutorial" class="close-btn">×</span>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="tutorial-content">
+                    <!-- 教程内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="tutorial-prev" class="modal-btn" style="background-color: #3e3e42;">上一步</button>
+                <button id="tutorial-next" class="modal-btn" style="background-color: #0e639c;">下一步</button>
+                <button id="tutorial-skip" class="modal-btn" style="background-color: #c53030;">跳过</button>
             </div>
         </div>
     </div>

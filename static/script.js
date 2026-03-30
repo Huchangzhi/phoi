@@ -49,9 +49,11 @@ const topMenuBar = document.getElementById('top-menu-bar');
 const fileMenu = document.getElementById('file-menu');
 const windowMenu = document.getElementById('window-menu');
 const terminalMenu = document.getElementById('terminal-menu');
+const helpMenu = document.getElementById('help-menu');
 const aboutMenu = document.getElementById('about-menu');
 const fileDropdown = document.getElementById('file-dropdown');
 const windowDropdown = document.getElementById('window-dropdown');
+const helpDropdown = document.getElementById('help-dropdown');
 const uploadFileBtn = document.getElementById('upload-file');
 const downloadFileBtn = document.getElementById('download-file');
 const saveAsBtn = document.getElementById('save-as');
@@ -342,6 +344,9 @@ require(['vs/editor/editor.main'], function() {
     if (typeof initContextMenu === 'function') {
         initContextMenu();
     }
+    
+    // 检查是否需要显示新手教程
+    checkFirstRun();
 });
 
 // --- 恢复保存的输入数据 ---
@@ -949,6 +954,45 @@ if (aboutMenu) {
     });
 }
 
+// 帮助菜单事件
+const helpTutorialBtn = document.getElementById('help-tutorial');
+const helpShortcutsBtn = document.getElementById('help-shortcuts');
+
+if (helpMenu) {
+    helpMenu.addEventListener('click', function() {
+        // 显示帮助下拉菜单
+        if (helpDropdown) {
+            helpDropdown.style.display = 'block';
+        }
+    });
+}
+
+// 新手教程按钮
+if (helpTutorialBtn) {
+    helpTutorialBtn.addEventListener('click', function() {
+        // 重置教程步骤
+        currentTutorialStep = 0;
+        // 显示教程
+        showTutorial();
+        // 隐藏下拉菜单
+        if (helpDropdown) {
+            helpDropdown.style.display = 'none';
+        }
+    });
+}
+
+// 快捷键按钮
+if (helpShortcutsBtn) {
+    helpShortcutsBtn.addEventListener('click', function() {
+        // 显示快捷键信息
+        showShortcutsInfo();
+        // 隐藏下拉菜单
+        if (helpDropdown) {
+            helpDropdown.style.display = 'none';
+        }
+    });
+}
+
 // 关闭关于弹窗
 if (closeAbout) {
     closeAbout.addEventListener('click', function() {
@@ -974,6 +1018,9 @@ document.addEventListener('click', function(event) {
     }
     if (windowMenu && windowDropdown && !windowMenu.contains(event.target) && !windowDropdown.contains(event.target)) {
         windowDropdown.style.display = 'none';
+    }
+    if (helpMenu && helpDropdown && !helpMenu.contains(event.target) && !helpDropdown.contains(event.target)) {
+        helpDropdown.style.display = 'none';
     }
 });
 
@@ -1789,6 +1836,301 @@ function showClangdInfo() {
     document.body.appendChild(overlay);
 }
 
+// --- 新手教程功能 ---
+const tutorialModal = document.getElementById('tutorial-modal');
+const tutorialContent = document.getElementById('tutorial-content');
+const tutorialPrev = document.getElementById('tutorial-prev');
+const tutorialNext = document.getElementById('tutorial-next');
+const tutorialSkip = document.getElementById('tutorial-skip');
+const closeTutorial = document.getElementById('close-tutorial');
+
+// 教程内容
+const tutorialSteps = [
+    {
+        title: '欢迎使用 PH Code！',
+        content: `
+            <p>PH Code 是一个强大的在线/本地 C++ 代码编辑器，专为算法竞赛和学习编程而设计。</p>
+            <p>本教程将帮助您快速了解 PH Code 的主要功能。</p>
+            <p><strong>建议耐心阅读完哦，点击"下一步"继续学习，或点击"跳过"直接开始使用。</strong></p>
+        `
+    },
+    {
+        title: '📱 手机模式',
+        content: `
+            <p>点击右上角的<strong>▼/▲按钮</strong>切换模式：</p>
+            <ul>
+                <li><strong>桌面模式（默认）</strong> - 完整的Monaco编辑器界面</li>
+                <li><strong>手机模式</strong> - 优化的移动端界面，显示3行预览和虚拟键盘</li>
+            </ul>
+            <p>手机模式适合在移动设备上使用，提供完整的编程体验。</p>
+        `
+    },
+    {
+        title: '📝 代码编辑',
+        content: `
+            <p>主编辑器区域是您编写代码的地方，基于monaco，支持：</p>
+            <ul>
+                <li><strong>基本语法高亮</strong> - 自动识别 C++ 语法</li>
+                <li><strong>基本代码补全</strong> - 智能提示和自动补全</li>
+                <li><strong>更多语法加强功能（值得一试）</strong> - 请在文件->首选项中启用clangd</li>
+            </ul>
+        `
+    },
+    {
+        title: '⚙️ 设置首选项',
+        content: `
+            <p>点击顶部菜单的<strong>首选项</strong>可以自定义设置：</p>
+            <ul>
+                <li><strong>默认代码</strong> - 设置新建文件时的默认代码模板</li>
+                <li><strong>本地存储</strong> - 启用实验性本地文件系统功能</li>
+                <li><strong>Clangd</strong> - 配置高级语言服务器（实验性）</li>
+            </ul>
+            <p>Clangd 提供更强大的代码补全和语法高亮功能，但需要较长的加载时间。</p>
+        `
+    },
+    {
+        title: '▶️ 运行代码',
+        content: `
+            <p>运行您的代码非常简单：</p>
+            <ul>
+                <li>点击顶部工具栏的<strong>运行按钮</strong></li>
+                <li>或使用快捷键 <strong>F8</strong></li>
+            </ul>
+            <p>运行结果会显示在底部的终端面板中。</p>
+        `
+    },
+    {
+        title: '📁 文件管理',
+        content: `
+            <p>点击左侧的<strong>文件图标</strong>打开虚拟文件系统）：</p>
+            <ul>
+                <li><strong>新建文件</strong> - 创建新的代码文件</li>
+                <li><strong>打开文件</strong> - 切换到已有文件</li>
+                <li><strong>删除文件</strong> - 删除不需要的文件</li>
+                <li>注意：清除浏览器缓存等行为可能导致代码丢失，请不要存放贵重代码</li>
+            </ul>
+        `
+    },
+    {
+        title: '🔌 插件中心',
+        content: `
+            <p>点击左侧的<strong>插件图标</strong>打开插件中心：</p>
+            <ul>
+                <li><strong>C++ 代码补全</strong> - 启用/禁用代码补全功能，设置延迟时间</li>
+                <li><strong>查看洛谷主题库</strong> - 浏览洛谷题目（实验性）</li>
+                <li><strong>CPH 插件</strong> - 管理测试用例，批量运行测试</li>
+            </ul>
+            <p>CPH 插件特别适合算法竞赛，可以方便地管理多个测试用例。</p>
+        `
+    },
+    {
+        title: '🎯 CPH 测试用例管理',
+        content: `
+            <p>CPH 插件功能：</p>
+            <ul>
+                <li><strong>快速导入</strong> - 从Luogu插件导入测试点</li>
+                <li><strong>添加测试用例</strong> - 为每个测试点设置输入和预期输出</li>
+                <li><strong>批量运行</strong> - 按 F9 一次性运行所有测试用例</li>
+                <li><strong>结果对比</strong> - 自动比较实际输出和预期输出</li>
+                <li><strong>错误识别</strong> - 智能识别编译错误、RE、TLE、MLE 等</li>
+            </ul>
+            <p>注意：F9 快捷键专门用于运行CPH测试用例，普通代码运行请使用 F8 或 Ctrl+Enter。</p>
+            <p>本地版PH Code配合 Competitive Companion 浏览器插件，可以一键导入题目测试用例！</p>
+        `
+    },
+    {
+        title: '🎉 开始使用吧！',
+        content: `
+            <p>恭喜您完成了新手教程！</p>
+            <p>现在您可以：</p>
+            <ul>
+                <li>创建新文件开始编写代码</li>
+                <li>尝试运行示例代码</li>
+                <li>探索各种插件功能</li>
+                <li>配置您的个人偏好设置</li>
+            </ul>
+            <p><strong>祝您编程愉快！如有问题，欢迎反馈。</strong></p>
+        `
+    }
+];
+
+let currentTutorialStep = 0;
+
+function showTutorial() {
+    if (!tutorialModal) return;
+    tutorialModal.style.display = 'flex';
+    renderTutorialStep();
+}
+
+function hideTutorial() {
+    if (!tutorialModal) return;
+    tutorialModal.style.display = 'none';
+    // 标记为已看过教程
+    localStorage.setItem('notfirstrun', 'true');
+}
+
+function renderTutorialStep() {
+    if (!tutorialContent) return;
+    
+    const step = tutorialSteps[currentTutorialStep];
+    const progressText = `(${currentTutorialStep + 1}/${tutorialSteps.length})`;
+    
+    tutorialContent.innerHTML = `
+        <h3 style="color: #4daafc; margin-bottom: 15px;">${step.title}</h3>
+        <div style="color: #ccc; line-height: 1.6;">${step.content}</div>
+    `;
+    
+    // 更新按钮状态
+    if (tutorialPrev) {
+        tutorialPrev.disabled = currentTutorialStep === 0;
+        tutorialPrev.style.opacity = currentTutorialStep === 0 ? '0.5' : '1';
+    }
+    
+    if (tutorialNext) {
+        tutorialNext.textContent = currentTutorialStep === tutorialSteps.length - 1 ? '完成' : '下一步';
+    }
+}
+
+function nextTutorialStep() {
+    if (currentTutorialStep < tutorialSteps.length - 1) {
+        currentTutorialStep++;
+        renderTutorialStep();
+    } else {
+        hideTutorial();
+    }
+}
+
+function prevTutorialStep() {
+    if (currentTutorialStep > 0) {
+        currentTutorialStep--;
+        renderTutorialStep();
+    }
+}
+
+// 新手教程事件监听器
+if (closeTutorial) {
+    closeTutorial.addEventListener('click', hideTutorial);
+}
+
+if (tutorialPrev) {
+    tutorialPrev.addEventListener('click', prevTutorialStep);
+}
+
+if (tutorialNext) {
+    tutorialNext.addEventListener('click', nextTutorialStep);
+}
+
+if (tutorialSkip) {
+    tutorialSkip.addEventListener('click', hideTutorial);
+}
+
+// 点击模态框外部关闭
+if (tutorialModal) {
+    tutorialModal.addEventListener('click', function(event) {
+        if (event.target === tutorialModal) {
+            hideTutorial();
+        }
+    });
+}
+
+// 检查是否需要显示新手教程
+function checkFirstRun() {
+    const notFirstRun = localStorage.getItem('notfirstrun');
+    if (!notFirstRun) {
+        // 延迟显示教程，等待页面完全加载
+        setTimeout(showTutorial, 1000);
+    }
+}
+
+// 显示快捷键信息
+function showShortcutsInfo() {
+    const shortcutsInfo = `
+        <h3 style="color: #4daafc; margin-bottom: 15px;">⌨️ 快捷键</h3>
+        <div style="color: #ccc; line-height: 1.6;">
+            <h4 style="color: #fff; margin-top: 15px;">运行代码</h4>
+            <ul>
+                <li><strong>F8</strong> - 运行当前代码（普通运行）</li>
+                <li><strong>F9</strong> - 运行CPH测试用例</li>
+            </ul>
+            
+            <h4 style="color: #fff; margin-top: 15px;">编辑操作</h4>
+            <ul>
+                <li><strong>Ctrl+C</strong> - 复制</li>
+                <li><strong>Ctrl+V</strong> - 粘贴</li>
+                <li><strong>Ctrl+X</strong> - 剪切</li>
+                <li><strong>Ctrl+Z</strong> - 撤销</li>
+                <li><strong>Ctrl+Y</strong> - 重做</li>
+                <li><strong>Ctrl+A</strong> - 全选</li>
+                <li><strong>Ctrl+F</strong> - 查找</li>
+                <li><strong>Ctrl+H</strong> - 替换</li>
+            </ul>
+            
+            <h4 style="color: #fff; margin-top: 15px;">编辑器操作</h4>
+            <ul>
+                <li><strong>Ctrl+/</strong> - 注释/取消注释</li>
+                <li><strong>Alt+Up/Down</strong> - 移动行</li>
+                <li><strong>Shift+Alt+Up/Down</strong> - 复制行</li>
+            </ul>
+        </div>
+    `;
+    
+    showInfoModal('快捷键', shortcutsInfo);
+}
+
+// 显示信息模态框
+function showInfoModal(title, content) {
+    // 创建模态框
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-content';
+    modal.style.maxWidth = '600px';
+    
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    header.innerHTML = `<h2>${title}</h2><span class="close-btn" style="cursor: pointer;">×</span>`;
+    
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.maxHeight = '400px';
+    body.style.overflowY = 'auto';
+    body.innerHTML = content;
+    
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer';
+    
+    const okButton = document.createElement('button');
+    okButton.className = 'modal-btn';
+    okButton.textContent = '确定';
+    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.cursor = 'pointer';
+    
+    okButton.onclick = function() {
+        document.body.removeChild(overlay);
+    };
+    
+    // 关闭按钮事件
+    header.querySelector('.close-btn').onclick = function() {
+        document.body.removeChild(overlay);
+    };
+    
+    // 点击模态框外部关闭
+    overlay.onclick = function(event) {
+        if (event.target === overlay) {
+            document.body.removeChild(overlay);
+        }
+    };
+    
+    modal.appendChild(header);
+    modal.appendChild(body);
+    modal.appendChild(footer);
+    footer.appendChild(okButton);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+}
+
 // 首选项弹窗事件监听器
 if (preferencesBtn) {
     preferencesBtn.addEventListener('click', function() {
@@ -1909,6 +2251,21 @@ if (savePreferences) {
 if (resetDefaultCode) {
     resetDefaultCode.addEventListener('click', function() {
         resetToDefaultCode();
+    });
+}
+
+// 重新显示新手教程按钮
+const showTutorialBtn = document.getElementById('show-tutorial-btn');
+if (showTutorialBtn) {
+    showTutorialBtn.addEventListener('click', function() {
+        // 重置教程步骤
+        currentTutorialStep = 0;
+        // 删除notfirstrun标记
+        localStorage.removeItem('notfirstrun');
+        // 显示教程
+        showTutorial();
+        // 关闭首选项弹窗
+        hidePreferencesModal();
     });
 }
 

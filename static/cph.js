@@ -1,4 +1,4 @@
-﻿/**
+﻿ /**
  * CPH (Contest Problem Helper) 插件
  * 功能: 当前文件的测试用例管理与运行
  */
@@ -504,6 +504,9 @@ class CPHPlugin {
 
     // 运行所有测试点
     async runAllTests() {
+        // 检查是否切换了文件
+        this.updateCurrentFile();
+        
         if (this.testCases.length === 0) {
             showMessage('请先添加测试用例！', 'system');
             return;
@@ -572,7 +575,27 @@ class CPHPlugin {
                 let message = '';
                 
                 if (result.Errors) {
-                    status = '❌ 编译错误';
+                    // 检查错误类型
+                    const errorMsg = result.Errors.toLowerCase();
+                    
+                    if (errorMsg.includes('runtime error') || errorMsg.includes('segmentation fault') || 
+                        errorMsg.includes('abort') || errorMsg.includes('exit') || errorMsg.includes('exception') ||
+                        errorMsg.includes('sigill') || errorMsg.includes('illegal instruction') ||
+                        errorMsg.includes('sigsegv') || errorMsg.includes('sigabrt') ||
+                        errorMsg.includes('sigfpe') || errorMsg.includes('floating point exception')) {
+                        status = '❌ 运行时错误 (RE)';
+                    } else if (errorMsg.includes('time limit') || errorMsg.includes('timeout') || 
+                               errorMsg.includes('tle') || errorMsg.includes('exceeded') ||
+                               errorMsg.includes('longer than') || errorMsg.includes('killed') ||
+                               (errorMsg.includes('seconds') && errorMsg.includes('ran'))) {
+                        status = '❌ 时间超限 (TLE)';
+                    } else if (errorMsg.includes('memory limit') || errorMsg.includes('memory exceeded') || 
+                               errorMsg.includes('mle') || errorMsg.includes('out of memory')) {
+                        status = '❌ 内存超限 (MLE)';
+                    } else {
+                        status = '❌ 编译或其它错误';
+                    }
+                    
                     message = result.Errors;
                     allPassed = false;
                 } else if (result.Result) {
