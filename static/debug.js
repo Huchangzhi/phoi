@@ -1,6 +1,7 @@
 /**
  * PH Code 调试功能模块
  * 使用 SSE (Server-Sent Events) 实现 GDB 调试器的前端控制
+ * 集成断点管理功能
  */
 
 (function() {
@@ -13,6 +14,27 @@
         eventSource: null,
         isMinimized: false,
         isPanelVisible: false
+    };
+
+    // 断点状态
+    let breakpointState = {
+        breakpoints: new Map(),  // lineNumber -> breakpoint info
+        hoverCollection: null,   // 悬停装饰集合（背景）
+        activeCollection: null,  // 激活断点装饰集合
+        gdbBreakpointIds: new Map()  // lineNumber -> gdb breakpoint id
+    };
+
+    // 装饰器选项
+    const bpOption = {
+        isWholeLine: true,
+        linesDecorationsClassName: 'breakpoints',
+        linesDecorationsTooltip: '点击添加断点'
+    };
+
+    const activeBpOption = {
+        isWholeLine: true,
+        linesDecorationsClassName: 'breakpoints-active',
+        linesDecorationsTooltip: '点击移除断点'
     };
 
     // DOM 元素
@@ -46,7 +68,205 @@
         elements.terminalResizer = document.getElementById('terminal-resizer');
 
         bindEvents();
+        initBreakpointIntegration();
         console.log('[Debug] 调试模块已初始化');
+    }
+
+    // 初始化断点集成
+    function initBreakpointIntegration() {
+        // 等待 Monaco 编辑器初始化
+        setTimeout(() => {
+            if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+                // 创建装饰集合
+                // 1. 悬停装饰集合 - 覆盖所有行，用于鼠标悬停时显示淡红色背景
+                const hoverDecorations = [
+                    {
+                        range: new monaco.Range(1, 1, 99999, 1),
+                        options: bpOption
+                    }
+                ];
+                breakpointState.hoverCollection = monacoEditor.createDecorationsCollection(hoverDecorations);
+                
+                // 2. 激活断点装饰集合 - 初始为空
+                breakpointState.activeCollection = monacoEditor.createDecorationsCollection([]);
+                
+                // 注册点击事件
+                registerBreakpointClick();
+                registerBreakpointContextMenu();
+                
+                console.log('[Debug] 断点功能已启用');
+            } else {
+                // 重试
+                initBreakpointIntegration();
+            }
+        }, 500);
+    }
+
+    // 注册断点点击事件
+    function registerBreakpointClick() {
+        if (!monacoEditor) return;
+
+        monacoEditor.onMouseDown((e) => {
+            console.log('[Breakpoint] click target:', e.event.target, 'classList:', e.event.target.classList);
+            
+            let lineNum = null;
+            
+            // 尝试从点击目标或其父元素获取行号
+            const target = e.event.target;
+            if (target.classList.contains('breakpoints') || target.classList.contains('breakpoints-active')) {
+                lineNum = parseInt(target.nextElementSibling?.innerHTML);
+            }
+            
+            if (!lineNum) return;
+            
+            console.log('[Breakpoint] clicked line:', lineNum);
+            
+            // 切换断点
+            if (breakpointState.breakpoints.has(lineNum)) {
+                removeBreakpoint(lineNum);
+            } else {
+                addBreakpoint(lineNum);
+            }
+        });
+    }
+
+    // 注册右键菜单
+    function registerBreakpointContextMenu() {
+        if (!monacoEditor) return;
+
+        monacoEditor.addAction({
+            id: 'toggle-breakpoint',
+            label: '切换断点',
+            contextMenuGroupId: 'navigation',
+            contextMenuOrder: 1,
+            run: (ed) => {
+                const position = ed.getPosition();
+                if (position) toggleBreakpoint(position.lineNumber);
+            }
+        });
+
+        monacoEditor.addAction({
+            id: 'remove-all-breakpoints',
+            label: '删除所有断点',
+            contextMenuGroupId: 'navigation',
+            contextMenuOrder: 2,
+            run: (ed) => {
+                removeAllBreakpoints();
+            }
+        });
+    }
+
+    // 添加断点
+    function addBreakpoint(lineNumber) {
+        if (!monacoEditor || breakpointState.breakpoints.has(lineNumber)) return;
+
+        // 记录断点
+        breakpointState.breakpoints.set(lineNumber, {
+            lineNumber: lineNumber,
+            enabled: true,
+            gdbId: null
+        });
+
+        // 更新激活断点装饰集合
+        updateActiveBreakpoints();
+
+        // 如果正在调试，同步到 GDB
+        if (debugState.isDebugging) {
+            syncBreakpointToGDB(lineNumber, true);
+        }
+
+        console.log(`[Breakpoint] 添加断点：行 ${lineNumber}`);
+    }
+
+    // 删除断点
+    function removeBreakpoint(lineNumber) {
+        if (!monacoEditor || !breakpointState.breakpoints.has(lineNumber)) return;
+
+        const bp = breakpointState.breakpoints.get(lineNumber);
+        
+        console.log(`[Breakpoint] 准备删除断点：行 ${lineNumber}, gdbId: ${bp.gdbId}, isDebugging: ${debugState.isDebugging}`);
+        
+        // 如果正在调试，从 GDB 删除
+        if (debugState.isDebugging && bp.gdbId !== null) {
+            console.log(`[Breakpoint] 发送 GDB 删除命令：delete ${bp.gdbId}`);
+            deleteGDBBreakpoint(bp.gdbId);
+        } else if (debugState.isDebugging) {
+            console.log('[Breakpoint] gdbId 为 null，无法删除 GDB 断点');
+        }
+
+        breakpointState.breakpoints.delete(lineNumber);
+
+        // 更新激活断点装饰集合
+        updateActiveBreakpoints();
+
+        console.log(`[Breakpoint] 删除断点：行 ${lineNumber}`);
+    }
+
+    // 更新激活断点装饰集合
+    function updateActiveBreakpoints() {
+        if (!monacoEditor) return;
+
+        const decorations = [];
+        for (const [lineNumber, bp] of breakpointState.breakpoints) {
+            if (bp.enabled) {
+                decorations.push({
+                    range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                    options: activeBpOption
+                });
+            }
+        }
+
+        breakpointState.activeCollection.set(decorations);
+    }
+
+    // 删除所有断点
+    function removeAllBreakpoints() {
+        breakpointState.breakpoints.clear();
+        updateActiveBreakpoints();
+        console.log('[Breakpoint] 已删除所有断点');
+    }
+
+    // 切换断点（用于右键菜单）
+    function toggleBreakpoint(lineNumber) {
+        if (!monacoEditor) return;
+
+        if (breakpointState.breakpoints.has(lineNumber)) {
+            removeBreakpoint(lineNumber);
+        } else {
+            addBreakpoint(lineNumber);
+        }
+    }
+
+    // 同步断点到 GDB
+    function syncBreakpointToGDB(lineNumber, add) {
+        if (add) {
+            // 设置断点：break source.cpp:lineNumber
+            const cmd = `break source.cpp:${lineNumber}`;
+            sendCommand(cmd);
+        }
+    }
+
+    // 删除 GDB 断点
+    function deleteGDBBreakpoint(gdbId) {
+        const cmd = `delete ${gdbId}`;
+        sendCommand(cmd);
+    }
+
+    // 设置所有断点（调试启动时调用）
+    function setAllBreakpoints() {
+        if (!debugState.isDebugging) return;
+
+        // 先清空 GDB 所有断点
+        sendCommand('delete');
+
+        // 重新设置所有断点
+        setTimeout(() => {
+            for (const [lineNumber, bp] of breakpointState.breakpoints) {
+                if (bp.enabled) {
+                    syncBreakpointToGDB(lineNumber, true);
+                }
+            }
+        }, 200);
     }
 
     function bindEvents() {
@@ -246,6 +466,11 @@
 
         connectSSE();
         focusCommandInput();
+        
+        // 设置所有断点
+        setTimeout(() => {
+            setAllBreakpoints();
+        }, 500);
     }
 
     function connectSSE() {
@@ -268,9 +493,20 @@
             try {
                 const data = JSON.parse(event.data);
                 appendTerminalOutput(data);
+                
+                // 如果是 JSON 对象，提取 text 字段解析
+                if (typeof data === 'string') {
+                    parseGDBOutput(data);
+                } else if (data.text) {
+                    parseGDBOutput(data.text);
+                }
             } catch (e) {
                 // 如果不是 JSON，直接显示
-                appendTerminalOutput(event.data);
+                const text = event.data;
+                appendTerminalOutput(text);
+
+                // 解析 GDB 输出，检测断点命中和执行位置
+                parseGDBOutput(text);
             }
         };
 
@@ -283,6 +519,128 @@
                 }
             }
         };
+    }
+
+    // 解析 GDB 输出，检测断点和执行位置
+    function parseGDBOutput(text) {
+        if (!monacoEditor) return;
+
+        console.log('[GDB Output RAW]', JSON.stringify(text));
+
+        // 跳过空行
+        if (!text.trim()) return;
+
+        // 跳过纯命令回显（但保留包含行号的行如 "(gdb) 6\t}"）
+        if (text.trim().startsWith('(gdb)') && !text.match(/\)\s+\d{1,5}(\t|\s{2,})/)) return;
+
+        console.log('[GDB Output]', text.trim());
+
+        let lineNumber = null;
+
+        // 格式 1: 断点命中后显示位置（单行）
+        // Thread 1 hit Breakpoint 1, add (a=1, b=2) at C:\...\source.cpp:5
+        const hitBreakMatch = text.match(/hit\s+Breakpoint\s+\d+.*?\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
+        if (hitBreakMatch) {
+            lineNumber = parseInt(hitBreakMatch[2]);
+            console.log(`[Execution] 断点命中 (单行): 行 ${lineNumber}`);
+        }
+
+        // 格式 2: 单步执行后显示位置（单行）
+        // main () at C:\Users\...\source.cpp:10
+        const stepMatch = text.match(/^\w+\s*\(.*\)\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
+        if (stepMatch && !lineNumber) {
+            lineNumber = parseInt(stepMatch[2]);
+            console.log(`[Execution] 单步执行 (单行): 行 ${lineNumber}`);
+        }
+
+        // 格式 3: 单独行号（前面有空格或 (gdb)，后面有制表符或至少 2 个空格）
+        // 5		return a+b;
+        // (gdb) 6	}
+        const lineNumMatch1 = text.match(/^\s*(\d{1,5})(\t|\s{2,})/);
+        const lineNumMatch2 = text.match(/\)\s+(\d{1,5})(\t|\s{2,})/);
+        console.log(`[Execution] 行号正则 1: ${lineNumMatch1 ? lineNumMatch1[0] : 'null'}, 正则 2: ${lineNumMatch2 ? lineNumMatch2[0] : 'null'}`);
+        
+        if (lineNumMatch1 && !lineNumber) {
+            lineNumber = parseInt(lineNumMatch1[1]);
+            console.log(`[Execution] 行号显示 (正则 1): 行 ${lineNumber}`);
+        }
+        if (lineNumMatch2 && !lineNumber) {
+            lineNumber = parseInt(lineNumMatch2[1]);
+            console.log(`[Execution] 行号显示 (正则 2): 行 ${lineNumber}`);
+        }
+
+        // 格式 4: frame 格式 #0 ... at ...
+        const frameMatch = text.match(/^#0\s+.*?\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
+        if (frameMatch && !lineNumber) {
+            lineNumber = parseInt(frameMatch[2]);
+            console.log(`[Execution] Frame 位置：行 ${lineNumber}`);
+        }
+
+        console.log(`[Execution] 最终 lineNumber=${lineNumber}`);
+
+        if (lineNumber && lineNumber > 0) {
+            highlightExecutionLine(lineNumber);
+        }
+
+        // 检测 GDB 设置的断点信息
+        // Breakpoint 1 at 0x1400013a9: file C:\Users\...\source.cpp, line 8.
+        const breakpointSetMatch = text.match(/Breakpoint\s+(\d+)\s+at[^:]*:\s*file\s+([A-Z]:\\.*?\.cpp),\s*line\s+(\d+)/i);
+        if (breakpointSetMatch) {
+            const gdbId = parseInt(breakpointSetMatch[1]);
+            const filePath = breakpointSetMatch[2];
+            const lineNum = parseInt(breakpointSetMatch[3]);
+
+            console.log(`[Breakpoint] 解析到断点设置：ID=${gdbId}, 路径=${filePath}, 行=${lineNum}`);
+
+            if (breakpointState.breakpoints.has(lineNum)) {
+                const bp = breakpointState.breakpoints.get(lineNum);
+                bp.gdbId = gdbId;
+                breakpointState.gdbBreakpointIds.set(lineNum, gdbId);
+                console.log(`[Breakpoint] GDB 确认断点：行 ${lineNum}, GDB ID: ${gdbId}`);
+            }
+        }
+
+        // 检测程序结束
+        if (text.includes('exited normally') || text.includes('The program is not being run')) {
+            console.log('[Execution] 程序已结束，清除高亮');
+            clearExecutionLine();
+        }
+    }
+
+    // 高亮当前执行行
+    let executionLineDecoration = null;
+    function highlightExecutionLine(lineNumber) {
+        if (!monacoEditor) return;
+
+        // 清除之前的执行行高亮
+        if (executionLineDecoration) {
+            monacoEditor.deltaDecorations(executionLineDecoration, []);
+            executionLineDecoration = null;
+        }
+
+        // 添加新的执行行高亮（黄色背景）
+        executionLineDecoration = monacoEditor.deltaDecorations([], [
+            {
+                range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                options: {
+                    isWholeLine: true,
+                    className: 'debug-execution-line',
+                    inlineClassName: 'debug-execution-line-text'
+                }
+            }
+        ]);
+
+        // 滚动到执行行
+        monacoEditor.revealLineInCenter(lineNumber);
+    }
+
+    // 清除执行行高亮
+    function clearExecutionLine() {
+        if (!monacoEditor) return;
+        if (executionLineDecoration) {
+            monacoEditor.deltaDecorations(executionLineDecoration, []);
+            executionLineDecoration = null;
+        }
     }
 
     async function checkDebugStatusAfterDisconnect() {
@@ -526,6 +884,9 @@
         if (elements.debugCommandInput) {
             elements.debugCommandInput.value = '';
         }
+
+        // 清除执行行高亮
+        clearExecutionLine();
 
         debugState.isPanelVisible = false;
         debugState.isMinimized = false;

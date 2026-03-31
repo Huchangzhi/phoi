@@ -158,12 +158,15 @@ require(['vs/editor/editor.main'], function() {
     // 根据设置确定初始的quickSuggestionsDelay值
     // 根据设置确定初始的quickSuggestionsDelay值
     const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
-    
+
     monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
         value: globalText,
         language: 'cpp',
         theme: 'vs-dark', // 使用暗色主题
         automaticLayout: true,
+        // 启用 glyph margin 以支持断点
+        glyphMargin: true,
+        folding: false,
         // 启用语义高亮
         'semanticHighlighting.enabled': true,
         // 设置代码补全的延迟时间

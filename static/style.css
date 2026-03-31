@@ -1060,3 +1060,56 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .debug-output-success {
     color: #6a9955;
 }
+
+/* ========== 断点功能样式 ========== */
+
+/* 断点 - 在行号前显示（无断点时悬停显示淡红色背景） */
+.breakpoints {
+    width: 10px !important;
+    height: 10px !important;
+    left: 5px !important;
+    top: 5px;
+    border-radius: 50%;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.breakpoints:hover {
+    background-color: rgba(255, 0, 0, 0.5);
+}
+
+/* 断点激活状态（红色圆点） */
+.breakpoints-active {
+    width: 10px !important;
+    height: 10px !important;
+    left: 5px !important;
+    top: 5px;
+    background-color: #e51400;
+    border-radius: 50%;
+    display: inline-block;
+    cursor: pointer;
+    z-index: 5;
+}
+
+.breakpoints-active:hover {
+    background-color: #ff6b6b;
+}
+
+/* 当前执行行高亮（黄色背景） */
+.debug-execution-line {
+    background-color: rgba(255, 255, 0, 0.2) !important;
+}
+
+.debug-execution-line-text {
+    font-weight: bold;
+}
+
+/* 断点命中高亮（橙色闪烁） */
+@keyframes breakpoint-hit-flash {
+    0%, 100% { background-color: rgba(255, 165, 0, 0.2); }
+    50% { background-color: rgba(255, 165, 0, 0.5); }
+}
+
+.debug-breakpoint-hit {
+    animation: breakpoint-hit-flash 0.5s ease-in-out 3;
+}
