@@ -464,10 +464,6 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 /* 调试输入行 */
 #debug-input-line {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
     background: #1e1e1e;
     border-top: 1px solid #333 !important;
 }
@@ -1112,4 +1108,150 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 .debug-breakpoint-hit {
     animation: breakpoint-hit-flash 0.5s ease-in-out 3;
+}
+
+/* ========== 调试 UI 控制区样式 ========== */
+
+/* 调试控制按钮 */
+.debug-control-btn {
+    background-color: #2a2a2a;
+    border: 1px solid #3c3c3c;
+    color: #cccccc;
+    padding: 8px 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    font-size: 12px;
+}
+
+.debug-control-btn:hover {
+    background-color: #3c3c3c;
+    border-color: #007acc;
+    color: #ffffff;
+}
+
+.debug-control-btn:active {
+    background-color: #007acc;
+}
+
+.debug-control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 调试小按钮（添加/移除变量） */
+.debug-small-btn {
+    background-color: #2a2a2a;
+    border: 1px solid #3c3c3c;
+    color: #cccccc;
+    width: 24px;
+    height: 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.debug-small-btn:hover {
+    background-color: #3c3c3c;
+    border-color: #007acc;
+    color: #ffffff;
+}
+
+.debug-small-btn:active {
+    background-color: #007acc;
+}
+
+/* 变量列表项 */
+.debug-variable-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 4px 6px;
+    margin-bottom: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    min-height: 20px;
+}
+
+.debug-variable-item:hover {
+    background-color: #2a2a2a;
+}
+
+.debug-variable-item.selected {
+    background-color: #37373d;
+}
+
+.debug-variable-item.expanded {
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.debug-var-name {
+    color: #9cdcfe;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.debug-var-value {
+    color: #ce9178;
+    word-break: break-all;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.debug-variable-item.expanded .debug-var-value {
+    white-space: pre-wrap;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.debug-var-type {
+    color: #4ec9b0;
+    font-size: 11px;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+/* 变量列表容器 */
+#debug-variables-list {
+    overflow-y: auto;
+    max-height: none;
+}
+
+/* 添加变量对话框 */
+.debug-add-var-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.debug-add-var-dialog input {
+    background-color: #2a2a2a;
+    border: 1px solid #3c3c3c;
+    color: #cccccc;
+    padding: 8px;
+    border-radius: 3px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    outline: none;
+}
+
+.debug-add-var-dialog input:focus {
+    border-color: #007acc;
 }

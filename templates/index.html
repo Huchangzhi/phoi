@@ -238,10 +238,59 @@
             </div>
             <!-- 调试终端 -->
             <div id="terminal-debug" class="terminal-content" style="display: none;">
-                <div id="terminal-debug-content" class="terminal-content-body" style="height: calc(100% - 40px);"></div>
-                <div id="debug-input-line" style="display: none; align-items: center; border-top: 1px solid #333; padding: 0 10px; height: 40px; flex-shrink: 0;">
-                    <span style="color: #4daafc; margin-right: 8px;">(gdb)</span>
-                    <input type="text" id="debug-command-input" placeholder="输入 GDB 命令..." style="flex: 1; background: transparent; border: none; color: #d4d4d4; outline: none; font-family: Consolas, monospace; font-size: 13px;">
+                <div id="debug-terminal-wrapper" style="display: flex; height: 100%; width: 100%;">
+                    <!-- 左侧：GDB 终端输出 -->
+                    <div id="debug-terminal-left" style="flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid #333;">
+                        <div id="terminal-debug-content" class="terminal-content-body" style="flex: 1; overflow-y: auto; padding-bottom: 50px;"></div>
+                        <div id="debug-input-line" style="display: none; align-items: center; border-top: 1px solid #333; padding: 0 10px; height: 40px; flex-shrink: 0; background: #1e1e1e;">
+                            <span style="color: #4daafc; margin-right: 8px;">(gdb)</span>
+                            <input type="text" id="debug-command-input" placeholder="输入 GDB 命令..." style="flex: 1; background: transparent; border: none; color: #d4d4d4; outline: none; font-family: Consolas, monospace; font-size: 13px;">
+                        </div>
+                    </div>
+                    <!-- 右侧：调试 UI 控制区 -->
+                    <div id="debug-control-panel" style="width: 280px; display: flex; flex-direction: column; background: #1e1e1e; overflow: hidden; flex-shrink: 0;">
+                        <!-- 控制按钮区 -->
+                        <div id="debug-controls" style="padding: 10px; border-bottom: 1px solid #333;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px;">
+                                <button id="debug-run-btn" class="debug-control-btn" title="执行程序 (F5)">
+                                    <span style="font-size: 16px;">▶</span>
+                                    <div style="font-size: 11px; margin-top: 2px;">运行</div>
+                                </button>
+                                <button id="debug-continue-btn" class="debug-control-btn" title="继续执行 (F5)">
+                                    <span style="font-size: 16px;">⏯</span>
+                                    <div style="font-size: 11px; margin-top: 2px;">继续</div>
+                                </button>
+                                <button id="debug-next-btn" class="debug-control-btn" title="下一行 (F10)">
+                                    <span style="font-size: 16px;">⏭</span>
+                                    <div style="font-size: 11px; margin-top: 2px;">下一行</div>
+                                </button>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                                <button id="debug-step-btn" class="debug-control-btn" title="单步进入 (F11)">
+                                    <span style="font-size: 14px;">⬇</span>
+                                    <div style="font-size: 11px; margin-top: 2px;">进入</div>
+                                </button>
+                                <button id="debug-finish-btn" class="debug-control-btn" title="执行到函数返回 (Shift+F11)">
+                                    <span style="font-size: 14px;">⬆</span>
+                                    <div style="font-size: 11px; margin-top: 2px;">跳出</div>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 变量查看区 -->
+                        <div id="debug-variables-panel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                            <div style="padding: 8px 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #eee; font-size: 12px; font-weight: bold;">变量</span>
+                                <div style="display: flex; gap: 5px;">
+                                    <button id="debug-refresh-var-btn" class="debug-small-btn" title="刷新变量值">🔄</button>
+                                    <button id="debug-add-var-btn" class="debug-small-btn" title="添加变量">+</button>
+                                    <button id="debug-remove-var-btn" class="debug-small-btn" title="移除变量">−</button>
+                                </div>
+                            </div>
+                            <div id="debug-variables-list" style="flex: 1; overflow-y: auto; padding: 5px;">
+                                <div style="color: #666; font-size: 11px; padding: 5px;">暂无变量</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
