@@ -44,12 +44,10 @@
     let variableWatchState = {
         variables: [],  // 监视的变量列表 [{name, value, fullValue, expanded}]
         selectedVarIndex: -1,  // 当前选中的变量索引
-        pendingPrints: [],  // 等待更新的变量名队列（按 print 命令顺序）
+        gdbValueMap: new Map(),  // GDB $数字 -> 变量名的映射
+        pendingVariables: new Map(),  // 正在等待GDB响应的变量 {变量名: {buffer, timer, isComplete}}
         isRefreshing: false,  // 是否正在刷新
-        capturingOutput: false,  // 是否正在捕获输出
-        captureBuffer: '',  // 捕获的输出缓冲
-        currentVarName: null,  // 当前正在接收的变量名
-        captureTimer: null  // 超时定时器
+        captureTimeout: 200  // 捕获超时时间（毫秒）
     };
 
     // 初始化
@@ -605,7 +603,9 @@
             const hasLineNumber = trimmedText.match(/\)\s+\d{1,5}(\t|\s{2,})/);
             // 检查是否是变量值输出：(gdb) $1 = ...
             const hasVarOutput = trimmedText.match(/\)\s*\$\d+\s*=/);
-            if (!hasLineNumber && !hasVarOutput) {
+            // 检查是否是错误信息：(gdb) No symbol "xxx" in current context
+            const hasError = trimmedText.match(/\)\s*No symbol/i);
+            if (!hasLineNumber && !hasVarOutput && !hasError) {
                 return;
             }
         }
@@ -707,72 +707,117 @@
         }
 
         // 检测变量值输出（print 命令结果）
-        // 策略：当有 pending 变量时，持续捕获输出直到超时（200ms 无新输出）
+        // 新策略：使用 GDB 的 $数字标识符来精确匹配变量
+        
+        // 检测变量不存在或错误的情况（优先检测）
+        // 这些输出不包含 $数字 = 格式，但对应某个变量
+        const errorMatch = text.match(/No symbol\s+"([^"]+)"\s+in current context/i);
+        if (errorMatch) {
+            const errorVarName = errorMatch[1];
+            console.log(`[Variable] 检测到变量不存在：${errorVarName}`);
+            
+            // 查找对应的变量（可能是变量名本身，也可能是第一个没有gdbId的变量）
+            let varName = null;
+            
+            // 首先尝试精确匹配变量名
+            for (const [name, pending] of variableWatchState.pendingVariables) {
+                if (!pending.isComplete && !pending.gdbId && name === errorVarName) {
+                    varName = name;
+                    break;
+                }
+            }
+            
+            // 如果没有精确匹配，使用第一个没有gdbId的变量
+            if (!varName) {
+                for (const [name, pending] of variableWatchState.pendingVariables) {
+                    if (!pending.isComplete && !pending.gdbId) {
+                        varName = name;
+                        console.log(`[Variable] 使用第一个未映射的变量：${varName}`);
+                        break;
+                    }
+                }
+            }
+            
+            if (varName) {
+                // 标记为错误并完成
+                const pending = variableWatchState.pendingVariables.get(varName);
+                pending.buffer = text + '\n';
+                console.log(`[Variable] 变量 ${varName} 标记为错误`);
+                
+                // 立即完成捕获
+                completeVariableCapture(varName);
+            }
+            
+            return;
+        }
 
         // 检查是否是新的 print 命令开始（$数字 = 格式）
         const varValueMatch = text.match(/\$(\d+)\s*=\s*(.*)/);
 
-        if (varValueMatch && !variableWatchState.capturingOutput) {
-            // 开始捕获输出
-            const fullValue = varValueMatch[2].trim();
-            variableWatchState.captureBuffer = fullValue + '\n';
-            variableWatchState.capturingOutput = true;
-
-            // 从 pending 队列获取变量名
-            if (variableWatchState.pendingPrints.length > 0) {
-                variableWatchState.currentVarName = variableWatchState.pendingPrints.shift();
-                console.log(`[Variable] 开始捕获输出，变量：${variableWatchState.currentVarName}`);
+        if (varValueMatch) {
+            const gdbId = varValueMatch[1];
+            const initialValue = varValueMatch[2].trim();
+            
+            console.log(`[Variable] 检测到 GDB 输出：$${gdbId} = ${initialValue}`);
+            
+            // 查找对应的变量名（从pendingVariables中查找）
+            let varName = null;
+            for (const [name, pending] of variableWatchState.pendingVariables) {
+                if (!pending.isComplete && !pending.gdbId) {
+                    varName = name;
+                    pending.gdbId = gdbId;
+                    console.log(`[Variable] 将 $${gdbId} 映射到变量 ${varName}`);
+                    break;
+                }
             }
-
-            // 检查是否是单行输出（包含 } 或不包含 {）
-            if (!fullValue.includes('{') || fullValue.includes('}')) {
-                // 单行输出，延迟完成
-                startCaptureTimer();
+            
+            if (varName) {
+                // 建立映射
+                variableWatchState.gdbValueMap.set(gdbId, varName);
+                
+                // 初始化捕获该变量的输出
+                const pending = variableWatchState.pendingVariables.get(varName);
+                pending.buffer = initialValue + '\n';
+                console.log(`[Variable] 开始捕获变量 ${varName} 的输出`);
+                
+                // 设置超时定时器
+                if (pending.timer) {
+                    clearTimeout(pending.timer);
+                }
+                pending.timer = setTimeout(() => {
+                    console.log(`[Variable] 变量 ${varName} 捕获超时，完成输出`);
+                    completeVariableCapture(varName);
+                }, variableWatchState.captureTimeout);
+            } else {
+                console.log(`[Variable] 警告：$${gdbId} 没有找到对应的变量名`);
             }
+            
             return;
         }
 
-        // 如果正在捕获输出
-        if (variableWatchState.capturingOutput) {
-            // 重置定时器
-            if (variableWatchState.captureTimer) {
-                clearTimeout(variableWatchState.captureTimer);
+        // 检查是否有正在捕获的变量，如果有则累积所有后续输出
+        // 包括错误信息、空行等，所有内容都作为变量的值
+        if (variableWatchState.pendingVariables.size > 0) {
+            for (const [varName, pending] of variableWatchState.pendingVariables) {
+                if (!pending.isComplete && pending.gdbId) {
+                    // 累积所有后续行（包括错误信息）
+                    pending.buffer += text + '\n';
+                    console.log(`[Variable] 累积变量 ${varName} 的输出：${text.trim()}`);
+                    
+                    // 重置定时器
+                    if (pending.timer) {
+                        clearTimeout(pending.timer);
+                    }
+                    
+                    // 设置超时定时器
+                    pending.timer = setTimeout(() => {
+                        console.log(`[Variable] 变量 ${varName} 捕获超时，完成输出`);
+                        completeVariableCapture(varName);
+                    }, variableWatchState.captureTimeout);
+                    
+                    break; // 只处理第一个正在捕获的变量
+                }
             }
-
-            // 累积输出
-            variableWatchState.captureBuffer += text;
-            console.log(`[Variable] 捕获输出中：${text.trim()}`);
-
-            // 设置超时定时器（200ms 无新输出则完成）
-            startCaptureTimer();
-        }
-
-        // 检测变量不存在的情况
-        const noSymbolMatch = text.match(/No symbol\s+"([^"]+)"\s+in current context/i);
-        if (noSymbolMatch) {
-            const varName = noSymbolMatch[1];
-            console.log(`[Variable] 变量不存在：${varName}`);
-
-            // 从 pending 队列移除并更新显示
-            const index = variableWatchState.pendingPrints.indexOf(varName);
-            if (index >= 0) {
-                variableWatchState.pendingPrints.splice(index, 1);
-            }
-
-            const variable = variableWatchState.variables.find(v => v.name === varName);
-            if (variable) {
-                variable.value = '<不存在>';
-                variable.fullValue = '<不存在>';
-                variable.expanded = false;
-                refreshVariablesDisplay();
-            }
-        }
-
-        // 检测其他错误情况（如无法访问的内存地址）
-        const errorMatch = text.match(/Cannot access memory at address|Cannot perform|Evaluation may be different/i);
-        if (errorMatch && variableWatchState.capturingOutput) {
-            console.log(`[Variable] 捕获到错误：${text.trim()}`);
-            finishCapturingOutputWithError(text.trim());
         }
 
         // 检测程序结束
@@ -780,83 +825,6 @@
             console.log('[Execution] 程序已结束，清除高亮');
             clearExecutionLine();
         }
-    }
-
-    // 启动捕获超时定时器
-    function startCaptureTimer() {
-        variableWatchState.captureTimer = setTimeout(() => {
-            console.log(`[Variable] 捕获超时，完成输出`);
-            finishCapturingOutput();
-        }, 50);
-    }
-
-    // 完成输出捕获并更新变量（错误情况）
-    function finishCapturingOutputWithError(errorMsg) {
-        // 清除定时器
-        if (variableWatchState.captureTimer) {
-            clearTimeout(variableWatchState.captureTimer);
-            variableWatchState.captureTimer = null;
-        }
-
-        console.log(`[Variable] 捕获出错：${errorMsg}`);
-
-        if (variableWatchState.currentVarName) {
-            const variable = variableWatchState.variables.find(v => v.name === variableWatchState.currentVarName);
-            if (variable) {
-                variable.value = '<错误>';
-                variable.fullValue = errorMsg;
-                variable.expanded = false;
-                refreshVariablesDisplay();
-                console.log(`[Variable] 已标记变量 ${variableWatchState.currentVarName} 为错误`);
-            }
-
-            // 从 pending 队列移除（如果还在队列中）
-            const pendingIndex = variableWatchState.pendingPrints.indexOf(variableWatchState.currentVarName);
-            if (pendingIndex >= 0) {
-                variableWatchState.pendingPrints.splice(pendingIndex, 1);
-            }
-        }
-
-        // 重置捕获状态
-        variableWatchState.capturingOutput = false;
-        variableWatchState.captureBuffer = '';
-        variableWatchState.currentVarName = null;
-    }
-
-    // 完成输出捕获并更新变量
-    function finishCapturingOutput() {
-        // 清除定时器
-        if (variableWatchState.captureTimer) {
-            clearTimeout(variableWatchState.captureTimer);
-            variableWatchState.captureTimer = null;
-        }
-
-        let fullValue = variableWatchState.captureBuffer.trim();
-        console.log(`[Variable] 捕获完成，完整值长度：${fullValue.length}`);
-
-        const displayValue = fullValue.length > 50 ? fullValue.substring(0, 50) + '...' : fullValue;
-
-        if (variableWatchState.currentVarName) {
-            const variable = variableWatchState.variables.find(v => v.name === variableWatchState.currentVarName);
-            if (variable) {
-                variable.value = displayValue;
-                variable.fullValue = fullValue;
-                variable.expanded = false;
-                refreshVariablesDisplay();
-                console.log(`[Variable] 已更新变量 ${variableWatchState.currentVarName}`);
-            }
-
-            // 从 pending 队列移除（如果还在队列中）
-            const pendingIndex = variableWatchState.pendingPrints.indexOf(variableWatchState.currentVarName);
-            if (pendingIndex >= 0) {
-                variableWatchState.pendingPrints.splice(pendingIndex, 1);
-            }
-        }
-
-        // 重置捕获状态
-        variableWatchState.capturingOutput = false;
-        variableWatchState.captureBuffer = '';
-        variableWatchState.currentVarName = null;
     }
 
     // 高亮当前执行行
@@ -1031,6 +999,24 @@
             return;
         }
 
+        // 如果是 print 命令，记录变量名
+        const printMatch = command.match(/^print\s+(.+)$/);
+        if (printMatch) {
+            const varName = printMatch[1].trim();
+            console.log(`[Variable] 发送 print 命令：${varName}`);
+            
+            // 生成唯一的请求ID
+            const requestId = Date.now() + Math.random();
+            
+            // 将变量名与请求ID关联
+            variableWatchState.pendingVariables.set(varName, {
+                requestId: requestId,
+                buffer: '',
+                timer: null,
+                isComplete: false
+            });
+        }
+
         appendTerminalOutput(`(gdb) ${command}\n`);
 
         try {
@@ -1050,6 +1036,40 @@
         } catch (error) {
             appendTerminalOutput(`[错误] 发送命令失败：${error.message}\n`, 'error');
         }
+    }
+
+    // 完成变量捕获（正常情况）
+    function completeVariableCapture(varName) {
+        const pending = variableWatchState.pendingVariables.get(varName);
+        if (!pending || pending.isComplete) return;
+
+        // 清除定时器
+        if (pending.timer) {
+            clearTimeout(pending.timer);
+        }
+
+        let fullValue = pending.buffer.trim();
+        console.log(`[Variable] 变量 ${varName} 捕获完成，完整值长度：${fullValue.length}`);
+
+        const displayValue = fullValue.length > 50 ? fullValue.substring(0, 50) + '...' : fullValue;
+
+        const variable = variableWatchState.variables.find(v => v.name === varName);
+        if (variable) {
+            variable.value = displayValue;
+            variable.fullValue = fullValue;
+            variable.expanded = false;
+            refreshVariablesDisplay();
+            console.log(`[Variable] 已更新变量 ${varName}`);
+        }
+
+        // 清理映射
+        if (pending.gdbId) {
+            variableWatchState.gdbValueMap.delete(pending.gdbId);
+        }
+
+        // 标记为完成并移除
+        pending.isComplete = true;
+        variableWatchState.pendingVariables.delete(varName);
     }
 
     function focusCommandInput() {
@@ -1200,24 +1220,22 @@
 
         console.log(`[Variable] 准备获取变量值：${varName}`);
 
-        // 添加到 pending 队列
-        variableWatchState.pendingPrints.push(varName);
-        console.log(`[Variable] 添加到 pending 队列：${varName}, 队列：`, variableWatchState.pendingPrints);
-
         try {
             // 使用 GDB 的 print 命令获取变量值
             await sendSingleCommand(`print ${varName}`);
         } catch (error) {
             console.error(`[Variable] 获取变量值失败:`, error);
-            // 如果发送失败，从队列中移除
-            const index = variableWatchState.pendingPrints.indexOf(varName);
-            if (index >= 0) {
-                variableWatchState.pendingPrints.splice(index, 1);
+            // 如果发送失败，标记为错误
+            const variable = variableWatchState.variables.find(v => v.name === varName);
+            if (variable) {
+                variable.value = '<错误>';
+                variable.fullValue = '发送命令失败';
+                refreshVariablesDisplay();
             }
         }
     }
 
-    // 刷新所有变量值（逐个刷新）
+    // 刷新所有变量值（并发刷新）
     async function refreshAllVariables() {
         if (!debugState.isDebugging) {
             console.log('[Variable] 调试未运行，无法刷新');
@@ -1237,17 +1255,14 @@
         variableWatchState.isRefreshing = true;
         console.log('[Variable] 开始刷新所有变量');
 
-        // 逐个变量发送 print 命令（间隔 100ms）
-        for (let i = 0; i < variableWatchState.variables.length; i++) {
-            const variable = variableWatchState.variables[i];
+        // 并发发送所有 print 命令（新的映射机制可以正确处理）
+        const refreshPromises = variableWatchState.variables.map(async (variable) => {
             variable.value = 'Loading...';
             refreshVariablesDisplay();
-            
             await refreshVariableValue(variable.name);
-            
-            // 等待 GDB 响应（100ms 延迟）
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        });
+
+        await Promise.all(refreshPromises);
 
         variableWatchState.isRefreshing = false;
         console.log('[Variable] 刷新完成');
@@ -1307,19 +1322,18 @@
 
     // 重置变量状态
     function resetVariableState() {
-        // 清除定时器
-        if (variableWatchState.captureTimer) {
-            clearTimeout(variableWatchState.captureTimer);
-            variableWatchState.captureTimer = null;
+        // 清除所有定时器
+        for (const [varName, pending] of variableWatchState.pendingVariables) {
+            if (pending.timer) {
+                clearTimeout(pending.timer);
+            }
         }
         
         variableWatchState.variables = [];
         variableWatchState.selectedVarIndex = -1;
-        variableWatchState.pendingPrints = [];
+        variableWatchState.gdbValueMap.clear();
+        variableWatchState.pendingVariables.clear();
         variableWatchState.isRefreshing = false;
-        variableWatchState.capturingOutput = false;
-        variableWatchState.captureBuffer = '';
-        variableWatchState.currentVarName = null;
         refreshVariablesDisplay();
     }
 
