@@ -115,12 +115,52 @@
                 registerBreakpointClick();
                 registerBreakpointContextMenu();
                 
+                // 监听编辑器内容变化，当行数变化时清除断点
+                monacoEditor.onDidChangeModelContent(() => {
+                    handleEditorContentChange();
+                });
+                
                 console.log('[Debug] 断点功能已启用');
             } else {
                 // 重试
                 initBreakpointIntegration();
             }
         }, 500);
+    }
+    
+    // 处理编辑器内容变化
+    function handleEditorContentChange() {
+        if (!monacoEditor || !breakpointState.breakpoints.size) return;
+        
+        const model = monacoEditor.getModel();
+        if (!model) return;
+        
+        const lineCount = model.getLineCount();
+        
+        // 检查每个断点
+        const invalidLines = [];
+        for (const [lineNum] of breakpointState.breakpoints) {
+            // 检查行号是否超过总行数，或者该行是否为空
+            if (lineNum > lineCount) {
+                invalidLines.push(lineNum);
+            } else {
+                // 检查该行是否为空行
+                const lineContent = model.getLineContent(lineNum);
+                if (!lineContent || lineContent.trim() === '') {
+                    invalidLines.push(lineNum);
+                }
+            }
+        }
+        
+        // 清除无效断点
+        if (invalidLines.length > 0) {
+            console.log('[Breakpoint] 检测到内容变化，清除无效断点:', invalidLines);
+            for (const lineNum of invalidLines) {
+                breakpointState.breakpoints.delete(lineNum);
+                breakpointState.gdbBreakpointIds.delete(lineNum);
+            }
+            updateActiveBreakpoints();
+        }
     }
 
     // 注册断点点击事件
@@ -657,6 +697,14 @@
 
         if (lineNumber && lineNumber > 0) {
             highlightExecutionLine(lineNumber);
+            
+            // 程序停止时自动刷新变量
+            console.log(`[Variable] 检查自动刷新: variables.length=${variableWatchState.variables.length}, isRefreshing=${variableWatchState.isRefreshing}, isDebugging=${debugState.isDebugging}`);
+            if (variableWatchState.variables.length > 0 && !variableWatchState.isRefreshing) {
+                console.log('[Variable] 程序停止，自动刷新变量');
+                // 不使用 await，直接调用
+                refreshAllVariables().catch(err => console.error('[Variable] 自动刷新失败:', err));
+            }
         }
 
         // 检测 GDB 设置的断点信息
@@ -713,6 +761,7 @@
         // 这些输出不包含 $数字 = 格式，但对应某个变量
         const errorMatch = text.match(/No symbol\s+"([^"]+)"\s+in current context/i);
         if (errorMatch) {
+            console.log('[Variable] 检测到错误匹配，原始文本:', text);
             const errorVarName = errorMatch[1];
             console.log(`[Variable] 检测到变量不存在：${errorVarName}`);
             
@@ -755,6 +804,7 @@
         const varValueMatch = text.match(/\$(\d+)\s*=\s*(.*)/);
 
         if (varValueMatch) {
+            console.log('[Variable] 检测到 $数字= 匹配，原始文本:', text);
             const gdbId = varValueMatch[1];
             const initialValue = varValueMatch[2].trim();
             
