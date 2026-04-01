@@ -598,230 +598,6 @@
         // 跳过空行
         if (!text.trim()) return;
 
-        // 跳过纯命令回显（但保留包含行号的行如 "(gdb) 6\t}" 和变量值输出如 "(gdb) $1 = 1"）
-        if (text.trim().startsWith('(gdb)')) {
-            // 检查是否是行号显示：(gdb) 6\t}
-            const hasLineNumber = text.match(/\)\s+\d{1,5}(\t|\s{2,})/);
-            // 检查是否是变量值输出：(gdb) $1 = 1
-            const hasVarValue = text.match(/\)\s*\$?\d+\s*=/);
-            if (!hasLineNumber && !hasVarValue) {
-                return;
-            }
-        }
-
-        console.log('[GDB Output]', text.trim());
-
-        let lineNumber = null;
-
-        // 格式 1: 断点命中后显示位置（单行）
-        // Thread 1 hit Breakpoint 1, add (a=1, b=2) at C:\...\source.cpp:5
-        const hitBreakMatch = text.match(/hit\s+Breakpoint\s+\d+.*?\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
-        if (hitBreakMatch) {
-            lineNumber = parseInt(hitBreakMatch[2]);
-            console.log(`[Execution] 断点命中 (单行): 行 ${lineNumber}`);
-        }
-
-        // 格式 2: 单步执行后显示位置（单行）
-        // main () at C:\Users\...\source.cpp:10
-        const stepMatch = text.match(/^\w+\s*\(.*\)\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
-        if (stepMatch && !lineNumber) {
-            lineNumber = parseInt(stepMatch[2]);
-            console.log(`[Execution] 单步执行 (单行): 行 ${lineNumber}`);
-        }
-
-        // 格式 3: 单独行号（前面有空格或 (gdb)，后面有制表符或至少 2 个空格）
-        // 5		return a+b;
-        // (gdb) 6	}
-        const lineNumMatch1 = text.match(/^\s*(\d{1,5})(\t|\s{2,})/);
-        const lineNumMatch2 = text.match(/\)\s+(\d{1,5})(\t|\s{2,})/);
-        console.log(`[Execution] 行号正则 1: ${lineNumMatch1 ? lineNumMatch1[0] : 'null'}, 正则 2: ${lineNumMatch2 ? lineNumMatch2[0] : 'null'}`);
-        
-        if (lineNumMatch1 && !lineNumber) {
-            lineNumber = parseInt(lineNumMatch1[1]);
-            console.log(`[Execution] 行号显示 (正则 1): 行 ${lineNumber}`);
-        }
-        if (lineNumMatch2 && !lineNumber) {
-            lineNumber = parseInt(lineNumMatch2[1]);
-            console.log(`[Execution] 行号显示 (正则 2): 行 ${lineNumber}`);
-        }
-
-        // 格式 4: frame 格式 #0 ... at ...
-        const frameMatch = text.match(/^#0\s+.*?\s+at\s+([A-Z]:\\.*?\.cpp):(\d+)/i);
-        if (frameMatch && !lineNumber) {
-            lineNumber = parseInt(frameMatch[2]);
-            console.log(`[Execution] Frame 位置：行 ${lineNumber}`);
-        }
-
-        console.log(`[Execution] 最终 lineNumber=${lineNumber}`);
-
-        if (lineNumber && lineNumber > 0) {
-            highlightExecutionLine(lineNumber);
-        }
-
-        // 检测 GDB 设置的断点信息
-        // 格式：Breakpoint 1 at 0x1400013a9: file C:\Users\...\source.cpp, line 8.
-        // 或：(gdb) Breakpoint 1 at 0x1400013a9: file C:\...\source.cpp, line 8.
-        const breakpointSetMatch = text.match(/Breakpoint\s+(\d+)\s+at[^:]*:\s*file\s+([A-Z]:\\.*?\.cpp),\s*line\s+(\d+)/i);
-        if (breakpointSetMatch) {
-            const gdbId = parseInt(breakpointSetMatch[1]);
-            const filePath = breakpointSetMatch[2];
-            const lineNum = parseInt(breakpointSetMatch[3]);
-
-            console.log(`[Breakpoint] 解析到断点设置：ID=${gdbId}, 路径=${filePath}, 行=${lineNum}`);
-
-            if (breakpointState.breakpoints.has(lineNum)) {
-                const bp = breakpointState.breakpoints.get(lineNum);
-                bp.gdbId = gdbId;
-                breakpointState.gdbBreakpointIds.set(lineNum, gdbId);
-                console.log(`[Breakpoint] GDB 确认断点：行 ${lineNum}, GDB ID: ${gdbId}`);
-            } else {
-                // 尝试从文件名匹配断点（可能是路径不同）
-                console.log(`[Breakpoint] 行 ${lineNum} 不在断点列表中，尝试匹配文件...`);
-                // 遍历所有断点，找到第一个没有 gdbId 的断点
-                for (const [line, bp] of breakpointState.breakpoints) {
-                    if (bp.gdbId === null) {
-                        bp.gdbId = gdbId;
-                        breakpointState.gdbBreakpointIds.set(line, gdbId);
-                        console.log(`[Breakpoint] 将 GDB ID ${gdbId} 关联到行 ${line}`);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // 检测 GDB 删除断点的响应
-        // 格式：Deleted breakpoint 1
-        const breakpointDeleteMatch = text.match(/Deleted\s+breakpoint\s+(\d+)/i);
-        if (breakpointDeleteMatch) {
-            const gdbId = parseInt(breakpointDeleteMatch[1]);
-            console.log(`[Breakpoint] GDB 确认删除断点 ID=${gdbId}`);
-            // 从映射中移除
-            for (const [line, id] of breakpointState.gdbBreakpointIds) {
-                if (id === gdbId) {
-                    breakpointState.gdbBreakpointIds.delete(line);
-                    console.log(`[Breakpoint] 从映射中移除行 ${line}`);
-                    break;
-                }
-            }
-        }
-
-        // 检测变量值输出（print 命令结果）
-        // 策略：当有 pending 变量时，持续捕获输出直到超时（200ms 无新输出）
-        
-        const trimmedText = text.trim();
-        
-        // 检查是否是新的 print 命令开始（$数字 = 格式）
-        const varValueMatch = text.match(/\$(\d+)\s*=\s*(.*)/);
-        
-        if (varValueMatch && !variableWatchState.capturingOutput) {
-            // 开始捕获输出
-            const fullValue = varValueMatch[2].trim();
-            variableWatchState.captureBuffer = fullValue + '\n';
-            variableWatchState.capturingOutput = true;
-            
-            // 从 pending 队列获取变量名
-            if (variableWatchState.pendingPrints.length > 0) {
-                variableWatchState.currentVarName = variableWatchState.pendingPrints.shift();
-                console.log(`[Variable] 开始捕获输出，变量：${variableWatchState.currentVarName}`);
-            }
-            
-            // 检查是否是单行输出（包含 } 或不包含 {）
-            if (!fullValue.includes('{') || fullValue.includes('}')) {
-                // 单行输出，延迟完成
-                startCaptureTimer();
-            }
-            return;
-        }
-        
-        // 如果正在捕获输出
-        if (variableWatchState.capturingOutput) {
-            // 重置定时器
-            if (variableWatchState.captureTimer) {
-                clearTimeout(variableWatchState.captureTimer);
-            }
-            
-            // 累积输出
-            variableWatchState.captureBuffer += text;
-            console.log(`[Variable] 捕获输出中：${text.trim()}`);
-            
-            // 设置超时定时器（200ms 无新输出则完成）
-            startCaptureTimer();
-        }
-        
-        // 检测变量不存在的情况
-        const noSymbolMatch = text.match(/No symbol\s+"([^"]+)"\s+in current context/i);
-        if (noSymbolMatch) {
-            const varName = noSymbolMatch[1];
-            console.log(`[Variable] 变量不存在：${varName}`);
-            
-            // 从 pending 队列移除并更新显示
-            const index = variableWatchState.pendingPrints.indexOf(varName);
-            if (index >= 0) {
-                variableWatchState.pendingPrints.splice(index, 1);
-            }
-            
-            const variable = variableWatchState.variables.find(v => v.name === varName);
-            if (variable) {
-                variable.value = '<不存在>';
-                variable.fullValue = '<不存在>';
-                refreshVariablesDisplay();
-            }
-        }
-    }
-    
-    // 启动捕获超时定时器
-    function startCaptureTimer() {
-        variableWatchState.captureTimer = setTimeout(() => {
-            console.log(`[Variable] 捕获超时，完成输出`);
-            finishCapturingOutput();
-        }, 200);
-    }
-    
-    // 完成输出捕获并更新变量
-    function finishCapturingOutput() {
-        // 清除定时器
-        if (variableWatchState.captureTimer) {
-            clearTimeout(variableWatchState.captureTimer);
-            variableWatchState.captureTimer = null;
-        }
-        
-        let fullValue = variableWatchState.captureBuffer.trim();
-        console.log(`[Variable] 捕获完成，完整值长度：${fullValue.length}`);
-        
-        const displayValue = fullValue.length > 50 ? fullValue.substring(0, 50) + '...' : fullValue;
-        
-        if (variableWatchState.currentVarName) {
-            const variable = variableWatchState.variables.find(v => v.name === variableWatchState.currentVarName);
-            if (variable) {
-                variable.value = displayValue;
-                variable.fullValue = fullValue;
-                variable.expanded = false;
-                refreshVariablesDisplay();
-                console.log(`[Variable] 已更新变量 ${variableWatchState.currentVarName}`);
-            }
-            
-            // 从 pending 队列移除（如果还在队列中）
-            const pendingIndex = variableWatchState.pendingPrints.indexOf(variableWatchState.currentVarName);
-            if (pendingIndex >= 0) {
-                variableWatchState.pendingPrints.splice(pendingIndex, 1);
-            }
-        }
-        
-        // 重置捕获状态
-        variableWatchState.capturingOutput = false;
-        variableWatchState.captureBuffer = '';
-        variableWatchState.currentVarName = null;
-    }
-
-    // 解析 GDB 输出，检测断点和执行位置
-    function parseGDBOutput(text) {
-        if (!monacoEditor) return;
-
-        console.log('[GDB Output RAW]', JSON.stringify(text));
-
-        // 跳过空行
-        if (!text.trim()) return;
-
         // 跳过纯命令回显（但保留包含行号的行如 "(gdb) 6\t}" 和变量输出如 "(gdb) $1 = ..."）
         const trimmedText = text.trim();
         if (trimmedText.startsWith('(gdb)')) {
@@ -948,8 +724,11 @@
                 console.log(`[Variable] 开始捕获输出，变量：${variableWatchState.currentVarName}`);
             }
 
-            // 启动超时定时器（200ms 后完成捕获）
-            startCaptureTimer();
+            // 检查是否是单行输出（包含 } 或不包含 {）
+            if (!fullValue.includes('{') || fullValue.includes('}')) {
+                // 单行输出，延迟完成
+                startCaptureTimer();
+            }
             return;
         }
 
@@ -964,38 +743,86 @@
             variableWatchState.captureBuffer += text;
             console.log(`[Variable] 捕获输出中：${text.trim()}`);
 
-            // 重新启动超时定时器
+            // 设置超时定时器（200ms 无新输出则完成）
             startCaptureTimer();
-            return;
         }
-        
+
         // 检测变量不存在的情况
         const noSymbolMatch = text.match(/No symbol\s+"([^"]+)"\s+in current context/i);
         if (noSymbolMatch) {
             const varName = noSymbolMatch[1];
             console.log(`[Variable] 变量不存在：${varName}`);
-            
+
             // 从 pending 队列移除并更新显示
             const index = variableWatchState.pendingPrints.indexOf(varName);
             if (index >= 0) {
                 variableWatchState.pendingPrints.splice(index, 1);
             }
-            
+
             const variable = variableWatchState.variables.find(v => v.name === varName);
             if (variable) {
                 variable.value = '<不存在>';
                 variable.fullValue = '<不存在>';
+                variable.expanded = false;
                 refreshVariablesDisplay();
             }
         }
-        
+
+        // 检测其他错误情况（如无法访问的内存地址）
+        const errorMatch = text.match(/Cannot access memory at address|Cannot perform|Evaluation may be different/i);
+        if (errorMatch && variableWatchState.capturingOutput) {
+            console.log(`[Variable] 捕获到错误：${text.trim()}`);
+            finishCapturingOutputWithError(text.trim());
+        }
+
         // 检测程序结束
         if (text.includes('exited normally') || text.includes('The program is not being run')) {
             console.log('[Execution] 程序已结束，清除高亮');
             clearExecutionLine();
         }
     }
-    
+
+    // 启动捕获超时定时器
+    function startCaptureTimer() {
+        variableWatchState.captureTimer = setTimeout(() => {
+            console.log(`[Variable] 捕获超时，完成输出`);
+            finishCapturingOutput();
+        }, 50);
+    }
+
+    // 完成输出捕获并更新变量（错误情况）
+    function finishCapturingOutputWithError(errorMsg) {
+        // 清除定时器
+        if (variableWatchState.captureTimer) {
+            clearTimeout(variableWatchState.captureTimer);
+            variableWatchState.captureTimer = null;
+        }
+
+        console.log(`[Variable] 捕获出错：${errorMsg}`);
+
+        if (variableWatchState.currentVarName) {
+            const variable = variableWatchState.variables.find(v => v.name === variableWatchState.currentVarName);
+            if (variable) {
+                variable.value = '<错误>';
+                variable.fullValue = errorMsg;
+                variable.expanded = false;
+                refreshVariablesDisplay();
+                console.log(`[Variable] 已标记变量 ${variableWatchState.currentVarName} 为错误`);
+            }
+
+            // 从 pending 队列移除（如果还在队列中）
+            const pendingIndex = variableWatchState.pendingPrints.indexOf(variableWatchState.currentVarName);
+            if (pendingIndex >= 0) {
+                variableWatchState.pendingPrints.splice(pendingIndex, 1);
+            }
+        }
+
+        // 重置捕获状态
+        variableWatchState.capturingOutput = false;
+        variableWatchState.captureBuffer = '';
+        variableWatchState.currentVarName = null;
+    }
+
     // 完成输出捕获并更新变量
     function finishCapturingOutput() {
         // 清除定时器
@@ -1004,9 +831,7 @@
             variableWatchState.captureTimer = null;
         }
 
-        let fullValue = variableWatchState.captureBuffer || '';
-        fullValue = fullValue.trim();
-        
+        let fullValue = variableWatchState.captureBuffer.trim();
         console.log(`[Variable] 捕获完成，完整值长度：${fullValue.length}`);
 
         const displayValue = fullValue.length > 50 ? fullValue.substring(0, 50) + '...' : fullValue;
@@ -1427,6 +1252,7 @@
         variableWatchState.isRefreshing = false;
         console.log('[Variable] 刷新完成');
     }
+
     function refreshVariablesDisplay() {
         if (!elements.debugVariablesList) return;
 
