@@ -1214,6 +1214,21 @@ if (pluginCenterCloseBtn) {
     });
 }
 
+// AI自动调试插件按钮事件
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.id === 'aidebug-open-btn') {
+        if (pluginCenterPanel) {
+            pluginCenterPanel.style.display = 'none';
+        }
+        if (pluginCenterToggle) {
+            pluginCenterToggle.classList.remove('plugin-center-open');
+        }
+        if (window.aidebugPlugin) {
+            window.aidebugPlugin.showDebugPanel();
+        }
+    }
+});
+
 // 初始化插件设置UI
 function initPluginSettings() {
     // 设置C++代码补全插件的UI状态
@@ -1899,7 +1914,7 @@ const tutorialSteps = [
                 <li>点击顶部工具栏的<strong>运行按钮</strong></li>
                 <li>或使用快捷键 <strong>F8</strong></li>
             </ul>
-            <p>运行结果会显示在底部的终端面板中。</p>
+            <p>运行结果会显示在底部的终端面板中。对了，调试功能也很好用，可以试试哟</p>
         `
     },
     {

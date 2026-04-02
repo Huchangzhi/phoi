@@ -1,5 +1,7 @@
 # PH code(原名phoi)
 
+> 本项目完全使用vibe code，仅供学习，造成损失作者概不负责
+
 一个适合oi的在线c++编辑器，甚至可以在手机上写代码
 
 UI参考：Microsofr VS Code ~~（微软大战代码）~~ ，部分图标来自VScode，CPH
