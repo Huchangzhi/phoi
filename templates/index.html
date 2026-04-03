@@ -187,6 +187,14 @@
                     <textarea id="default-code-editor" placeholder="在此输入默认代码..."></textarea>
                 </div>
                 <div class="setting-item">
+                    <label for="color-mode-select"> 颜色模式（实验性）:</label>
+                    <select id="color-mode-select" style="width: 100%; padding: 8px; background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); border-radius: 4px; font-size: 14px;">
+                        <option value="dark">深色模式</option>
+                        <option value="light">浅色模式</option>
+                        <option value="auto">自动（跟随系统）</option>
+                    </select>
+                </div>
+                <div class="setting-item">
                     <label for="native-fs-enabled">
                         <input type="checkbox" id="native-fs-enabled"> 实验性功能：启用本地储存(不稳定)
                     </label>

@@ -188,7 +188,7 @@
             this.monacoEditor = window.monaco.editor.create(editorContainer, {
                 value: this.state.virtualFileContent || '',
                 language: 'cpp',
-                theme: 'vs-dark',
+                theme: (localStorage.getItem('phoi_color_theme') === 'light') ? 'vs' : 'vs-dark',
                 automaticLayout: true,
                 readOnly: false,
                 minimap: { enabled: true },

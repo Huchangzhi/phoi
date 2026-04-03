@@ -1,3 +1,149 @@
+// ============================================
+// 主题管理模块
+// ============================================
+const THEME_KEY = 'phoi_color_theme'; // 'dark', 'light', 'auto'
+
+// 获取当前应该应用的实际主题
+function getActualTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    if (savedTheme === 'auto') {
+        return getSystemPreferredTheme();
+    }
+    return savedTheme;
+}
+
+// 初始化主题
+function initTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    
+    // 如果是自动模式，先设置系统主题监听
+    if (savedTheme === 'auto') {
+        setupSystemThemeListener();
+    }
+    
+    // 应用主题
+    const actualTheme = getActualTheme();
+    document.documentElement.setAttribute('data-theme', actualTheme);
+    updateImagesForTheme(actualTheme);
+}
+
+// 应用主题（外部调用入口）
+function applyTheme(theme) {
+    localStorage.setItem(THEME_KEY, theme);
+    
+    if (theme === 'auto') {
+        setupSystemThemeListener();
+        const actualTheme = getSystemPreferredTheme();
+        document.documentElement.setAttribute('data-theme', actualTheme);
+        updateMonacoEditorTheme(actualTheme);
+        updateImagesForTheme(actualTheme);
+    } else {
+        removeSystemThemeListener();
+        document.documentElement.setAttribute('data-theme', theme);
+        updateMonacoEditorTheme(theme);
+        updateImagesForTheme(theme);
+    }
+}
+
+// 获取系统首选颜色模式
+function getSystemPreferredTheme() {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+    }
+    return 'dark';
+}
+
+// 应用系统主题
+function applySystemTheme() {
+    const systemTheme = getSystemPreferredTheme();
+    document.documentElement.setAttribute('data-theme', systemTheme);
+    updateMonacoEditorTheme(systemTheme);
+    updateImagesForTheme(systemTheme);
+}
+
+// 设置系统主题变化监听
+let systemThemeMediaQuery = null;
+let systemThemeHandler = null;
+
+function setupSystemThemeListener() {
+    if (window.matchMedia) {
+        systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+
+        systemThemeHandler = (e) => {
+            const currentTheme = localStorage.getItem(THEME_KEY);
+            if (currentTheme === 'auto') {
+                applySystemTheme();
+            }
+        };
+
+        // 添加监听器
+        if (systemThemeMediaQuery.addEventListener) {
+            systemThemeMediaQuery.addEventListener('change', systemThemeHandler);
+        }
+    }
+}
+
+function removeSystemThemeListener() {
+    if (systemThemeMediaQuery && systemThemeHandler) {
+        if (systemThemeMediaQuery.removeEventListener) {
+            systemThemeMediaQuery.removeEventListener('change', systemThemeHandler);
+        }
+    }
+}
+
+// 更新 Monaco Editor 主题（安全调用）
+function updateMonacoEditorTheme(theme) {
+    if (typeof monaco !== 'undefined' && monaco && monaco.editor) {
+        const monacoTheme = theme === 'light' ? 'vs' : 'vs-dark';
+        monaco.editor.setTheme(monacoTheme);
+    }
+}
+
+// 向后兼容
+function updateMonacoTheme(theme) {
+    updateMonacoEditorTheme(theme);
+}
+
+// 根据主题更新图片
+function updateImagesForTheme(theme) {
+    // Logo 图片
+    const logo = document.getElementById('logo');
+    if (logo) {
+        logo.src = theme === 'light' ? '/static/logo_light.png' : '/static/logo.png';
+    }
+
+    // 按钮图标图片
+    const buttonImageMap = {
+        'run-btn': { dark: '/static/run.png', light: '/static/run_light.png' },
+        'sidebar-toggle': { dark: '/static/file.png', light: '/static/file_light.png' },
+        'plugin-center-toggle': { dark: '/static/ext.png', light: '/static/ext_light.png' },
+        'cph-plugin-toggle': { dark: '/static/cph.png', light: '/static/cph_light.png' },
+        'debug-btn': { dark: '/static/debug.png', light: '/static/debug_light.png' }
+    };
+
+    Object.keys(buttonImageMap).forEach(id => {
+        const button = document.getElementById(id);
+        if (button) {
+            const img = button.querySelector('img');
+            if (img) {
+                const mapping = buttonImageMap[id];
+                const newSrc = theme === 'light' ? mapping.light : mapping.dark;
+                // 检查图片是否存在
+                const testImg = new Image();
+                testImg.onload = () => { img.src = newSrc; };
+                testImg.onerror = () => { /* 图片不存在，不替换 */ };
+                testImg.src = newSrc;
+            }
+        }
+    });
+}
+
+// 切换主题
+function setTheme(theme) {
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme(theme);
+}
+
 // DOM Elements
 const editorWrapper = document.getElementById('editor-wrapper');
 const fullEditor = document.getElementById('full-editor');
@@ -168,14 +314,20 @@ require(['vs/editor/editor.main'], function() {
     // 在初始化 Monaco 之前应用缩放
     applyScale();
 
-    // 根据设置确定初始的quickSuggestionsDelay值
+    // 初始化主题系统（只设置 CSS 和图片，不更新 Monaco）
+    initTheme();
+
     // 根据设置确定初始的quickSuggestionsDelay值
     const initialQuickSuggestionsDelay = cppAutocompleteEnabled ? cppAutocompleteDelay : 0;
+
+    // 获取当前实际主题（考虑自动模式）
+    const actualTheme = getActualTheme();
+    const monacoTheme = actualTheme === 'light' ? 'vs' : 'vs-dark';
 
     monacoEditor = monaco.editor.create(document.getElementById('editor-container'), {
         value: globalText,
         language: 'cpp',
-        theme: 'vs-dark', // 使用暗色主题
+        theme: monacoTheme,
         automaticLayout: true,
         // 启用 glyph margin 以支持断点
         glyphMargin: true,
@@ -200,6 +352,10 @@ require(['vs/editor/editor.main'], function() {
         }
     });
 
+    // 初始化 Monaco 主题（此时 monacoEditor 已定义）
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    const initActualTheme = savedTheme === 'auto' ? getSystemPreferredTheme() : savedTheme;
+    updateMonacoEditorTheme(initActualTheme);
 
     // 添加一个标志来跟踪程序化更新
     window.isUpdatingProgrammatically = false;
@@ -1557,6 +1713,13 @@ function showPreferencesModal() {
         defaultCodeEditor.value = currentDefaultCode;
     }
 
+    // 加载颜色模式设置
+    const colorModeSelect = document.getElementById('color-mode-select');
+    if (colorModeSelect) {
+        const currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+        colorModeSelect.value = currentTheme;
+    }
+
     // 加载 clangd 设置
     const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
     if (clangdEnabledCheckbox) {
@@ -1627,10 +1790,19 @@ function savePreferencesChanges() {
     if (defaultCodeEditor) {
         const newDefaultCode = defaultCodeEditor.value;
         localStorage.setItem('phoi_defaultCode', newDefaultCode);
-        
+
         // 更新当前的 defaultCode 变量
         // 注意：这不会影响当前已打开的文件，只会影响新创建的文件
         showMessage('默认代码已保存！', 'system');
+    }
+
+    // 保存颜色模式设置
+    const colorModeSelect = document.getElementById('color-mode-select');
+    if (colorModeSelect) {
+        const selectedTheme = colorModeSelect.value;
+        localStorage.setItem(THEME_KEY, selectedTheme);
+        applyTheme(selectedTheme);
+        showMessage('颜色模式已保存！', 'system');
     }
 
     // 保存 clangd 设置

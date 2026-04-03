@@ -1,4 +1,8 @@
+/* ============================================
+   主题变量系统 - 深色模式（默认）
+   ============================================ */
 :root {
+    /* 基础颜色 */
     --bg-color: #1e1e1e;
     --editor-bg: #111;
     --key-bg: #333;
@@ -9,6 +13,156 @@
     --dim-color: #666;
     --accent-color: #007acc;
     --border-color: #111;
+    
+    /* 菜单栏 */
+    --menu-bg: #333333;
+    --menu-hover: #444444;
+    --menu-border: #444444;
+    --menu-text: #cccccc;
+    
+    /* 下拉菜单 */
+    --dropdown-bg: #333333;
+    --dropdown-border: #444444;
+    --dropdown-item-hover: #444444;
+    
+    /* 侧边栏 */
+    --sidebar-bg: #252526;
+    --sidebar-border: #333333;
+    --sidebar-btn-bg: #333333;
+    --sidebar-btn-hover: #444444;
+    
+    /* 面板 */
+    --panel-bg: #252526;
+    --panel-header-bg: #333333;
+    --panel-border: #444444;
+    --panel-hover: #444444;
+    
+    /* 模态框 */
+    --modal-overlay: rgba(0, 0, 0, 0.7);
+    --modal-bg: #252526;
+    --modal-border: #444;
+    --modal-header-bg: #333;
+    --modal-shadow: rgba(0,0,0,0.5);
+    
+    /* 终端 */
+    --terminal-bg: #0d0d0d;
+    --terminal-header-bg: #1e1e1e;
+    --terminal-border-color: #007acc;
+    --terminal-tab-active: #007acc;
+    --terminal-tab-hover: #2a2a2a;
+    
+    /* 插件 */
+    --plugin-bg: #2d2d30;
+    --plugin-border: #444;
+    --plugin-header-color: #ffffff;
+    
+    /* 按钮 */
+    --btn-primary: #0e639c;
+    --btn-primary-hover: #1177bb;
+    --btn-secondary: #3e3e42;
+    --btn-danger: #c53030;
+    
+    /* 输入框 */
+    --input-bg: #1e1e1e;
+    --input-border: #3c3c3c;
+    --input-text: #d4d4d4;
+    
+    /* 代码高亮 */
+    --hl-kw: #569cd6;
+    --hl-str: #ce9178;
+    --hl-com: #6a9955;
+    --hl-dir: #c586c0;
+    --hl-num: #b5cea8;
+    
+    /* 其他 */
+    --link-color: #4daafc;
+    --vfs-folder-color: white;
+    --terminal-text: #ccc;
+}
+
+/* ============================================
+   浅色模式变量
+   ============================================ */
+[data-theme="light"] {
+    /* 基础颜色 */
+    --bg-color: #ffffff;
+    --editor-bg: #f5f5f5;
+    --key-bg: #e0e0e0;
+    --key-active: #c0c0c0;
+    --key-shift-active: #0078d4;
+    --key-ctrl-active: #0078d4;
+    --text-color: #333333;
+    --dim-color: #6e6e6e;
+    --accent-color: #0078d4;
+    --border-color: #e0e0e0;
+    
+    /* 菜单栏 */
+    --menu-bg: #f0f0f0;
+    --menu-hover: #e0e0e0;
+    --menu-border: #d0d0d0;
+    --menu-text: #333333;
+    
+    /* 下拉菜单 */
+    --dropdown-bg: #f0f0f0;
+    --dropdown-border: #d0d0d0;
+    --dropdown-item-hover: #e0e0e0;
+    
+    /* 侧边栏 */
+    --sidebar-bg: #f3f3f3;
+    --sidebar-border: #e0e0e0;
+    --sidebar-btn-bg: #e0e0e0;
+    --sidebar-btn-hover: #d0d0d0;
+    
+    /* 面板 */
+    --panel-bg: #f3f3f3;
+    --panel-header-bg: #f0f0f0;
+    --panel-border: #e0e0e0;
+    --panel-hover: #e0e0e0;
+    
+    /* 模态框 */
+    --modal-overlay: rgba(0, 0, 0, 0.3);
+    --modal-bg: #ffffff;
+    --modal-border: #d0d0d0;
+    --modal-header-bg: #f0f0f0;
+    --modal-shadow: rgba(0,0,0,0.2);
+    
+    /* 终端 */
+    --terminal-bg: #f9f9f9;
+    --terminal-header-bg: #f0f0f0;
+    --terminal-border-color: #0078d4;
+    --terminal-tab-active: #0078d4;
+    --terminal-tab-hover: #e8e8e8;
+    
+    /* 插件 */
+    --plugin-bg: #fafafa;
+    --plugin-border: #d0d0d0;
+    --plugin-header-color: #333333;
+    
+    /* 按钮 */
+    --btn-primary: #0078d4;
+    --btn-primary-hover: #106ebe;
+    --btn-secondary: #e0e0e0;
+    --btn-danger: #d13438;
+    
+    /* 输入框 */
+    --input-bg: #ffffff;
+    --input-border: #d0d0d0;
+    --input-text: #333333;
+    
+    /* 代码高亮 - 浅色版 */
+    --hl-kw: #0000ff;
+    --hl-str: #a31515;
+    --hl-com: #008000;
+    --hl-dir: #af00db;
+    --hl-num: #098658;
+    
+    /* 其他 */
+    --link-color: #0066cc;
+    --vfs-folder-color: #333333;
+    --terminal-text: #333;
+    
+    /* 图标按钮在浅色模式下使用深色图标 */
+    --icon-filter: brightness(0.2);
 }
 
 * { box-sizing: border-box; touch-action: none; }
@@ -20,11 +174,11 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 #top-menu-bar {
     height: 36px;
     min-height: 36px;
-    background-color: #333333;
+    background-color: var(--menu-bg);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid #444444;
+    border-bottom: 1px solid var(--menu-border);
     z-index: 50;
     padding: 0 8px;
 }
@@ -41,7 +195,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .menu-item {
-    color: #cccccc;
+    color: var(--menu-text);
     font-size: 14px;
     padding: 4px 8px;
     cursor: pointer;
@@ -50,7 +204,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .menu-item:hover {
-    background-color: #444444;
+    background-color: var(--menu-hover);
 }
 
 #menu-bar-right {
@@ -133,8 +287,8 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     position: absolute;
     top: 36px;
     left: 0;
-    background-color: #333333;
-    border: 1px solid #444444;
+    background-color: var(--dropdown-bg);
+    border: 1px solid var(--dropdown-border);
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     min-width: 180px;
     z-index: 100;
@@ -142,19 +296,19 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 .dropdown-item {
     padding: 6px 12px;
-    color: #cccccc;
+    color: var(--menu-text);
     cursor: pointer;
     user-select: none;
     font-size: 14px;
 }
 
 .dropdown-item:hover {
-    background-color: #444444;
+    background-color: var(--dropdown-item-hover);
 }
 
 .dropdown-divider {
     height: 1px;
-    background-color: #444444;
+    background-color: var(--dropdown-border);
     margin: 4px 0;
 }
 
@@ -165,20 +319,20 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     left: 0;
     width: 40px;
     height: calc(100vh - 36px);
-    background-color: #252526;
+    background-color: var(--sidebar-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
     padding-top: 12px;
     z-index: 40;
-    border-right: 1px solid #333333;
+    border-right: 1px solid var(--sidebar-border);
 }
 
 .sidebar-button {
     width: 32px;
     height: 32px;
-    background-color: #333333;
-    color: #cccccc;
+    background-color: var(--sidebar-btn-bg);
+    color: var(--menu-text);
     border: none;
     border-radius: 4px;
     font-size: 16px;
@@ -191,7 +345,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .sidebar-button:hover {
-    background-color: #444444;
+    background-color: var(--sidebar-btn-hover);
 }
 
 /* 虚拟文件系统面板 */
@@ -201,8 +355,8 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     left: 40px;
     width: 250px;
     height: calc(100vh - 36px);
-    background-color: #252526;
-    border-right: 1px solid #333333;
+    background-color: var(--panel-bg);
+    border-right: 1px solid var(--panel-border);
     z-index: 30;
     display: none;
     flex-direction: column;
@@ -211,20 +365,20 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 .vfs-header {
     height: 36px;
-    background-color: #333333;
+    background-color: var(--panel-header-bg);
     display: flex;
     align-items: center;
     padding: 0 12px;
-    border-bottom: 1px solid #444444;
+    border-bottom: 1px solid var(--panel-border);
     font-size: 14px;
-    color: #cccccc;
+    color: var(--menu-text);
 }
 
 .vfs-close-btn {
     margin-left: auto;
     background: none;
     border: none;
-    color: #cccccc;
+    color: var(--menu-text);
     font-size: 16px;
     cursor: pointer;
     width: 20px;
@@ -338,14 +492,14 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 /* 模态框 */
-#input-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 300; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
-.modal-content { background-color: #252526; width: 85%; max-width: 400px; border: 1px solid #444; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-.modal-header { color: #ccc; font-weight: bold; margin-bottom: 10px; font-size: 14px; }
-#modal-textarea { background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 4px; padding: 8px; font-family: Consolas, monospace; font-size: 14px; height: 150px; resize: none; outline: none; user-select: text; -webkit-user-select: text; }
+#input-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--modal-overlay); z-index: 300; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+.modal-content { background-color: var(--modal-bg); width: 85%; max-width: 400px; border: 1px solid var(--modal-border); border-radius: 6px; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 10px 25px var(--modal-shadow); }
+.modal-header { color: var(--text-color); font-weight: bold; margin-bottom: 10px; font-size: 14px; }
+#modal-textarea { background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); border-radius: 4px; padding: 8px; font-family: Consolas, monospace; font-size: 14px; height: 150px; resize: none; outline: none; user-select: text; -webkit-user-select: text; }
 .modal-footer { display: flex; justify-content: flex-end; margin-top: 15px; gap: 10px; }
 .modal-btn { padding: 8px 16px; border: none; border-radius: 3px; font-size: 14px; cursor: pointer; color: #fff; }
-#modal-cancel { background-color: #3e3e42; }
-#modal-run { background-color: #0e639c; }
+#modal-cancel { background-color: var(--btn-secondary); }
+#modal-run { background-color: var(--btn-primary); }
 
 /* 输出面板 - 已废弃，使用终端面板替代 */
 /* #output-panel { ... } */
@@ -358,8 +512,8 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     width: 100%;
     height: 30%;
     min-height: 150px;
-    background-color: #0d0d0d;
-    border-top: 2px solid #007acc;
+    background-color: var(--terminal-bg);
+    border-top: 2px solid var(--terminal-border-color);
     z-index: 200;
     display: none;
     flex-direction: column;
@@ -369,13 +523,13 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 #terminal-header {
     height: 35px;
-    background-color: #1e1e1e;
+    background-color: var(--terminal-header-bg);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 10px;
-    border-bottom: 1px solid #333;
-    color: #eee;
+    border-bottom: 1px solid var(--panel-border);
+    color: var(--text-color);
     font-size: 14px;
     cursor: ns-resize;
     user-select: none;
@@ -411,14 +565,14 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .terminal-tab:hover {
-    color: #eee;
-    background-color: #2a2a2a;
+    color: var(--text-color);
+    background-color: var(--terminal-tab-hover);
 }
 
 .terminal-tab.active {
-    color: #eee;
-    border-bottom-color: #007acc;
-    background-color: #0d0d0d;
+    color: var(--text-color);
+    border-bottom-color: var(--terminal-tab-active);
+    background-color: var(--terminal-bg);
 }
 
 #terminal-container {
@@ -563,14 +717,14 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .plugin-item {
     margin-bottom: 15px;
     padding: 10px;
-    border: 1px solid #444;
+    border: 1px solid var(--plugin-border);
     border-radius: 4px;
-    background-color: #2d2d30;
+    background-color: var(--plugin-bg);
 }
 
 .plugin-header {
     font-weight: bold;
-    color: #ffffff;
+    color: var(--plugin-header-color);
     margin-bottom: 8px;
     font-size: 14px;
 }
@@ -636,7 +790,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: var(--modal-overlay);
     z-index: 1000;
     justify-content: center;
     align-items: center;
@@ -645,10 +799,10 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .about-modal, .preferences-modal {
     width: 80%;
     max-width: 600px;
-    background-color: #252526;
-    border: 1px solid #444;
+    background-color: var(--modal-bg);
+    border: 1px solid var(--modal-border);
     border-radius: 6px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 25px var(--modal-shadow);
     overflow: hidden;
 }
 
@@ -657,19 +811,19 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
-    border-bottom: 1px solid #444;
-    background-color: #333;
+    border-bottom: 1px solid var(--modal-border);
+    background-color: var(--modal-header-bg);
 }
 
 .modal-header h2 {
     margin: 0;
-    color: #ccc;
+    color: var(--text-color);
     font-size: 18px;
 }
 
 .close-btn {
     font-size: 24px;
-    color: #ccc;
+    color: var(--text-color);
     cursor: pointer;
     width: 30px;
     height: 30px;
@@ -680,12 +834,12 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .close-btn:hover {
-    background-color: #444;
+    background-color: var(--menu-hover);
 }
 
 .modal-body {
     padding: 20px;
-    color: #ccc;
+    color: var(--text-color);
     line-height: 1.6;
 }
 
@@ -694,7 +848,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 }
 
 .modal-body a {
-    color: #4daafc;
+    color: var(--link-color);
     text-decoration: none;
 }
 
@@ -722,9 +876,9 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 .preferences-modal textarea#default-code-editor {
     width: 100%;
     height: 200px;
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    border: 1px solid #3c3c3c;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     padding: 8px;
     font-family: Consolas, monospace;
@@ -1612,4 +1766,402 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
 .aidebug-messages::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* ============================================
+   浅色模式全面覆盖样式
+   ============================================ */
+[data-theme="light"] {
+    /* 工具按钮 */
+    .tool-btn {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+
+    /* 运行按钮 */
+    #run-btn {
+        background: none;
+    }
+
+    /* 3行预览区 */
+    #lines-container {
+        background-color: #f0f0f0;
+        border-bottom: 2px solid #ccc;
+    }
+
+    .line-wrapper.current {
+        background-color: #e8e8e8;
+    }
+
+    .line-number {
+        color: #888;
+        background-color: #f0f0f0;
+        border-right: 1px solid #ddd;
+    }
+
+    .line-wrapper.current .line-number {
+        color: #333;
+    }
+
+    .line-view {
+        color: #666;
+    }
+
+    .line-view.current {
+        color: #333;
+    }
+
+    .cursor {
+        background-color: #0078d4;
+    }
+
+    /* 编辑器区域 */
+    #editor-area {
+        background-color: #ffffff;
+    }
+
+    /* 终端面板 */
+    #terminal-panel {
+        background-color: #f5f5f5;
+        border-top-color: #0078d4;
+    }
+
+    #terminal-header {
+        background-color: #f0f0f0;
+        border-bottom-color: #ddd;
+        color: #333;
+    }
+
+    .terminal-tab {
+        color: #666;
+    }
+
+    .terminal-tab:hover {
+        color: #333;
+        background-color: #e8e8e8;
+    }
+
+    .terminal-tab.active {
+        color: #333;
+        border-bottom-color: #0078d4;
+        background-color: #f5f5f5;
+    }
+
+    .terminal-content-body {
+        color: #333;
+    }
+
+    /* 输出样式 */
+    .out-title {
+        color: #0000ff;
+    }
+
+    .out-err {
+        color: #d13438;
+    }
+
+    .out-warn {
+        color: #9d6b00;
+    }
+
+    .out-res {
+        color: #333;
+    }
+
+    .out-stat {
+        color: #107c10;
+        border-top-color: #ddd;
+    }
+
+    /* 键盘样式 */
+    #keyboard-container {
+        background-color: #f0f0f0;
+        border-top: 1px solid #ddd;
+    }
+
+    .row {
+        margin-bottom: 2px;
+    }
+
+    .key {
+        background-color: #e0e0e0;
+        color: #333;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 0 #bbb;
+    }
+
+    .key:active,
+    .key.active {
+        background-color: #c0c0c0;
+        box-shadow: none;
+    }
+
+    .key.shift-hold {
+        background-color: #0078d4;
+        border-color: #005a9e;
+    }
+
+    .key.ctrl-hold {
+        background-color: #0078d4;
+        border-color: #005a9e;
+    }
+
+    .sup {
+        color: #666;
+    }
+
+    .shifted .sup {
+        color: #333;
+    }
+
+    .shifted .main {
+        color: #999;
+    }
+
+    .mod {
+        background-color: #d0d0d0;
+    }
+
+    .nav-key {
+        background-color: #d8d8d8;
+    }
+
+    /* 移动端补全 */
+    #mobile-autocomplete-container {
+        background-color: #ffffff;
+        color: #333;
+        border-top-color: #ddd;
+    }
+
+    .mobile-autocomplete-item {
+        color: #333;
+    }
+
+    /* VFS 文件项 */
+    .vfs-file::before {
+        color: #333;
+    }
+
+    .vfs-folder:hover,
+    .vfs-file:hover {
+        background-color: #e0e0e0;
+    }
+
+    /* 插件项 */
+    .plugin-item {
+        background-color: #fafafa;
+        border-color: #ddd;
+    }
+
+    .plugin-description {
+        color: #666;
+    }
+
+    /* 设置项 */
+    .setting-item input[type="number"] {
+        background-color: #ffffff;
+        color: #333;
+        border-color: #ddd;
+    }
+
+    /* 调试控制 */
+    #debug-controls {
+        background-color: #f5f5f5;
+        border-bottom-color: #ddd;
+    }
+
+    #debug-variables-panel {
+        background-color: #f5f5f5;
+        border-bottom-color: #ddd;
+    }
+
+    #debug-input-line {
+        background: #f5f5f5 !important;
+        border-top-color: #ddd !important;
+    }
+
+    /* 调试状态弹窗 */
+    #debug-status-modal .modal-content {
+        background-color: #ffffff;
+    }
+
+    /* 教程弹窗 */
+    #tutorial-modal .modal-content {
+        background-color: #ffffff;
+    }
+
+    /* 关于弹窗 */
+    .about-modal,
+    .preferences-modal {
+        background-color: #ffffff;
+        border-color: #ddd;
+    }
+
+    .modal-header {
+        background-color: #f0f0f0;
+        border-bottom-color: #ddd;
+    }
+
+    .modal-header h2 {
+        color: #333;
+    }
+
+    .close-btn {
+        color: #333;
+    }
+
+    .close-btn:hover {
+        background-color: #e0e0e0;
+    }
+
+    .modal-body {
+        color: #333;
+    }
+
+    /* 首选项按钮 */
+    .preferences-modal .modal-footer #reset-default-code {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+
+    .preferences-modal .modal-footer #cancel-preferences {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+
+    /* 代码高亮覆盖 */
+    .hl-kw {
+        color: #0000ff !important;
+    }
+
+    .hl-str {
+        color: #a31515 !important;
+    }
+
+    .hl-com {
+        color: #008000 !important;
+    }
+
+    .hl-dir {
+        color: #af00db !important;
+    }
+
+    .hl-num {
+        color: #098658 !important;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f0f0f0;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #c0c0c0;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #a0a0a0;
+    }
+
+    /* CPH 相关 */
+    .cph-problem-set {
+        background-color: #fafafa;
+        border-color: #ddd;
+    }
+
+    .cph-problem-set-header {
+        background-color: #f0f0f0;
+        border-bottom-color: #ddd;
+    }
+
+    .cph-problem-set-name {
+        color: #333;
+    }
+
+    .cph-test-case {
+        background-color: #f9f9f9;
+        border-color: #ddd;
+    }
+
+    .cph-test-case-header {
+        background-color: #f0f0f0;
+        border-bottom-color: #ddd;
+    }
+
+    .cph-test-case-name {
+        color: #333;
+    }
+
+    .cph-test-case-textarea,
+    .cph-test-case-textarea-main {
+        background-color: #ffffff;
+        color: #333;
+        border-color: #ddd;
+    }
+
+    .cph-empty-state,
+    .cph-empty-test-cases {
+        color: #666;
+    }
+
+    .btn-small {
+        background-color: #0078d4;
+    }
+
+    .btn-small:hover {
+        background-color: #106ebe;
+    }
+
+    /* AI Debug 样式 */
+    .aidebug-config-panel {
+        background-color: #fafafa;
+        border-color: #ddd;
+    }
+
+    .aidebug-config-panel-header {
+        background-color: #f0f0f0;
+        border-bottom-color: #ddd;
+        color: #333;
+    }
+
+    .aidebug-messages {
+        background-color: #ffffff;
+        color: #333;
+    }
+
+    .aidebug-message-user {
+        background-color: #e8f4fd;
+        color: #333;
+    }
+
+    .aidebug-message-ai {
+        background-color: #f5f5f5;
+        color: #333;
+    }
+
+    .aidebug-messages::-webkit-scrollbar-track {
+        background: #f0f0f0;
+    }
+
+    .aidebug-messages::-webkit-scrollbar-thumb {
+        background: #c0c0c0;
+    }
+
+    .aidebug-messages::-webkit-scrollbar-thumb:hover {
+        background: #a0a0a0;
+    }
+
+    .aidebug-btn-primary {
+        background-color: #0078d4;
+    }
+
+    .aidebug-btn-primary:hover:not(:disabled) {
+        background-color: #106ebe;
+    }
 }
