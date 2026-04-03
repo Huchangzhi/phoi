@@ -149,8 +149,21 @@ async function triggerSaveCode() {
 // Initialize Monaco Editor
 let monacoEditor = null; // Global reference to the Monaco editor instance
 
+// 配置 Monaco Editor 使用中文语言包
+// 先加载中文语言包文件，再配置 require
+const nlsScript = document.createElement('script');
+nlsScript.src = '/static/lib/monaco-editor/min/vs/nls.messages.zh-cn.js.js';
+nlsScript.onload = function() {
+    console.log('[Monaco] 中文语言包已加载');
+};
+nlsScript.onerror = function() {
+    console.warn('[Monaco] 无法加载中文语言包');
+};
+document.head.appendChild(nlsScript);
 
-require.config({ paths: { 'vs': '/static/lib/monaco-editor/min/vs' } });
+require.config({ 
+    paths: { 'vs': '/static/lib/monaco-editor/min/vs' }
+});
 require(['vs/editor/editor.main'], function() {
     // 在初始化 Monaco 之前应用缩放
     applyScale();

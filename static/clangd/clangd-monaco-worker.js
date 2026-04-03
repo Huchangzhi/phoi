@@ -64,43 +64,70 @@ const stdinReady = async () => {
 };
 
 // stdout 实现 - 发送到 clangd
+// 使用字节缓冲区正确处理 UTF-8 编码的 JSON-RPC 消息
+const stdoutBuffer = {
+    buffer: new Uint8Array(0),
+    textDecoder: new TextDecoder('utf-8')
+};
+
 const stdout = (charCode) => {
-    const char = String.fromCharCode(charCode);
-    jsonStream.buffer += char;
+    // 将新字节添加到缓冲区
+    const newBuffer = new Uint8Array(stdoutBuffer.buffer.length + 1);
+    newBuffer.set(stdoutBuffer.buffer);
+    newBuffer[stdoutBuffer.buffer.length] = charCode;
+    stdoutBuffer.buffer = newBuffer;
 
     // 尝试解析完整的 JSON-RPC 消息
     while (true) {
-        const headerEnd = jsonStream.buffer.indexOf('\r\n\r\n');
-        if (headerEnd === -1) break;
+        // 在缓冲区中查找头结束标记
+        const headerEndPattern = new Uint8Array([13, 10, 13, 10]); // \r\n\r\n
+        let headerEndIndex = -1;
+        
+        for (let i = 0; i <= stdoutBuffer.buffer.length - 4; i++) {
+            if (stdoutBuffer.buffer[i] === 13 && 
+                stdoutBuffer.buffer[i + 1] === 10 && 
+                stdoutBuffer.buffer[i + 2] === 13 && 
+                stdoutBuffer.buffer[i + 3] === 10) {
+                headerEndIndex = i;
+                break;
+            }
+        }
+        
+        if (headerEndIndex === -1) break;
 
-        const header = jsonStream.buffer.substring(0, headerEnd);
-        const lengthMatch = header.match(/Content-Length: (\d+)/);
+        // 解析头部
+        const headerBytes = stdoutBuffer.buffer.subarray(0, headerEndIndex);
+        const headerText = stdoutBuffer.textDecoder.decode(headerBytes);
+        const lengthMatch = headerText.match(/Content-Length: (\d+)/);
+        
         if (!lengthMatch) {
-            jsonStream.buffer = jsonStream.buffer.substring(headerEnd + 4);
+            // 跳过无效的头部
+            stdoutBuffer.buffer = stdoutBuffer.buffer.subarray(headerEndIndex + 4);
             continue;
         }
 
         const contentLength = parseInt(lengthMatch[1]);
-        const contentStart = headerEnd + 4;
+        const contentStart = headerEndIndex + 4;
         const contentEnd = contentStart + contentLength;
 
-        if (jsonStream.buffer.length < contentEnd) break;
+        // 检查是否有足够的数据
+        if (stdoutBuffer.buffer.length < contentEnd) break;
 
-        const content = jsonStream.buffer.substring(contentStart, contentEnd);
-        jsonStream.buffer = jsonStream.buffer.substring(contentEnd);
+        // 使用 TextDecoder 正确解码 UTF-8 内容
+        const contentBytes = stdoutBuffer.buffer.subarray(contentStart, contentEnd);
+        const content = stdoutBuffer.textDecoder.decode(contentBytes);
+        
+        // 更新缓冲区
+        stdoutBuffer.buffer = stdoutBuffer.buffer.subarray(contentEnd);
 
         try {
             const message = JSON.parse(content);
             // 发送到主线程
             self.postMessage({ type: 'lsp', message });
         } catch (e) {
-            console.error('[clangd-monaco-worker] Failed to parse message:', e);
+            console.error('[clangd-monaco-worker] Failed to parse message:', e, 'Content:', content);
         }
     }
-};
-
-const jsonStream = {
-    buffer: ''
 };
 
 // stderr 实现 - 收集完整行后输出
@@ -254,7 +281,9 @@ async function initClangd(wasmUrl) {
 
     sendToClangd = (data) => {
         const body = JSON.stringify(data);
-        const header = `Content-Length: ${body.length}\r\n`;
+        // 使用 TextEncoder 计算正确的 UTF-8 字节长度
+        const bodyBytes = textEncoder.encode(body);
+        const header = `Content-Length: ${bodyBytes.length}\r\n`;
         const delimiter = '\r\n';
         stdinChunks.push(header, delimiter, body);
         resolveStdinReady();
