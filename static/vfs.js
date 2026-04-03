@@ -1,5 +1,27 @@
 // --- 虚拟文件系统 (VFS) 实现 ---
 
+// 主题颜色辅助函数
+function getVFSColors() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    return isLight ? {
+        bg: '#ffffff',
+        text: '#333333',
+        textWhite: '#333333',
+        textWarning: '#9d6b00',
+        btnPrimary: '#0078d4',
+        btnSecondary: '#e0e0e0',
+        btnDanger: '#ff4444',
+    } : {
+        bg: '#252526',
+        text: '#cccccc',
+        textWhite: '#ffffff',
+        textWarning: '#ffcc00',
+        btnPrimary: '#0e639c',
+        btnSecondary: '#3c3c3c',
+        btnDanger: '#ff4444',
+    };
+}
+
 // 虚拟文件系统相关变量
 let vfsStructure = null;
 const VFS_STORAGE_KEY = 'phoi_vfs_structure';
@@ -190,6 +212,7 @@ async function initVFSModule() {
 
 // 显示权限请求弹窗
 function showPermissionRequestModal() {
+    const colors = getVFSColors();
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.id = 'permission-request-overlay';
@@ -207,19 +230,19 @@ function showPermissionRequestModal() {
     // 创建弹窗内容
     const modal = document.createElement('div');
     modal.id = 'permission-request-modal';
-    modal.style.backgroundColor = '#252526';
+    modal.style.backgroundColor = colors.bg;
     modal.style.padding = '20px';
     modal.style.borderRadius = '8px';
     modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
     modal.style.textAlign = 'center';
     modal.style.maxWidth = '400px';
     modal.style.width = '80%';
-    modal.style.color = '#cccccc';
+    modal.style.color = colors.text;
 
     // 添加标题
     const title = document.createElement('h3');
     title.textContent = '本地文件系统权限';
-    title.style.color = '#ffffff';
+    title.style.color = colors.textWhite;
     title.style.marginTop = '0';
     modal.appendChild(title);
 
@@ -239,7 +262,7 @@ function showPermissionRequestModal() {
     // 授权按钮
     const grantPermissionBtn = document.createElement('button');
     grantPermissionBtn.textContent = '授权本地文件访问';
-    grantPermissionBtn.style.backgroundColor = '#0e639c';
+    grantPermissionBtn.style.backgroundColor = colors.btnPrimary;
     grantPermissionBtn.style.color = 'white';
     grantPermissionBtn.style.border = 'none';
     grantPermissionBtn.style.padding = '10px 20px';
@@ -279,7 +302,7 @@ function showPermissionRequestModal() {
     // 返回虚拟文件系统按钮
     const useVirtualFSBtn = document.createElement('button');
     useVirtualFSBtn.textContent = '返回虚拟文件系统';
-    useVirtualFSBtn.style.backgroundColor = '#3c3c3c';
+    useVirtualFSBtn.style.backgroundColor = colors.btnSecondary;
     useVirtualFSBtn.style.color = 'white';
     useVirtualFSBtn.style.border = 'none';
     useVirtualFSBtn.style.padding = '10px 20px';
@@ -444,9 +467,10 @@ async function openFile(filePath) {
 // 渲染指定路径的目录
 async function renderVFSDirectory(path, parentElement) {
     if (!parentElement) return; // 如果父元素不存在则返回
+    const colors = getVFSColors();
 
     let files = [];
-    
+
     if (useNativeFS && 'showDirectoryPicker' in window) {
         // 使用本地文件系统
         try {
@@ -458,7 +482,7 @@ async function renderVFSDirectory(path, parentElement) {
 
                 const permissionItem = document.createElement('div');
                 permissionItem.className = 'vfs-file';
-                permissionItem.style.color = '#ffcc00'; // 使用黄色表示提醒
+                permissionItem.style.color = colors.textWarning; // 使用黄色表示提醒
                 permissionItem.style.display = 'flex';
                 permissionItem.style.justifyContent = 'space-between';
                 permissionItem.style.alignItems = 'center';
@@ -503,7 +527,7 @@ async function renderVFSDirectory(path, parentElement) {
         
         const itemElement = document.createElement('div');
         itemElement.className = 'vfs-file';
-        itemElement.style.color = 'white'; // 设置文字为白色
+        itemElement.style.color = colors.textWhite; // 设置文字为白色
         itemElement.style.display = 'flex';
         itemElement.style.justifyContent = 'space-between';
         itemElement.style.alignItems = 'center';
@@ -519,7 +543,7 @@ async function renderVFSDirectory(path, parentElement) {
         // 删除按钮
         const deleteButton = document.createElement('button');
         deleteButton.textContent = '×';
-        deleteButton.style.backgroundColor = '#ff4444';
+        deleteButton.style.backgroundColor = colors.btnDanger;
         deleteButton.style.color = 'white';
         deleteButton.style.border = 'none';
         deleteButton.style.borderRadius = '50%';
@@ -1009,13 +1033,14 @@ function fallbackToVirtualFS(errorMessage = '') {
 
 // 显示回退通知
 function showFallbackNotification(errorMessage = '') {
+    const colors = getVFSColors();
     // 创建通知弹窗
     const notification = document.createElement('div');
     notification.id = 'fallback-notification';
     notification.style.position = 'fixed';
     notification.style.top = '20px';
     notification.style.right = '20px';
-    notification.style.backgroundColor = '#ff4444';
+    notification.style.backgroundColor = colors.btnDanger;
     notification.style.color = 'white';
     notification.style.padding = '15px 20px';
     notification.style.borderRadius = '5px';

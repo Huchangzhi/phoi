@@ -1786,64 +1786,76 @@ function hidePreferencesModal() {
 }
 
 function savePreferencesChanges() {
-    // 保存默认代码到本地存储
-    if (defaultCodeEditor) {
-        const newDefaultCode = defaultCodeEditor.value;
-        localStorage.setItem('phoi_defaultCode', newDefaultCode);
+    let changedCount = 0;
 
-        // 更新当前的 defaultCode 变量
-        // 注意：这不会影响当前已打开的文件，只会影响新创建的文件
-        showMessage('默认代码已保存！', 'system');
+    // 保存默认代码（仅当有修改时）
+    if (defaultCodeEditor) {
+        const savedCode = localStorage.getItem('phoi_defaultCode') || defaultDefaultCode;
+        const newDefaultCode = defaultCodeEditor.value;
+        if (newDefaultCode !== savedCode) {
+            localStorage.setItem('phoi_defaultCode', newDefaultCode);
+            showMessage('默认代码已保存！', 'system');
+            changedCount++;
+        }
     }
 
-    // 保存颜色模式设置
+    // 保存颜色模式设置（仅当有修改时）
     const colorModeSelect = document.getElementById('color-mode-select');
     if (colorModeSelect) {
+        const currentSavedTheme = localStorage.getItem(THEME_KEY) || 'dark';
         const selectedTheme = colorModeSelect.value;
-        localStorage.setItem(THEME_KEY, selectedTheme);
-        applyTheme(selectedTheme);
+        if (selectedTheme !== currentSavedTheme) {
+            localStorage.setItem(THEME_KEY, selectedTheme);
+            applyTheme(selectedTheme);
+        }
+        // 总是显示颜色模式已保存（因为用户显式选择了）
         showMessage('颜色模式已保存！', 'system');
+        changedCount++;
     }
 
-    // 保存 clangd 设置
+    // 保存 clangd 设置（仅当有修改时）
     const clangdEnabledCheckbox = document.getElementById('clangd-enabled');
     const clangdCompletionCheckbox = document.getElementById('clangd-completion-enabled');
     const clangdSemanticCheckbox = document.getElementById('clangd-semantic-enabled');
     if (clangdEnabledCheckbox) {
+        const oldEnabled = localStorage.getItem('phoi_clangd_enabled') === 'true';
         const isEnabled = clangdEnabledCheckbox.checked;
-        localStorage.setItem('phoi_clangd_enabled', isEnabled);
-
-        if (isEnabled) {
-            showMessage('Clangd 设置已保存！刷新页面后生效。', 'system');
-        } else {
-            showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
+        
+        if (isEnabled !== oldEnabled) {
+            localStorage.setItem('phoi_clangd_enabled', isEnabled);
+            if (isEnabled) {
+                showMessage('Clangd 设置已保存！刷新页面后生效。', 'system');
+            } else {
+                showMessage('Clangd 已禁用！刷新页面后生效。', 'system');
+            }
+            changedCount++;
         }
 
-        // 保存 clangd 代码提示设置
+        // 保存 clangd 代码提示设置（仅当有修改时）
         if (clangdCompletionCheckbox) {
+            const oldCompletion = localStorage.getItem('phoi_clangd_completion_enabled') === 'true';
             const isCompletionEnabled = clangdCompletionCheckbox.checked;
-            localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
+            if (isCompletionEnabled !== oldCompletion) {
+                localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
+            }
         }
 
-        // 保存 clangd 语义高亮设置
+        // 保存 clangd 语义高亮设置（仅当有修改时）
         if (clangdSemanticCheckbox) {
+            const oldSemantic = localStorage.getItem('phoi_clangd_semantic_enabled') === 'true';
             const isSemanticEnabled = clangdSemanticCheckbox.checked;
-            localStorage.setItem('phoi_clangd_semantic_enabled', isSemanticEnabled);
+            if (isSemanticEnabled !== oldSemantic) {
+                localStorage.setItem('phoi_clangd_semantic_enabled', isSemanticEnabled);
+            }
         }
 
         // 更新右键菜单状态
         updateContextMenuState();
-    } else {
-        // 保存 clangd 代码提示设置（即使 clangd 未启用也要保存）
-        if (clangdCompletionCheckbox) {
-            const isCompletionEnabled = clangdCompletionCheckbox.checked;
-            localStorage.setItem('phoi_clangd_completion_enabled', isCompletionEnabled);
-        }
-        // 保存 clangd 语义高亮设置
-        if (clangdSemanticCheckbox) {
-            const isSemanticEnabled = clangdSemanticCheckbox.checked;
-            localStorage.setItem('phoi_clangd_semantic_enabled', isSemanticEnabled);
-        }
+    }
+
+    // 如果没有任何变化，也给出提示
+    if (changedCount === 0 && !colorModeSelect) {
+        showMessage('没有检测到任何更改。', 'system');
     }
 
     // 隐藏弹窗
@@ -1877,6 +1889,13 @@ function updateNativeFSStatus() {
 
 // 显示本地存储信息
 function showLocalStorageInfo() {
+    // 获取当前主题颜色
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const bgColor = isLight ? '#ffffff' : '#252526';
+    const textColor = isLight ? '#333333' : '#cccccc';
+    const titleColor = '#ffffff';
+    const btnPrimaryColor = isLight ? '#0078d4' : '#0e639c';
+
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.id = 'local-storage-info-overlay';
@@ -1894,21 +1913,21 @@ function showLocalStorageInfo() {
     // 创建弹窗内容
     const modal = document.createElement('div');
     modal.id = 'local-storage-info-modal';
-    modal.style.backgroundColor = '#252526';
+    modal.style.backgroundColor = bgColor;
     modal.style.padding = '20px';
     modal.style.borderRadius = '8px';
     modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
     modal.style.textAlign = 'left';
     modal.style.maxWidth = '500px';
     modal.style.width = '80%';
-    modal.style.color = '#cccccc';
+    modal.style.color = textColor;
     modal.style.maxHeight = '80vh';
     modal.style.overflowY = 'auto';
 
     // 添加标题
     const title = document.createElement('h3');
     title.textContent = '本地文件系统功能说明';
-    title.style.color = '#ffffff';
+    title.style.color = titleColor;
     title.style.marginTop = '0';
     title.style.marginBottom = '15px';
     modal.appendChild(title);
@@ -1935,7 +1954,7 @@ function showLocalStorageInfo() {
     // 确定按钮
     const okButton = document.createElement('button');
     okButton.textContent = '确定';
-    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.backgroundColor = btnPrimaryColor;
     okButton.style.color = 'white';
     okButton.style.border = 'none';
     okButton.style.padding = '8px 16px';
@@ -1955,6 +1974,13 @@ function showLocalStorageInfo() {
 
 // 显示 Clangd 语言服务器信息
 function showClangdInfo() {
+    // 获取当前主题颜色
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const bgColor = isLight ? '#ffffff' : '#252526';
+    const textColor = isLight ? '#333333' : '#cccccc';
+    const titleColor = '#ffffff';
+    const btnPrimaryColor = isLight ? '#0078d4' : '#0e639c';
+
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.id = 'clangd-info-overlay';
@@ -1972,21 +1998,21 @@ function showClangdInfo() {
     // 创建弹窗内容
     const modal = document.createElement('div');
     modal.id = 'clangd-info-modal';
-    modal.style.backgroundColor = '#252526';
+    modal.style.backgroundColor = bgColor;
     modal.style.padding = '20px';
     modal.style.borderRadius = '8px';
     modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
     modal.style.textAlign = 'left';
     modal.style.maxWidth = '500px';
     modal.style.width = '80%';
-    modal.style.color = '#cccccc';
+    modal.style.color = textColor;
     modal.style.maxHeight = '80vh';
     modal.style.overflowY = 'auto';
 
     // 添加标题
     const title = document.createElement('h3');
     title.textContent = 'Clangd 前端语言服务器';
-    title.style.color = '#ffffff';
+    title.style.color = titleColor;
     title.style.marginTop = '0';
     title.style.marginBottom = '15px';
     modal.appendChild(title);
@@ -2022,7 +2048,7 @@ function showClangdInfo() {
     // 确定按钮
     const okButton = document.createElement('button');
     okButton.textContent = '确定';
-    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.backgroundColor = btnPrimaryColor;
     okButton.style.color = 'white';
     okButton.style.border = 'none';
     okButton.style.padding = '8px 16px';
@@ -2282,32 +2308,36 @@ function showShortcutsInfo() {
 
 // 显示信息模态框
 function showInfoModal(title, content) {
+    // 获取当前主题颜色
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const btnPrimaryColor = isLight ? '#0078d4' : '#0e639c';
+
     // 创建模态框
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.display = 'flex';
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal-content';
     modal.style.maxWidth = '600px';
-    
+
     const header = document.createElement('div');
     header.className = 'modal-header';
     header.innerHTML = `<h2>${title}</h2><span class="close-btn" style="cursor: pointer;">×</span>`;
-    
+
     const body = document.createElement('div');
     body.className = 'modal-body';
     body.style.maxHeight = '400px';
     body.style.overflowY = 'auto';
     body.innerHTML = content;
-    
+
     const footer = document.createElement('div');
     footer.className = 'modal-footer';
-    
+
     const okButton = document.createElement('button');
     okButton.className = 'modal-btn';
     okButton.textContent = '确定';
-    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.backgroundColor = btnPrimaryColor;
     okButton.style.cursor = 'pointer';
     
     okButton.onclick = function() {
@@ -2357,6 +2387,13 @@ document.addEventListener('click', function(event) {
 
 // 显示本地存储信息
 function showLocalStorageInfo() {
+    // 获取当前主题颜色
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const bgColor = isLight ? '#ffffff' : '#252526';
+    const textColor = isLight ? '#333333' : '#cccccc';
+    const titleColor = '#ffffff';
+    const btnPrimaryColor = isLight ? '#0078d4' : '#0e639c';
+
     // 创建遮罩层
     const overlay = document.createElement('div');
     overlay.id = 'local-storage-info-overlay';
@@ -2374,21 +2411,21 @@ function showLocalStorageInfo() {
     // 创建弹窗内容
     const modal = document.createElement('div');
     modal.id = 'local-storage-info-modal';
-    modal.style.backgroundColor = '#252526';
+    modal.style.backgroundColor = bgColor;
     modal.style.padding = '20px';
     modal.style.borderRadius = '8px';
     modal.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
     modal.style.textAlign = 'left';
     modal.style.maxWidth = '500px';
     modal.style.width = '80%';
-    modal.style.color = '#cccccc';
+    modal.style.color = textColor;
     modal.style.maxHeight = '80vh';
     modal.style.overflowY = 'auto';
 
     // 添加标题
     const title = document.createElement('h3');
     title.textContent = '本地文件系统功能说明';
-    title.style.color = '#ffffff';
+    title.style.color = titleColor;
     title.style.marginTop = '0';
     title.style.marginBottom = '15px';
     modal.appendChild(title);
@@ -2415,7 +2452,7 @@ function showLocalStorageInfo() {
     // 确定按钮
     const okButton = document.createElement('button');
     okButton.textContent = '确定';
-    okButton.style.backgroundColor = '#0e639c';
+    okButton.style.backgroundColor = btnPrimaryColor;
     okButton.style.color = 'white';
     okButton.style.border = 'none';
     okButton.style.padding = '8px 16px';

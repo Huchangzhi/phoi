@@ -1,5 +1,89 @@
 ﻿// 洛谷插件相关代码
 
+// 洛谷主题颜色管理
+function getLuoguThemeColors() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    if (isLight) {
+        return {
+            // 背景色
+            bg: '#ffffff',
+            bgAlt: '#f5f5f5',
+            bgHover: '#e8e8e8',
+            bgCode: '#f0f0f0',
+            // 文字色
+            text: '#333333',
+            textSecondary: '#666666',
+            textMuted: '#888888',
+            // 边框色
+            border: '#e0e0e0',
+            borderLight: '#d0d0d0',
+            // 按钮色
+            btnPrimary: '#0078d4',
+            btnSecondary: '#e0e0e0',
+            btnTranslate: '#2d8c4e',
+            btnTranslateHover: '#257a40',
+            btnDisabled: '#1e5a3a',
+            btnError: '#8b5a2b',
+            btnCph: '#5a3fc0',
+            // 标签色
+            headingColor: '#0000ff',
+            // 难度标签颜色
+            difficultyGray: '#999',
+            difficultyRed: '#ff4444',
+            difficultyOrange: '#ff8800',
+            difficultyYellow: '#ffbb00',
+            difficultyGreen: '#00aa00',
+            difficultyBlue: '#0066cc',
+            difficultyPurple: '#8800cc',
+            difficultyDarkPurple: '#220066',
+            // 加载和提示色
+            loadingText: '#666',
+            errorText: '#d13438',
+            successText: '#2d8c4e',
+            warnText: '#9d6b00',
+        };
+    } else {
+        return {
+            // 背景色
+            bg: '#1e1e1e',
+            bgAlt: '#1a1a1a',
+            bgHover: '#2a2a2a',
+            bgCode: '#1e1e1e',
+            // 文字色
+            text: '#d4d4d4',
+            textSecondary: '#aaaaaa',
+            textMuted: '#888888',
+            // 边框色
+            border: '#333',
+            borderLight: '#3c3c3c',
+            // 按钮色
+            btnPrimary: '#0e639c',
+            btnSecondary: '#3e3e42',
+            btnTranslate: '#2d8c4e',
+            btnTranslateHover: '#1e5a3a',
+            btnDisabled: '#1e5a3a',
+            btnError: '#8b5a2b',
+            btnCph: '#5a3fc0',
+            // 标签色
+            headingColor: '#569cd6',
+            // 难度标签颜色
+            difficultyGray: '#666',
+            difficultyRed: '#ff4444',
+            difficultyOrange: '#ff8800',
+            difficultyYellow: '#ffbb00',
+            difficultyGreen: '#00aa00',
+            difficultyBlue: '#0066cc',
+            difficultyPurple: '#8800cc',
+            difficultyDarkPurple: '#220066',
+            // 加载和提示色
+            loadingText: '#ccc',
+            errorText: '#f48771',
+            successText: '#2d8c4e',
+            warnText: '#cca700',
+        };
+    }
+}
+
 // 初始化洛谷插件设置变量
 window.luoguThemeEnabled = localStorage.getItem('phoi_luogu_theme_enabled') === 'true'; // 默认为false
 
@@ -77,6 +161,7 @@ function updateLuoguButtonVisibility() {
 
 // 显示洛谷题目对话框
 function showLuoguProblemDialog() {
+    const colors = getLuoguThemeColors();
     // 创建模态框
     const modal = document.createElement('div');
     modal.id = 'luogu-modal';
@@ -137,7 +222,7 @@ function showLuoguProblemDialog() {
     inputLabel.textContent = '请输入题号（例如：P1001 或 p1001）：';
     inputLabel.style.display = 'block';
     inputLabel.style.marginBottom = '10px';
-    inputLabel.style.color = '#ccc';
+    inputLabel.style.color = colors.textSecondary;
 
     // 创建输入框
     const inputField = document.createElement('input');
@@ -146,9 +231,9 @@ function showLuoguProblemDialog() {
     inputField.style.width = '100%';
     inputField.style.padding = '12px';
     inputField.style.marginBottom = '15px';
-    inputField.style.backgroundColor = '#1e1e1e';
-    inputField.style.color = '#d4d4d4';
-    inputField.style.border = '1px solid #3c3c3c';
+    inputField.style.backgroundColor = colors.bg;
+    inputField.style.color = colors.text;
+    inputField.style.border = '1px solid ' + colors.borderLight;
     inputField.style.borderRadius = '4px';
     inputField.style.fontSize = '16px'; // 移动端更大的字体
 
@@ -167,7 +252,7 @@ function showLuoguProblemDialog() {
     const readMarkdownBtn = document.createElement('button');
     readMarkdownBtn.textContent = '从剪切板读取Markdown格式题目';
     readMarkdownBtn.className = 'modal-btn';
-    readMarkdownBtn.style.backgroundColor = '#3e3e42';
+    readMarkdownBtn.style.backgroundColor = colors.btnSecondary;
     readMarkdownBtn.style.marginRight = '10px';
     readMarkdownBtn.style.padding = '12px 24px';
     
@@ -181,7 +266,7 @@ function showLuoguProblemDialog() {
     const openLastProblemBtn = document.createElement('button');
     openLastProblemBtn.textContent = '打开上次读取的题目';
     openLastProblemBtn.className = 'modal-btn';
-    openLastProblemBtn.style.backgroundColor = '#3e3e42';
+    openLastProblemBtn.style.backgroundColor = colors.btnSecondary;
     openLastProblemBtn.style.marginRight = '10px';
     openLastProblemBtn.style.padding = '12px 24px';
     
@@ -195,7 +280,7 @@ function showLuoguProblemDialog() {
     const confirmBtn = document.createElement('button');
     confirmBtn.textContent = '查询';
     confirmBtn.className = 'modal-btn';
-    confirmBtn.style.backgroundColor = '#0e639c';
+    confirmBtn.style.backgroundColor = colors.btnPrimary;
     confirmBtn.style.float = 'right';
     confirmBtn.style.padding = '12px 24px';
 
@@ -294,6 +379,7 @@ function showLuoguProblemDialog() {
 
 // 加载洛谷题目
 function loadLuoguProblem(problemId) {
+    const colors = getLuoguThemeColors();
     // 这里应该从数据文件中查找题目，但现在我们先显示一个加载提示
     console.log('正在加载题目:', problemId);
 
@@ -326,7 +412,7 @@ function loadLuoguProblem(problemId) {
         loadingContainer.style.padding = '20px';
         loadingContainer.style.boxSizing = 'border-box';
         loadingContainer.style.textAlign = isMobile ? 'center' : 'left';
-        loadingContainer.style.color = '#ccc';
+        loadingContainer.style.color = colors.textSecondary;
         loadingContainer.textContent = '正在加载题目...';
 
         problemDisplay.appendChild(loadingContainer);
@@ -359,7 +445,7 @@ function loadLuoguProblem(problemId) {
                 errorContainer.style.padding = '20px';
                 errorContainer.style.boxSizing = 'border-box';
                 errorContainer.style.textAlign = isMobile ? 'center' : 'left';
-                errorContainer.style.color = '#f48771';
+                errorContainer.style.color = colors.errorText;
                 errorContainer.textContent = '未找到题目：' + problemId;
 
                 // 替换加载提示
@@ -384,7 +470,7 @@ function loadLuoguProblem(problemId) {
             errorContainer.style.padding = '20px';
             errorContainer.style.boxSizing = 'border-box';
             errorContainer.style.textAlign = isMobile ? 'center' : 'left';
-            errorContainer.style.color = '#f48771';
+            errorContainer.style.color = colors.errorText;
             errorContainer.textContent = '加载题目失败：' + error.message;
 
             // 替换加载提示
@@ -458,6 +544,7 @@ async function fetchLuoguProblemData(problemId) {
 
 // 创建题目显示区域
 function createProblemDisplayArea() {
+    const colors = getLuoguThemeColors();
     // 检查是否已经存在题目显示区域
     let problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) {
@@ -478,7 +565,7 @@ function createProblemDisplayArea() {
             problemDisplay.style.bottom = '0';
             problemDisplay.style.width = 'auto';
             problemDisplay.style.height = 'auto';
-            problemDisplay.style.backgroundColor = '#1e1e1e';
+            problemDisplay.style.backgroundColor = colors.bg;
             problemDisplay.style.zIndex = '100';
             problemDisplay.style.overflowY = 'hidden'; // 隐藏滚动条，使用按钮滚动
             problemDisplay.style.touchAction = 'none'; // 禁用触摸操作，使用按钮滚动
@@ -494,7 +581,7 @@ function createProblemDisplayArea() {
             closeBtn.style.right = '10px';
             closeBtn.style.cursor = 'pointer';
             closeBtn.style.fontSize = '24px';
-            closeBtn.style.color = '#ccc';
+            closeBtn.style.color = colors.textSecondary;
             closeBtn.style.zIndex = '101';
             closeBtn.addEventListener('click', function() {
                 problemDisplay.style.display = 'none';
@@ -509,8 +596,8 @@ function createProblemDisplayArea() {
             problemDisplay.style.right = '0';
             problemDisplay.style.width = '400px';
             problemDisplay.style.height = 'calc(100vh - 36px)';
-            problemDisplay.style.backgroundColor = '#1e1e1e';
-            problemDisplay.style.borderLeft = '1px solid #333';
+            problemDisplay.style.backgroundColor = colors.bg;
+            problemDisplay.style.borderLeft = '1px solid ' + colors.border;
             problemDisplay.style.zIndex = '100';
             problemDisplay.style.overflowY = 'hidden'; // 隐藏 problemDisplay 的滚动，由 scrollContainer 负责
             problemDisplay.style.display = 'none';
@@ -525,7 +612,7 @@ function createProblemDisplayArea() {
             closeBtn.style.right = '10px';
             closeBtn.style.cursor = 'pointer';
             closeBtn.style.fontSize = '24px';
-            closeBtn.style.color = '#ccc';
+            closeBtn.style.color = colors.textSecondary;
             closeBtn.style.zIndex = '101';
             closeBtn.addEventListener('click', function() {
                 problemDisplay.style.display = 'none';
@@ -609,6 +696,7 @@ function createProblemDisplayArea() {
 
 // 显示洛谷题目
 function displayLuoguProblem(problemData) {
+    const colors = getLuoguThemeColors();
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
@@ -667,47 +755,47 @@ function displayLuoguProblem(problemData) {
     // 根据难度设置颜色
     switch(problemData.difficulty) {
         case 0: // 暂无评定
-            difficultyTag.style.backgroundColor = '#666';
+            difficultyTag.style.backgroundColor = colors.difficultyGray;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '暂无评定';
             break;
         case 1: // 入门
-            difficultyTag.style.backgroundColor = '#ff4444';
+            difficultyTag.style.backgroundColor = colors.difficultyRed;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '入门';
             break;
         case 2: // 普及-
-            difficultyTag.style.backgroundColor = '#ff8800';
+            difficultyTag.style.backgroundColor = colors.difficultyOrange;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '普及-';
             break;
         case 3: // 普及/提高-
-            difficultyTag.style.backgroundColor = '#ffbb00';
+            difficultyTag.style.backgroundColor = colors.difficultyYellow;
             difficultyTag.style.color = 'black';
             difficultyTag.textContent = '普及/提高-';
             break;
         case 4: // 普及+/提高
-            difficultyTag.style.backgroundColor = '#00aa00';
+            difficultyTag.style.backgroundColor = colors.difficultyGreen;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '普及+/提高';
             break;
         case 5: // 提高+/省选-
-            difficultyTag.style.backgroundColor = '#0066cc';
+            difficultyTag.style.backgroundColor = colors.difficultyBlue;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '提高+/省选-';
             break;
         case 6: // 省选/NOI-
-            difficultyTag.style.backgroundColor = '#8800cc';
+            difficultyTag.style.backgroundColor = colors.difficultyPurple;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '省选/NOI-';
             break;
         case 7: // NOI/NOI+/CTSC
-            difficultyTag.style.backgroundColor = '#220066';
+            difficultyTag.style.backgroundColor = colors.difficultyDarkPurple;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = 'NOI/NOI+/CTSC';
             break;
         default:
-            difficultyTag.style.backgroundColor = '#666';
+            difficultyTag.style.backgroundColor = colors.difficultyGray;
             difficultyTag.style.color = 'white';
             difficultyTag.textContent = '未知难度';
     }
@@ -722,7 +810,7 @@ function displayLuoguProblem(problemData) {
     titleContainer.style.gap = '10px';
 
     const titleElement = document.createElement('h2');
-    titleElement.style.color = '#ccc';
+    titleElement.style.color = colors.textSecondary;
     titleElement.style.margin = '0';
     titleElement.style.flex = '1';
     titleElement.style.minWidth = '0';
@@ -737,7 +825,7 @@ function displayLuoguProblem(problemData) {
     const linkButton = document.createElement('a');
     linkButton.href = `https://www.luogu.com.cn/problem/${problemData.pid}`;
     linkButton.target = '_blank';
-    linkButton.style.backgroundColor = '#0e639c';
+    linkButton.style.backgroundColor = colors.btnPrimary;
     linkButton.style.color = 'white';
     linkButton.style.padding = '8px 16px';
     linkButton.style.textDecoration = 'none';
@@ -752,7 +840,7 @@ function displayLuoguProblem(problemData) {
     
     if (cphPluginEnabled) {
         cphTransferButton.textContent = '传送至CPH';
-        cphTransferButton.style.backgroundColor = '#5a3fc0'; // 紫色背景，区别于洛谷的蓝色
+        cphTransferButton.style.backgroundColor = colors.btnCph; // 紫色背景，区别于洛谷的蓝色
         cphTransferButton.style.color = 'white';
         cphTransferButton.style.padding = '8px 16px';
         cphTransferButton.style.textDecoration = 'none';
@@ -777,7 +865,7 @@ function displayLuoguProblem(problemData) {
     // 翻译按钮
     const translateButton = document.createElement('button');
     translateButton.textContent = '翻译';
-    translateButton.style.backgroundColor = '#2d8c4e';
+    translateButton.style.backgroundColor = colors.btnTranslate;
     translateButton.style.color = 'white';
     translateButton.style.padding = '8px 16px';
     translateButton.style.textDecoration = 'none';
@@ -840,7 +928,7 @@ function displayLuoguProblem(problemData) {
             }
 
             translateButton.textContent = '翻译';
-            translateButton.style.backgroundColor = '#2d8c4e';
+            translateButton.style.backgroundColor = colors.btnTranslate;
             isTranslated = false;
 
             if (typeof showMessage === 'function') {
@@ -865,12 +953,12 @@ function displayLuoguProblem(problemData) {
     descSection.style.margin = '20px 0';
 
     const descHeading = document.createElement('h3');
-    descHeading.style.color = '#569cd6';
+    descHeading.style.color = colors.headingColor;
     descHeading.textContent = '题目描述';
 
     const descContent = document.createElement('div');
     descContent.id = 'problem-description';
-    descContent.style.color = '#ccc';
+    descContent.style.color = colors.text;
     descContent.style.lineHeight = '1.6';
 
     descSection.appendChild(descHeading);
@@ -882,12 +970,12 @@ function displayLuoguProblem(problemData) {
     inputSection.style.margin = '20px 0';
 
     const inputHeading = document.createElement('h3');
-    inputHeading.style.color = '#569cd6';
+    inputHeading.style.color = colors.headingColor;
     inputHeading.textContent = '输入格式';
 
     const inputContent = document.createElement('div');
     inputContent.id = 'problem-input-format';
-    inputContent.style.color = '#ccc';
+    inputContent.style.color = colors.text;
     inputContent.style.lineHeight = '1.6';
 
     inputSection.appendChild(inputHeading);
@@ -899,12 +987,12 @@ function displayLuoguProblem(problemData) {
     outputSection.style.margin = '20px 0';
 
     const outputHeading = document.createElement('h3');
-    outputHeading.style.color = '#569cd6';
+    outputHeading.style.color = colors.headingColor;
     outputHeading.textContent = '输出格式';
 
     const outputContent = document.createElement('div');
     outputContent.id = 'problem-output-format';
-    outputContent.style.color = '#ccc';
+    outputContent.style.color = colors.text;
     outputContent.style.lineHeight = '1.6';
 
     outputSection.appendChild(outputHeading);
@@ -917,7 +1005,7 @@ function displayLuoguProblem(problemData) {
         samplesSection.style.margin = '20px 0';
 
         const samplesHeading = document.createElement('h3');
-        samplesHeading.style.color = '#569cd6';
+        samplesHeading.style.color = colors.headingColor;
         samplesHeading.textContent = '样例';
 
         samplesSection.appendChild(samplesHeading);
@@ -925,26 +1013,26 @@ function displayLuoguProblem(problemData) {
         problemData.samples.forEach((sample, index) => {
             const sampleContainer = document.createElement('div');
             sampleContainer.style.margin = '15px 0';
-            sampleContainer.style.border = '1px solid #333';
+            sampleContainer.style.border = '1px solid ' + colors.border;
             sampleContainer.style.borderRadius = '4px';
             sampleContainer.style.overflow = 'hidden';
 
             // 输入部分
             const inputBlock = document.createElement('div');
             inputBlock.style.padding = '10px';
-            inputBlock.style.backgroundColor = '#1a1a1a';
+            inputBlock.style.backgroundColor = colors.bgAlt;
 
             const inputLabel = document.createElement('div');
-            inputLabel.style.color = '#6a9955';
+            inputLabel.style.color = colors.warnText;
             inputLabel.style.fontWeight = 'bold';
             inputLabel.style.marginBottom = '5px';
             inputLabel.textContent = `输入 #${index + 1}`;
 
             const inputPre = document.createElement('pre');
-            inputPre.style.background = '#1e1e1e';
+            inputPre.style.background = colors.bg;
             inputPre.style.padding = '10px';
-            inputPre.style.border = '1px solid #333';
-            inputPre.style.color = '#ccc';
+            inputPre.style.border = '1px solid ' + colors.border;
+            inputPre.style.color = colors.text;
             inputPre.style.whiteSpace = 'pre-wrap';
             inputPre.style.margin = '0';
             inputPre.style.overflowX = 'auto';
@@ -957,19 +1045,19 @@ function displayLuoguProblem(problemData) {
             // 输出部分
             const outputBlock = document.createElement('div');
             outputBlock.style.padding = '10px';
-            outputBlock.style.backgroundColor = '#1a1a1a';
+            outputBlock.style.backgroundColor = colors.bgAlt;
 
             const outputLabel = document.createElement('div');
-            outputLabel.style.color = '#6a9955';
+            outputLabel.style.color = colors.warnText;
             outputLabel.style.fontWeight = 'bold';
             outputLabel.style.marginBottom = '5px';
             outputLabel.textContent = `输出 #${index + 1}`;
 
             const outputPre = document.createElement('pre');
-            outputPre.style.background = '#1e1e1e';
+            outputPre.style.background = colors.bg;
             outputPre.style.padding = '10px';
-            outputPre.style.border = '1px solid #333';
-            outputPre.style.color = '#ccc';
+            outputPre.style.border = '1px solid ' + colors.border;
+            outputPre.style.color = colors.text;
             outputPre.style.whiteSpace = 'pre-wrap';
             outputPre.style.margin = '0';
             outputPre.style.overflowX = 'auto';
@@ -993,12 +1081,12 @@ function displayLuoguProblem(problemData) {
         hintSection.style.margin = '20px 0';
 
         const hintHeading = document.createElement('h3');
-        hintHeading.style.color = '#569cd6';
+        hintHeading.style.color = colors.headingColor;
         hintHeading.textContent = '提示';
 
         const hintContent = document.createElement('div');
         hintContent.id = 'problem-hint';
-        hintContent.style.color = '#ccc';
+        hintContent.style.color = colors.text;
         hintContent.style.lineHeight = '1.6';
 
         hintSection.appendChild(hintHeading);
@@ -1022,7 +1110,7 @@ function displayLuoguProblem(problemData) {
         backButton.style.bottom = '20px';
         backButton.style.left = '50%';
         backButton.style.transform = 'translateX(-50%)';
-        backButton.style.backgroundColor = '#0e639c';
+        backButton.style.backgroundColor = colors.btnPrimary;
         backButton.style.color = 'white';
         backButton.style.padding = '12px 24px';
         backButton.style.borderRadius = '30px';
@@ -1070,7 +1158,7 @@ function displayLuoguProblem(problemData) {
     closeBtn.style.right = '10px';
     closeBtn.style.cursor = 'pointer';
     closeBtn.style.fontSize = '24px';
-    closeBtn.style.color = '#ccc';
+    closeBtn.style.color = colors.textSecondary;
     closeBtn.style.zIndex = '101';
     closeBtn.addEventListener('click', function() {
         problemDisplay.style.display = 'none';
@@ -1659,6 +1747,7 @@ function parseSampleFromCodeBlock(codeBlock) {
 
 // 显示Markdown题目
 function displayMarkdownProblem(problemData) {
+    const colors = getLuoguThemeColors();
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
@@ -1705,7 +1794,7 @@ function displayMarkdownProblem(problemData) {
     titleContainer.style.gap = '10px';
 
     const titleElement = document.createElement('h2');
-    titleElement.style.color = '#ccc';
+    titleElement.style.color = colors.textSecondary;
     titleElement.style.margin = '0';
     titleElement.style.flex = '1';
     titleElement.style.minWidth = '0';
@@ -1723,7 +1812,7 @@ function displayMarkdownProblem(problemData) {
 
     if (cphPluginEnabled) {
         cphTransferButton.textContent = '传送至CPH';
-        cphTransferButton.style.backgroundColor = '#5a3fc0'; // 紫色背景，区别于洛谷的蓝色
+        cphTransferButton.style.backgroundColor = colors.btnCph; // 紫色背景，区别于洛谷的蓝色
         cphTransferButton.style.color = 'white';
         cphTransferButton.style.padding = '8px 16px';
         cphTransferButton.style.textDecoration = 'none';
@@ -1749,7 +1838,7 @@ function displayMarkdownProblem(problemData) {
     // 翻译按钮
     const translateButton = document.createElement('button');
     translateButton.textContent = '翻译';
-    translateButton.style.backgroundColor = '#2d8c4e';
+    translateButton.style.backgroundColor = colors.btnTranslate;
     translateButton.style.color = 'white';
     translateButton.style.padding = '8px 16px';
     translateButton.style.textDecoration = 'none';
@@ -1797,7 +1886,7 @@ function displayMarkdownProblem(problemData) {
             }
 
             translateButton.textContent = '翻译';
-            translateButton.style.backgroundColor = '#2d8c4e';
+            translateButton.style.backgroundColor = colors.btnTranslate;
             isTranslated = false;
 
             if (typeof showMessage === 'function') {
@@ -1819,12 +1908,12 @@ function displayMarkdownProblem(problemData) {
     // 渲染完整的Markdown内容
     const fullContentSection = document.createElement('div');
     fullContentSection.style.margin = '20px 0';
-    fullContentSection.style.color = '#ccc';
+    fullContentSection.style.color = colors.text;
     fullContentSection.style.lineHeight = '1.6';
 
     const fullContentDiv = document.createElement('div');
     fullContentDiv.id = 'full-markdown-content';
-    fullContentDiv.style.color = '#ccc';
+    fullContentDiv.style.color = colors.text;
     fullContentDiv.style.lineHeight = '1.6';
 
     fullContentSection.appendChild(fullContentDiv);
@@ -1836,7 +1925,7 @@ function displayMarkdownProblem(problemData) {
         samplesSection.style.margin = '20px 0';
 
         const samplesHeading = document.createElement('h3');
-        samplesHeading.style.color = '#569cd6';
+        samplesHeading.style.color = colors.headingColor;
         samplesHeading.textContent = '样例';
 
         samplesSection.appendChild(samplesHeading);
@@ -1844,26 +1933,26 @@ function displayMarkdownProblem(problemData) {
         problemData.samples.forEach((sample, index) => {
             const sampleContainer = document.createElement('div');
             sampleContainer.style.margin = '15px 0';
-            sampleContainer.style.border = '1px solid #333';
+            sampleContainer.style.border = '1px solid ' + colors.border;
             sampleContainer.style.borderRadius = '4px';
             sampleContainer.style.overflow = 'hidden';
 
             // 输入部分
             const inputBlock = document.createElement('div');
             inputBlock.style.padding = '10px';
-            inputBlock.style.backgroundColor = '#1a1a1a';
+            inputBlock.style.backgroundColor = colors.bgAlt;
 
             const inputLabel = document.createElement('div');
-            inputLabel.style.color = '#6a9955';
+            inputLabel.style.color = colors.warnText;
             inputLabel.style.fontWeight = 'bold';
             inputLabel.style.marginBottom = '5px';
             inputLabel.textContent = `输入 #${index + 1}`;
 
             const inputPre = document.createElement('pre');
-            inputPre.style.background = '#1e1e1e';
+            inputPre.style.background = colors.bg;
             inputPre.style.padding = '10px';
-            inputPre.style.border = '1px solid #333';
-            inputPre.style.color = '#ccc';
+            inputPre.style.border = '1px solid ' + colors.border;
+            inputPre.style.color = colors.text;
             inputPre.style.whiteSpace = 'pre-wrap';
             inputPre.style.margin = '0';
             inputPre.style.overflowX = 'auto';
@@ -1876,19 +1965,19 @@ function displayMarkdownProblem(problemData) {
             // 输出部分
             const outputBlock = document.createElement('div');
             outputBlock.style.padding = '10px';
-            outputBlock.style.backgroundColor = '#1a1a1a';
+            outputBlock.style.backgroundColor = colors.bgAlt;
 
             const outputLabel = document.createElement('div');
-            outputLabel.style.color = '#6a9955';
+            outputLabel.style.color = colors.warnText;
             outputLabel.style.fontWeight = 'bold';
             outputLabel.style.marginBottom = '5px';
             outputLabel.textContent = `输出 #${index + 1}`;
 
             const outputPre = document.createElement('pre');
-            outputPre.style.background = '#1e1e1e';
+            outputPre.style.background = colors.bg;
             outputPre.style.padding = '10px';
-            outputPre.style.border = '1px solid #333';
-            outputPre.style.color = '#ccc';
+            outputPre.style.border = '1px solid ' + colors.border;
+            outputPre.style.color = colors.text;
             outputPre.style.whiteSpace = 'pre-wrap';
             outputPre.style.margin = '0';
             outputPre.style.overflowX = 'auto';
@@ -1922,7 +2011,7 @@ function displayMarkdownProblem(problemData) {
         backButton.style.bottom = '20px';
         backButton.style.left = '50%';
         backButton.style.transform = 'translateX(-50%)';
-        backButton.style.backgroundColor = '#0e639c';
+        backButton.style.backgroundColor = colors.btnPrimary;
         backButton.style.color = 'white';
         backButton.style.padding = '12px 24px';
         backButton.style.borderRadius = '30px';
@@ -1965,7 +2054,7 @@ function displayMarkdownProblem(problemData) {
     closeBtn.style.right = '10px';
     closeBtn.style.cursor = 'pointer';
     closeBtn.style.fontSize = '24px';
-    closeBtn.style.color = '#ccc';
+    closeBtn.style.color = colors.textSecondary;
     closeBtn.style.zIndex = '101';
     closeBtn.addEventListener('click', function() {
         problemDisplay.style.display = 'none';
@@ -2173,6 +2262,7 @@ async function transferMarkdownProblemToCPH(problemData) {
 
 // 翻译题目内容
 async function translateProblemContent(problemData, translateButton, originalContent, translatedContent, onTranslateComplete) {
+    const colors = getLuoguThemeColors();
     const problemDisplay = document.getElementById('problem-display');
     if (!problemDisplay) return;
 
@@ -2189,16 +2279,16 @@ async function translateProblemContent(problemData, translateButton, originalCon
     const outputFormatElement = document.getElementById('problem-output-format');
     const hintElement = document.getElementById('problem-hint');
 
-    if (fullContentElement) fullContentElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
-    if (descElement) descElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
-    if (inputFormatElement) inputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
-    if (outputFormatElement) outputFormatElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
-    if (hintElement) hintElement.innerHTML = '<em style="color: #2d8c4e;">正在翻译...</em>';
+    if (fullContentElement) fullContentElement.innerHTML = '<em style="color: ' + colors.btnTranslate + ';">正在翻译...</em>';
+    if (descElement) descElement.innerHTML = '<em style="color: ' + colors.btnTranslate + ';">正在翻译...</em>';
+    if (inputFormatElement) inputFormatElement.innerHTML = '<em style="color: ' + colors.btnTranslate + ';">正在翻译...</em>';
+    if (outputFormatElement) outputFormatElement.innerHTML = '<em style="color: ' + colors.btnTranslate + ';">正在翻译...</em>';
+    if (hintElement) hintElement.innerHTML = '<em style="color: ' + colors.btnTranslate + ';">正在翻译...</em>';
 
     // 更新按钮状态
     if (translateButton) {
         translateButton.textContent = '正在翻译...';
-        translateButton.style.backgroundColor = '#1e5a3a';
+        translateButton.style.backgroundColor = colors.btnDisabled;
     }
 
     try {
@@ -2339,7 +2429,7 @@ async function translateProblemContent(problemData, translateButton, originalCon
         // 更新按钮状态为"返回原文"
         if (translateButton) {
             translateButton.textContent = '返回原文';
-            translateButton.style.backgroundColor = '#8b5a2b';
+            translateButton.style.backgroundColor = colors.btnError;
         }
 
         // 调用回调函数通知翻译完成
@@ -2387,7 +2477,7 @@ async function translateProblemContent(problemData, translateButton, originalCon
         // 恢复按钮状态
         if (translateButton) {
             translateButton.textContent = '翻译';
-            translateButton.style.backgroundColor = '#2d8c4e';
+            translateButton.style.backgroundColor = colors.btnTranslate;
         }
 
         if (typeof showMessage === 'function') {
@@ -2402,6 +2492,7 @@ initLuoguFeature();
 
 // 监听窗口大小变化，调整题目显示区域样式
 window.addEventListener('resize', function() {
+    const colors = getLuoguThemeColors();
     const problemDisplay = document.getElementById('problem-display');
     if (problemDisplay && problemDisplay.style.display !== 'none') {
         const keyboardContainer = document.getElementById('keyboard-container');
@@ -2423,7 +2514,7 @@ window.addEventListener('resize', function() {
             problemDisplay.style.right = '0';
             problemDisplay.style.width = '400px';
             problemDisplay.style.height = 'calc(100vh - 36px)';
-            problemDisplay.style.borderLeft = '1px solid #333';
+            problemDisplay.style.borderLeft = '1px solid ' + colors.border;
         }
     }
 });
