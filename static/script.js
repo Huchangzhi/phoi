@@ -1654,14 +1654,18 @@ window.PhoiAPI = {
 
                 // 更新编辑器内容
                 if (monacoEditor) {
-                    monacoEditor.setValue(globalText);
-                    
-                    // 切换文件后重新创建断点装饰器
-                    if (window.DebugModule && typeof window.DebugModule.recreateBreakpointDecorations === 'function') {
-                        setTimeout(() => {
+                    // 监听一次模型内容变化事件，确保渲染完成后再重建断点装饰
+                    const disposable = monacoEditor.onDidChangeModelContent(() => {
+                        // 只触发一次
+                        disposable.dispose();
+                        
+                        // 切换文件后重新创建断点装饰器
+                        if (window.DebugModule && typeof window.DebugModule.recreateBreakpointDecorations === 'function') {
                             window.DebugModule.recreateBreakpointDecorations();
-                        }, 100);
-                    }
+                        }
+                    });
+                    
+                    monacoEditor.setValue(globalText);
                 }
 
                 // 更新顶部菜单栏中显示的当前文件名
