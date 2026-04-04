@@ -93,6 +93,29 @@
         console.log('[Debug] 调试模块已初始化');
     }
 
+    // 重新创建断点装饰器（切换文件后调用）
+    function recreateBreakpointDecorations() {
+        if (!monacoEditor) return;
+        
+        console.log('[Breakpoint] 重新创建断点装饰器');
+        
+        // 切换文件后清空断点数据（不同文件的断点不应该保留）
+        breakpointState.breakpoints.clear();
+        breakpointState.gdbBreakpointIds.clear();
+        
+        // 重新创建装饰集合
+        const hoverDecorations = [
+            {
+                range: new monaco.Range(1, 1, 99999, 1),
+                options: bpOption
+            }
+        ];
+        breakpointState.hoverCollection = monacoEditor.createDecorationsCollection(hoverDecorations);
+        breakpointState.activeCollection = monacoEditor.createDecorationsCollection([]);
+        
+        console.log('[Breakpoint] 已清空断点数据，可以重新添加');
+    }
+
     // 初始化断点集成
     function initBreakpointIntegration() {
         // 等待 Monaco 编辑器初始化
@@ -107,19 +130,19 @@
                     }
                 ];
                 breakpointState.hoverCollection = monacoEditor.createDecorationsCollection(hoverDecorations);
-                
+
                 // 2. 激活断点装饰集合 - 初始为空
                 breakpointState.activeCollection = monacoEditor.createDecorationsCollection([]);
-                
+
                 // 注册点击事件
                 registerBreakpointClick();
                 registerBreakpointContextMenu();
-                
+
                 // 监听编辑器内容变化，当行数变化时清除断点
                 monacoEditor.onDidChangeModelContent(() => {
                     handleEditorContentChange();
                 });
-                
+
                 console.log('[Debug] 断点功能已启用');
             } else {
                 // 重试
@@ -1399,7 +1422,8 @@
         init: init,
         startDebug: startDebugSession,
         stopDebug: stopDebug,
-        sendCommand: sendCommand
+        sendCommand: sendCommand,
+        recreateBreakpointDecorations: recreateBreakpointDecorations
     };
 
     init();

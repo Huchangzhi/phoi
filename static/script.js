@@ -1646,7 +1646,7 @@ window.PhoiAPI = {
         // 从虚拟文件系统获取文件内容
         if (window.vfsModule && typeof window.vfsModule.getFileContent === 'function') {
             const fileContent = await window.vfsModule.getFileContent(fileName);
-            
+
             if (fileContent !== null) {
                 // 更新全局文本为文件内容
                 globalText = fileContent;
@@ -1655,6 +1655,13 @@ window.PhoiAPI = {
                 // 更新编辑器内容
                 if (monacoEditor) {
                     monacoEditor.setValue(globalText);
+                    
+                    // 切换文件后重新创建断点装饰器
+                    if (window.DebugModule && typeof window.DebugModule.recreateBreakpointDecorations === 'function') {
+                        setTimeout(() => {
+                            window.DebugModule.recreateBreakpointDecorations();
+                        }, 100);
+                    }
                 }
 
                 // 更新顶部菜单栏中显示的当前文件名
