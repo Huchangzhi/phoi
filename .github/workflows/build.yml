@@ -277,11 +277,16 @@ jobs:
       - name: Prepare Android assets
         run: |
           mkdir -p android-app/app/src/main/assets
+
           # 复制 index.html 并在开头注入远程 API 地址
           echo '<script>window.RUN_API_URL="https://hcz1017.pythonanywhere.com/run";</script>' > android-app/app/src/main/assets/index.html
           cat templates/index.html >> android-app/app/src/main/assets/index.html
+
           # 复制 static 目录
           cp -r static android-app/app/src/main/assets/static
+
+          # 修改 script.js：将 fetch('/run') 替换为 fetch(window.RUN_API_URL)
+          sed -i "s|fetch('/run'|fetch(window.RUN_API_URL|g" android-app/app/src/main/assets/static/script.js
 
       - name: Generate Android project
         run: |
