@@ -285,7 +285,10 @@ jobs:
           # 复制 static 目录
           cp -r static android-app/app/src/main/assets/static
 
-          # 修改 script.js：将 fetch('/run') 替换为 fetch(window.RUN_API_URL)
+          # 修复路径：将 /static/ 改为 static/（file:// 协议下绝对路径不生效）
+          sed -i 's|"/static/|"static/|g' android-app/app/src/main/assets/index.html
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|'/static/|'static/|g" {} \;
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|"/static/|"static/|g' {} \;
           sed -i "s|fetch('/run'|fetch(window.RUN_API_URL|g" android-app/app/src/main/assets/static/script.js
 
       - name: Generate Android project
