@@ -265,3 +265,189 @@ jobs:
         Write-Host "✓ Release created: $releaseName"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Prepare Android assets
+        run: |
+          mkdir -p android-app/app/src/main/assets
+          # 复制 index.html 并在开头注入远程 API 地址
+          echo '<script>window.RUN_API_URL="https://hcz1017.pythonanywhere.com/run";</script>' > android-app/app/src/main/assets/index.html
+          cat templates/index.html >> android-app/app/src/main/assets/index.html
+          # 复制 static 目录
+          cp -r static android-app/app/src/main/assets/static
+
+      - name: Generate Android project
+        run: |
+          # AndroidManifest.xml
+          cat > android-app/app/src/main/AndroidManifest.xml << 'XMLEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.hcz.phcode">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:allowBackup="true"
+                  android:label="PH CODE"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          XMLEOF
+
+          # MainActivity.java
+          mkdir -p android-app/app/src/main/java/com/hcz/phcode
+          cat > android-app/app/src/main/java/com/hcz/phcode/MainActivity.java << 'JAVAEOF'
+          package com.hcz.phcode;
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          public class MainActivity extends Activity {
+              @SuppressLint("SetJavaScriptEnabled")
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  WebView wv = findViewById(android.R.id.content);
+                  if (wv.canGoBack()) wv.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          JAVAEOF
+
+          # build.gradle (app)
+          cat > android-app/app/build.gradle << 'GRADLEOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.hcz.phcode'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.hcz.phcode"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release { minifyEnabled false }
+                  debug { minifyEnabled false }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+          }
+          dependencies {}
+          GRADLEOF
+
+          # build.gradle (project)
+          cat > android-app/build.gradle << 'GRADLEOF'
+          plugins { id 'com.android.application' version '8.2.0' apply false }
+          GRADLEOF
+
+          # settings.gradle
+          cat > android-app/settings.gradle << 'GRADLEOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "PHCODE"
+          include ':app'
+          GRADLEOF
+
+          # gradle.properties
+          cat > android-app/gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          EOF
+
+          # 创建 gradle wrapper
+          cd android-app
+          mkdir -p gradle/wrapper
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create Gradle Wrapper
+        run: |
+          cd android-app
+          # 下载 gradle wrapper jar
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar"
+          # 创建 gradlew 脚本
+          curl -L -o gradlew \
+            "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew"
+          chmod +x gradlew
+
+      - name: Build APK
+        run: |
+          cd android-app
+          # 尝试 release 构建，失败则降级到 debug
+          ./gradlew assembleRelease --no-daemon 2>&1 || ./gradlew assembleDebug --no-daemon
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          apk_path=$(find android-app/app/build/outputs/apk -name "*.apk" | head -1)
+          echo "apk_path=$apk_path" >> $GITHUB_OUTPUT
+          echo "找到 APK: $apk_path"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PHCODE-android
+          path: ${{ steps.find_apk.outputs.apk_path }}
+
+      - name: Upload APK to Release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          # 获取最新 release 的 tag
+          tagName=$(git describe --tags --abbrev=0 2>/dev/null || echo "main")
+          apk_path="${{ steps.find_apk.outputs.apk_path }}"
+          apk_name="PHCODE-android.apk"
+          cp "$apk_path" "$apk_name"
+          gh release upload "$tagName" "$apk_name" --clobber 2>/dev/null || echo "Release upload skipped"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
