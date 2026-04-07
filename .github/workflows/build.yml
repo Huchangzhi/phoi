@@ -273,26 +273,59 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 从 Windows job 获取版本号（通过 tag）
+      - name: Get version from build job
+        id: get_version
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "nightly")
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "版本: $VERSION"
+
+          # 解析 versionCode
+          if [[ "$VERSION" == nightly-* ]]; then
+            VC=$(echo "$VERSION" | grep -oP '\d{10}' || echo "1")
+          else
+            VC=$(echo "$VERSION" | tr -d '.' | head -c 5)
+            [ -z "$VC" ] && VC="1"
+          fi
+          echo "versionCode=$VC" >> $GITHUB_OUTPUT
+          echo "versionCode: $VC"
 
       - name: Prepare Android assets
         run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
           mkdir -p android-app/app/src/main/assets
 
-          # 复制 index.html 并在开头注入远程 API 地址
+          # 复制 index.html 并注入远程 API
           echo '<script>window.RUN_API_URL="https://hcz1017.pythonanywhere.com/run";</script>' > android-app/app/src/main/assets/index.html
           cat templates/index.html >> android-app/app/src/main/assets/index.html
+
+          # 替换版本号（和 Windows job 保持一致）
+          sed -i "s|<p>web版本</p>|<p>版本号：$VERSION</p>|g" android-app/app/src/main/assets/index.html
 
           # 复制 static 目录
           cp -r static android-app/app/src/main/assets/static
 
-          # 修复路径：将 /static/ 改为 static/（file:// 协议下绝对路径不生效）
+          # 修复路径：/static/ → static/
           sed -i 's|"/static/|"static/|g' android-app/app/src/main/assets/index.html
           find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|'/static/|'static/|g" {} \;
           find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|"/static/|"static/|g' {} \;
-          sed -i "s|fetch('/run'|fetch(window.RUN_API_URL|g" android-app/app/src/main/assets/static/script.js
+
+          # 修复运行 API 路径（所有 JS 文件）
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|fetch('/run'|fetch(window.RUN_API_URL|g" {} \;
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|fetch("/run"|fetch(window.RUN_API_URL|g' {} \;
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|'/run'|window.RUN_API_URL|g" {} \;
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|"/run"|window.RUN_API_URL|g' {} \;
 
       - name: Generate Android project
         run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          VERSION_CODE="${{ steps.get_version.outputs.versionCode }}"
+
           # 创建 res 资源目录
           mkdir -p android-app/app/src/main/res/values
           mkdir -p android-app/app/src/main/res/mipmap-hdpi
@@ -301,7 +334,7 @@ jobs:
           mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
 
           # strings.xml（应用名）
-          cat > android-app/app/src/main/res/values/strings.xml << 'EOF'
+          cat > android-app/app/src/main/res/values/strings.xml << EOF
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <string name="app_name">PH CODE</string>
@@ -372,8 +405,8 @@ jobs:
           }
           JAVAEOF
 
-          # build.gradle (app) — release 使用 debug 签名以便本地安装
-          cat > android-app/app/build.gradle << 'GRADLEOF'
+          # build.gradle (app) — 使用动态版本号
+          cat > android-app/app/build.gradle << GRADLEOF
           plugins { id 'com.android.application' }
           android {
               namespace 'com.hcz.phcode'
@@ -382,8 +415,8 @@ jobs:
                   applicationId "com.hcz.phcode"
                   minSdk 21
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode $VERSION_CODE
+                  versionName "$VERSION"
               }
               buildTypes {
                   release {
@@ -469,7 +502,6 @@ jobs:
           path: ${{ steps.find_apk.outputs.apk_path }}
 
       - name: Upload APK to Release
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           tagName=$(git describe --tags --abbrev=0 2>/dev/null || echo "nightly")
           apk_path="${{ steps.find_apk.outputs.apk_path }}"
