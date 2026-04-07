@@ -40,8 +40,11 @@ def set_process_limits():
 
 
 @app.after_request
-def add_security_headers(response):
-    """添加跨源隔离所需的 HTTP 头（用于 clangd WASM 的 SharedArrayBuffer）"""
+def add_cors_headers(response):
+    """添加 CORS 和跨源隔离头"""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     return response
