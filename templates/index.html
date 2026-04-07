@@ -55,7 +55,9 @@
 
     <!-- 帮助下拉菜单 -->
     <div id="help-dropdown" class="dropdown-menu" style="display: none;">
+        <div class="dropdown-item" id="help-quick-settings">⚙️ 快速设置</div>
         <div class="dropdown-item" id="help-tutorial">🎓 新手教程</div>
+        <div class="dropdown-divider"></div>
         <div class="dropdown-item" id="help-shortcuts">⌨️ 快捷键</div>
     </div>
 
@@ -216,9 +218,6 @@
                         <input type="checkbox" id="clangd-semantic-enabled"> 使用 Clangd 进行语法高亮 (实验性，若卡顿请关闭)
                     </label>
                 </div>
-                <div class="setting-item">
-                    <button id="show-tutorial-btn" class="modal-btn" style="background-color: #0e639c; width: 100%;">🎓 重新显示新手教程</button>
-                </div>
             </div>
             <div class="modal-footer">
                 <button id="reset-default-code" class="modal-btn">重置为默认</button>
@@ -343,6 +342,25 @@
                 <button id="tutorial-prev" class="modal-btn" style="background-color: #3e3e42;">上一步</button>
                 <button id="tutorial-next" class="modal-btn" style="background-color: #0e639c;">下一步</button>
                 <button id="tutorial-skip" class="modal-btn" style="background-color: #c53030;">跳过</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首选项设置询问模态框 -->
+    <div id="preferences-setup-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content tutorial-modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>⚙️ 欢迎使用 PH Code！</h2>
+                <span id="close-prefs-setup" class="close-btn">×</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="prefs-setup-content">
+                    <!-- 设置内容将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="prefs-setup-skip" class="modal-btn" style="background-color: #3e3e42;">暂不设置</button>
+                <button id="prefs-setup-confirm" class="modal-btn" style="background-color: #0e639c;">确认</button>
             </div>
         </div>
     </div>

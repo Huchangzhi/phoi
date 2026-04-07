@@ -1128,6 +1128,7 @@ if (aboutMenu) {
 
 // 帮助菜单事件
 const helpTutorialBtn = document.getElementById('help-tutorial');
+const helpQuickSettingsBtn = document.getElementById('help-quick-settings');
 const helpShortcutsBtn = document.getElementById('help-shortcuts');
 
 if (helpMenu) {
@@ -1135,6 +1136,20 @@ if (helpMenu) {
         // 显示帮助下拉菜单
         if (helpDropdown) {
             helpDropdown.style.display = 'block';
+        }
+    });
+}
+
+// 快速设置按钮
+if (helpQuickSettingsBtn) {
+    helpQuickSettingsBtn.addEventListener('click', function() {
+        // 删除已显示首选项设置的标记，允许重新显示
+        localStorage.removeItem('phoi_prefsSetupShown');
+        // 显示首选项设置
+        showPrefsSetup();
+        // 隐藏下拉菜单
+        if (helpDropdown) {
+            helpDropdown.style.display = 'none';
         }
     });
 }
@@ -2084,6 +2099,194 @@ const tutorialNext = document.getElementById('tutorial-next');
 const tutorialSkip = document.getElementById('tutorial-skip');
 const closeTutorial = document.getElementById('close-tutorial');
 
+// 首选项设置模态框
+const prefsSetupModal = document.getElementById('preferences-setup-modal');
+const prefsSetupContent = document.getElementById('prefs-setup-content');
+const closePrefsSetup = document.getElementById('close-prefs-setup');
+const prefsSetupSkip = document.getElementById('prefs-setup-skip');
+const prefsSetupConfirm = document.getElementById('prefs-setup-confirm');
+
+// 首选项设置状态
+let selectedDeviceType = 'computer'; // 'computer' 或 'mobile'
+let selectedTheme = 'dark'; // 'dark' 或 'light'
+
+// 显示首选项设置
+function showPrefsSetup() {
+    if (!prefsSetupModal) return;
+    
+    // 从 localStorage 读取已保存的设置
+    const savedDevice = localStorage.getItem('phoi_deviceType');
+    const savedTheme = localStorage.getItem('phoi_theme');
+    
+    selectedDeviceType = savedDevice || 'computer';
+    selectedTheme = savedTheme || 'dark';
+    
+    prefsSetupModal.style.display = 'flex';
+    renderPrefsSetup();
+}
+
+// 隐藏首选项设置
+function hidePrefsSetup() {
+    if (!prefsSetupModal) return;
+    prefsSetupModal.style.display = 'none';
+}
+
+// 渲染首选项设置界面
+function renderPrefsSetup() {
+    if (!prefsSetupContent) return;
+    
+    prefsSetupContent.innerHTML = `
+        <div style="margin-bottom: 25px;">
+            <h3 style="color: #4daafc; margin-bottom: 15px; font-size: 16px;">📱 设备类型</h3>
+            <div style="display: flex; gap: 10px;">
+                <button id="device-computer" class="modal-btn" style="flex: 1; background-color: ${selectedDeviceType === 'computer' ? '#0e639c' : '#3e3e42'};">
+                    💻 电脑模式
+                </button>
+                <button id="device-mobile" class="modal-btn" style="flex: 1; background-color: ${selectedDeviceType === 'mobile' ? '#0e639c' : '#3e3e42'};">
+                    📱 手机模式
+                </button>
+            </div>
+            <p style="color: #999; font-size: 12px; margin-top: 8px;">
+                ${selectedDeviceType === 'computer' ? '电脑模式：完整的编辑器界面，适合桌面设备' : '手机模式：优化的移动端界面，显示3行预览和虚拟键盘'}
+            </p>
+        </div>
+        
+        <div style="margin-bottom: 25px;">
+            <h3 style="color: #4daafc; margin-bottom: 15px; font-size: 16px;">🎨 主题选择</h3>
+            <div style="display: flex; gap: 10px;">
+                <button id="theme-dark" class="modal-btn" style="flex: 1; background-color: ${selectedTheme === 'dark' ? '#0e639c' : '#3e3e42'};">
+                    🌙 深色主题
+                </button>
+                <button id="theme-light" class="modal-btn" style="flex: 1; background-color: ${selectedTheme === 'light' ? '#0e639c' : '#3e3e42'};">
+                    ☀️ 浅色主题
+                </button>
+            </div>
+            <p style="color: #999; font-size: 12px; margin-top: 8px;">
+                ${selectedTheme === 'dark' ? '深色主题：适合夜间使用，减少眼睛疲劳' : '浅色主题：清晰明亮，适合白天使用'}
+            </p>
+        </div>
+        
+        ${selectedDeviceType === 'computer' ? `
+        <div style="background-color: #2d1f3d; padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7; margin-bottom: 12px;">
+            <p style="color: #e0c0ff; font-size: 13px; margin: 0 0 8px 0;">
+                💡 <strong>提示：</strong>电脑模式下，您可以使用更多高级功能！
+            </p>
+            <p style="color: #c9a0ff; font-size: 12px; margin: 0 0 6px 0;">
+                建议进入 <strong>文件 → 首选项</strong> 进行更深入的设置，包括：
+            </p>
+            <ul style="color: #b890e0; font-size: 12px; margin: 0; padding-left: 20px;">
+                <li>🔧 启用 Clangd 语言服务器（高级代码补全和语法高亮）</li>
+                <li>📁 启用本地文件系统支持</li>
+                <li>🎯 自定义默认代码模板</li>
+                <li>🎨 调整编辑器颜色和主题</li>
+            </ul>
+        </div>
+        ` : ''}
+        
+        <div style="background-color: #1e1e1e; padding: 12px; border-radius: 6px; border-left: 3px solid #0e639c;">
+            <p style="color: #ccc; font-size: 13px; margin: 0;">
+                💡 <strong>提示：</strong>您可以在 <strong>文件 → 首选项</strong> 中随时修改这些设置
+            </p>
+        </div>
+    `;
+    
+    // 添加事件监听
+    document.getElementById('device-computer')?.addEventListener('click', () => {
+        selectedDeviceType = 'computer';
+        renderPrefsSetup();
+    });
+    
+    document.getElementById('device-mobile')?.addEventListener('click', () => {
+        selectedDeviceType = 'mobile';
+        renderPrefsSetup();
+    });
+    
+    document.getElementById('theme-dark')?.addEventListener('click', () => {
+        selectedTheme = 'dark';
+        renderPrefsSetup();
+    });
+    
+    document.getElementById('theme-light')?.addEventListener('click', () => {
+        selectedTheme = 'light';
+        renderPrefsSetup();
+    });
+}
+
+// 确认首选项设置
+function confirmPrefsSetup() {
+    // 保存设置到 localStorage
+    localStorage.setItem('phoi_deviceType', selectedDeviceType);
+    localStorage.setItem('phoi_theme', selectedTheme);
+    
+    // 应用设备类型设置
+    if (selectedDeviceType === 'mobile') {
+        // 如果当前是电脑模式，切换到手机模式
+        if (isFullMode) {
+            toggleMobileMode();
+        }
+    } else {
+        // 如果当前是手机模式，切换到电脑模式
+        if (!isFullMode) {
+            toggleMobileMode();
+        }
+    }
+    
+    // 应用主题设置
+    applyTheme(selectedTheme);
+    
+    hidePrefsSetup();
+    
+    // 显示新手教程
+    setTimeout(() => {
+        currentTutorialStep = 0;
+        showTutorial();
+    }, 300);
+}
+
+// 应用主题
+function applyTheme(theme) {
+    // 这里需要根据实际的主题切换逻辑来实现
+    // 暂时只保存设置，实际主题切换可能需要额外实现
+    console.log(`[Theme] 主题已设置为: ${theme}`);
+}
+
+// 切换手机/电脑模式
+function toggleMobileMode() {
+    if (!toggleBtn) return;
+    
+    // 触发切换按钮的点击事件
+    toggleBtn.click();
+}
+
+// 首选项设置事件监听器
+if (closePrefsSetup) {
+    closePrefsSetup.addEventListener('click', hidePrefsSetup);
+}
+
+if (prefsSetupSkip) {
+    prefsSetupSkip.addEventListener('click', () => {
+        hidePrefsSetup();
+        // 跳过设置后直接显示教程
+        setTimeout(() => {
+            currentTutorialStep = 0;
+            showTutorial();
+        }, 300);
+    });
+}
+
+if (prefsSetupConfirm) {
+    prefsSetupConfirm.addEventListener('click', confirmPrefsSetup);
+}
+
+// 点击模态框背景关闭
+if (prefsSetupModal) {
+    prefsSetupModal.addEventListener('click', function(event) {
+        if (event.target === prefsSetupModal) {
+            hidePrefsSetup();
+        }
+    });
+}
+
 // 教程内容
 const tutorialSteps = [
     {
@@ -2273,12 +2476,24 @@ if (tutorialModal) {
     });
 }
 
-// 检查是否需要显示新手教程
+// 检查是否需要显示首选项设置或新手教程
 function checkFirstRun() {
     const notFirstRun = localStorage.getItem('notfirstrun');
+    const prefsSetupShown = localStorage.getItem('phoi_prefsSetupShown');
+    
+    // 如果是首次运行
     if (!notFirstRun) {
-        // 延迟显示教程，等待页面完全加载
-        setTimeout(showTutorial, 1000);
+        // 如果还没有显示过首选项设置
+        if (!prefsSetupShown) {
+            // 延迟显示首选项设置
+            setTimeout(() => {
+                showPrefsSetup();
+                localStorage.setItem('phoi_prefsSetupShown', 'true');
+            }, 1000);
+        } else {
+            // 否则直接显示教程
+            setTimeout(showTutorial, 1000);
+        }
     }
 }
 
@@ -2502,21 +2717,6 @@ if (savePreferences) {
 if (resetDefaultCode) {
     resetDefaultCode.addEventListener('click', function() {
         resetToDefaultCode();
-    });
-}
-
-// 重新显示新手教程按钮
-const showTutorialBtn = document.getElementById('show-tutorial-btn');
-if (showTutorialBtn) {
-    showTutorialBtn.addEventListener('click', function() {
-        // 重置教程步骤
-        currentTutorialStep = 0;
-        // 删除notfirstrun标记
-        localStorage.removeItem('notfirstrun');
-        // 显示教程
-        showTutorial();
-        // 关闭首选项弹窗
-        hidePreferencesModal();
     });
 }
 
