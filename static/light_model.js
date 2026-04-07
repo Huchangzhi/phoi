@@ -22,7 +22,7 @@ class LightModel {
         this.loadPromise = (async () => {
             try {
                 // 尝试加载压缩版本
-                const response = await fetch('/static/models/ngram_table.json.gz');
+                const response = await fetch('/static/models/ngram_table.json.gz.data');
                 if (!response.ok) throw new Error('Failed to load ngram table');
                 
                 // 解压 gzip 数据
