@@ -272,7 +272,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Prepare Android assets
         run: |
@@ -290,6 +290,27 @@ jobs:
 
       - name: Generate Android project
         run: |
+          # 创建 res 资源目录
+          mkdir -p android-app/app/src/main/res/values
+          mkdir -p android-app/app/src/main/res/mipmap-hdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xhdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
+
+          # strings.xml（应用名）
+          cat > android-app/app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">PH CODE</string>
+          </resources>
+          EOF
+
+          # 复制 logo 作为应用图标（多尺寸）
+          cp static/logo.png android-app/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          cp static/logo.png android-app/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp static/logo.png android-app/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          cp static/logo.png android-app/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
           # AndroidManifest.xml
           cat > android-app/app/src/main/AndroidManifest.xml << 'XMLEOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -298,7 +319,8 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
               <application
                   android:allowBackup="true"
-                  android:label="PH CODE"
+                  android:label="@string/app_name"
+                  android:icon="@mipmap/ic_launcher"
                   android:supportsRtl="true"
                   android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
                   android:usesCleartextTraffic="true">
@@ -347,7 +369,7 @@ jobs:
           }
           JAVAEOF
 
-          # build.gradle (app)
+          # build.gradle (app) — release 使用 debug 签名以便本地安装
           cat > android-app/app/build.gradle << 'GRADLEOF'
           plugins { id 'com.android.application' }
           android {
@@ -361,7 +383,10 @@ jobs:
                   versionName "1.0"
               }
               buildTypes {
-                  release { minifyEnabled false }
+                  release {
+                      minifyEnabled false
+                      signingConfig signingConfigs.debug
+                  }
                   debug { minifyEnabled false }
               }
               compileOptions {
@@ -396,7 +421,7 @@ jobs:
           android.useAndroidX=false
           EOF
 
-          # 创建 gradle wrapper
+          # 创建 gradle wrapper 配置
           cd android-app
           mkdir -p gradle/wrapper
           cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
@@ -416,11 +441,8 @@ jobs:
       - name: Create Gradle Wrapper
         run: |
           cd android-app
-          # 下载 gradle wrapper jar
-          mkdir -p gradle/wrapper
           curl -L -o gradle/wrapper/gradle-wrapper.jar \
             "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar"
-          # 创建 gradlew 脚本
           curl -L -o gradlew \
             "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew"
           chmod +x gradlew
@@ -428,8 +450,7 @@ jobs:
       - name: Build APK
         run: |
           cd android-app
-          # 尝试 release 构建，失败则降级到 debug
-          ./gradlew assembleRelease --no-daemon 2>&1 || ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: Find APK
         id: find_apk
@@ -447,11 +468,13 @@ jobs:
       - name: Upload APK to Release
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          # 获取最新 release 的 tag
-          tagName=$(git describe --tags --abbrev=0 2>/dev/null || echo "main")
+          tagName=$(git describe --tags --abbrev=0 2>/dev/null || echo "nightly")
           apk_path="${{ steps.find_apk.outputs.apk_path }}"
           apk_name="PHCODE-android.apk"
           cp "$apk_path" "$apk_name"
-          gh release upload "$tagName" "$apk_name" --clobber 2>/dev/null || echo "Release upload skipped"
+
+          # 先删除旧资产再上传（避免重复）
+          gh release delete-asset "$tagName" "$apk_name" --yes 2>/dev/null || true
+          gh release upload "$tagName" "$apk_name"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
