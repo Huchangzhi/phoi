@@ -302,18 +302,25 @@ class CPHPlugin {
     }
 
     // 删除指定文件的测试用例
-    deleteFileTestCases(fileName) {
-        if (confirm(`确定要删除 "${fileName}" 的所有测试用例吗？`)) {
+    async deleteFileTestCases(fileName) {
+        let shouldDelete = false;
+        if (window.PhoiDialog) {
+            shouldDelete = await PhoiDialog.confirm(`确定要删除 "${fileName}" 的所有测试用例吗？`);
+        } else {
+            shouldDelete = confirm(`确定要删除 "${fileName}" 的所有测试用例吗？`);
+        }
+        
+        if (shouldDelete) {
             try {
                 const storageKey = CPH_STORAGE_KEY_PREFIX + fileName;
                 localStorage.removeItem(storageKey);
-                
+
                 // 如果删除的是当前文件的测试用例，刷新当前视图
                 if (this.currentFile === fileName) {
                     this.testCases = [];
                     this.renderTestCasesMain();
                 }
-                
+
                 // 重新渲染所有文件列表
                 this.renderAllFilesList();
             } catch (e) {
@@ -489,8 +496,15 @@ class CPHPlugin {
     }
 
     // 删除测试用例
-    deleteTestCase(testCaseIndex) {
-        if (confirm(`确定要删除${this.testCases[testCaseIndex].name}吗？`)) {
+    async deleteTestCase(testCaseIndex) {
+        let shouldDelete = false;
+        if (window.PhoiDialog) {
+            shouldDelete = await PhoiDialog.confirm(`确定要删除${this.testCases[testCaseIndex].name}吗？`);
+        } else {
+            shouldDelete = confirm(`确定要删除${this.testCases[testCaseIndex].name}吗？`);
+        }
+        
+        if (shouldDelete) {
             this.testCases.splice(testCaseIndex, 1);
             // 更新剩余测试点的名称
             for (let i = testCaseIndex; i < this.testCases.length; i++) {
@@ -713,34 +727,42 @@ if (document.readyState === 'loading') {
 window.handleCompetitiveCompanionData = async function(data) {
     try {
         if (!data.success) {
-            alert('接收数据失败: ' + data.message);
+            if (window.PhoiDialog) {
+                await PhoiDialog.alert('接收数据失败: ' + data.message);
+            } else {
+                alert('接收数据失败: ' + data.message);
+            }
             return;
         }
-        
+
         const filename = data.filename;
         const tests = data.tests || [];
-        
+
         // 使用PhoiAPI创建和打开文件
         if (window.PhoiAPI) {
             const fileList = await window.PhoiAPI.getFileList();
             if (fileList.includes(filename)) {
                 await window.PhoiAPI.openFile(filename);
             } else {
-                const defaultCode = localStorage.getItem('phoi_defaultCode') || 
+                const defaultCode = localStorage.getItem('phoi_defaultCode') ||
                     `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`;
                 await window.PhoiAPI.createNewFile(filename, defaultCode);
                 await window.PhoiAPI.openFile(filename);
             }
         } else {
-            alert('系统错误: PhoiAPI未初始化');
+            if (window.PhoiDialog) {
+                await PhoiDialog.alert('系统错误: PhoiAPI未初始化');
+            } else {
+                alert('系统错误: PhoiAPI未初始化');
+            }
             return;
         }
-        
+
         // 导入测试用例到CPH
         if (window.cphPlugin) {
             window.cphPlugin.currentFile = filename;
             window.cphPlugin.testCases = [];
-            
+
             tests.forEach((test, index) => {
                 window.cphPlugin.testCases.push({
                     stdin: test.input || '',
@@ -748,23 +770,31 @@ window.handleCompetitiveCompanionData = async function(data) {
                     name: `测试点 ${index + 1}`
                 });
             });
-            
+
             window.cphPlugin.saveTestCases();
             window.cphPlugin.renderTestCases();
             window.cphPlugin.renderTestCasesMain();
             window.cphPlugin.showCPHPanel();
-            
+
             if (typeof showMessage === 'function') {
                 showMessage(`已成功导入 "${data.name}" 的 ${tests.length} 个测试用例`, 'success');
+            } else if (window.PhoiDialog) {
+                await PhoiDialog.alert(`已成功导入 "${data.name}" 的 ${tests.length} 个测试用例`);
             } else {
                 alert(`已成功导入 "${data.name}" 的 ${tests.length} 个测试用例`);
             }
+        } else if (window.PhoiDialog) {
+            await PhoiDialog.alert('CPH插件未启用，请先在插件中心启用CPH插件');
         } else {
             alert('CPH插件未启用，请先在插件中心启用CPH插件');
         }
-        
+
     } catch (error) {
-        alert('处理数据时出错: ' + error.message);
+        if (window.PhoiDialog) {
+            await PhoiDialog.alert('处理数据时出错: ' + error.message);
+        } else {
+            alert('处理数据时出错: ' + error.message);
+        }
     }
 };
 
