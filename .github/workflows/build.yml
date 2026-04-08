@@ -445,10 +445,6 @@ jobs:
                   s.setDomStorageEnabled(true);
                   s.setAllowFileAccess(true);
                   s.setAllowContentAccess(true);
-                  // 启用 SharedArrayBuffer 支持（需要 COOP + COEP 头）
-                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                      s.setSharedStorageEnabled(true);
-                  }
                   assetLoader = new WebViewAssetLoader.Builder()
                       .addPathHandler("/assets/", new AssetsPathHandler(this))
                       .build();
