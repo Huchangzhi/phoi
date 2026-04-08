@@ -515,7 +515,7 @@ jobs:
           # gradle.properties
           cat > android-app/gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          android.useAndroidX=false
+          android.useAndroidX=true
           EOF
 
           # 创建 gradle wrapper 配置
