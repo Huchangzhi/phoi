@@ -18,47 +18,49 @@
         const originalConfirm = window.confirm;
         const originalPrompt = window.prompt;
 
-        // 替换 alert（同步版本，用于不需要等待结果的场景）
-        window.safeAlert = function(message, title = '提示') {
+        // 替换 alert - 返回 Promise
+        window.alert = async function(message, title = '提示') {
             if (window.PhoiDialog) {
-                PhoiDialog.alert(message, title).catch(err => {
+                try {
+                    await PhoiDialog.alert(message, title);
+                } catch (err) {
                     console.error('PhoiDialog.alert 错误:', err);
                     originalAlert(message);
-                });
+                }
             } else {
                 originalAlert(message);
             }
         };
 
-        // 替换 confirm（同步版本，使用回调）
-        window.safeConfirm = function(message, callback, title = '确认') {
+        // 替换 confirm - 返回 Promise
+        window.confirm = async function(message, title = '确认') {
             if (window.PhoiDialog) {
-                PhoiDialog.confirm(message, title).then(result => {
-                    callback(result);
-                }).catch(err => {
+                try {
+                    return await PhoiDialog.confirm(message, title);
+                } catch (err) {
                     console.error('PhoiDialog.confirm 错误:', err);
-                    callback(false);
-                });
+                    return originalConfirm(message);
+                }
             } else {
-                callback(originalConfirm(message));
+                return originalConfirm(message);
             }
         };
 
-        // 替换 prompt（同步版本，使用回调）
-        window.safePrompt = function(message, defaultValue, callback, title = '输入') {
+        // 替换 prompt - 返回 Promise
+        window.prompt = async function(message, defaultValue = '', title = '输入') {
             if (window.PhoiDialog) {
-                PhoiDialog.prompt(message, defaultValue, title).then(result => {
-                    callback(result);
-                }).catch(err => {
+                try {
+                    return await PhoiDialog.prompt(message, defaultValue, title);
+                } catch (err) {
                     console.error('PhoiDialog.prompt 错误:', err);
-                    callback(null);
-                });
+                    return originalPrompt(message, defaultValue);
+                }
             } else {
-                callback(originalPrompt(message, defaultValue));
+                return originalPrompt(message, defaultValue);
             }
         };
 
-        console.log('[Dialog] 对话框兼容补丁已加载');
+        console.log('[Dialog] 全局对话框替换已完成');
     }
 
     // 立即执行
