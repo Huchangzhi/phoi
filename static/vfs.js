@@ -702,7 +702,7 @@ function downloadCurrentFile() {
 }
 
 // 另存为当前文件
-function saveCurrentFileAs() {
+async function saveCurrentFileAs() {
     if (!window.PhoiAPI || !window.PhoiAPI.getCurrentFileContent) {
         console.error('PhoiAPI未正确初始化');
         return;
