@@ -288,8 +288,12 @@ function showPermissionRequestModal() {
                 })
                 .catch(error => {
                     console.error('获取本地文件系统权限失败:', error);
-                    alert('获取文件访问权限失败: ' + error.message);
-                    
+                    if (window.PhoiDialog) {
+                        PhoiDialog.alert('获取文件访问权限失败: ' + error.message);
+                    } else {
+                        alert('获取文件访问权限失败: ' + error.message);
+                    }
+
                     // 即使失败也要确保界面更新
                     initializeVFS();
                     renderVFS();
@@ -576,11 +580,22 @@ async function renderVFSDirectory(path, parentElement) {
 async function deleteFile(fileName) {
     // 检查是否是当前正在使用的文件
     if (window.PhoiAPI && window.PhoiAPI.getCurrentFileName && fileName === window.PhoiAPI.getCurrentFileName()) {
-        alert(`无法删除当前正在使用的文件 "${fileName}"`);
+        if (window.PhoiDialog) {
+            await PhoiDialog.alert(`无法删除当前正在使用的文件 "${fileName}"`);
+        } else {
+            alert(`无法删除当前正在使用的文件 "${fileName}"`);
+        }
         return;
     }
 
-    if (confirm(`确定要删除文件 "${fileName}" 吗？`)) {
+    let shouldDelete = false;
+    if (window.PhoiDialog) {
+        shouldDelete = await PhoiDialog.confirm(`确定要删除文件 "${fileName}" 吗？`);
+    } else {
+        shouldDelete = confirm(`确定要删除文件 "${fileName}" 吗？`);
+    }
+
+    if (shouldDelete) {
         if (useNativeFS && 'showDirectoryPicker' in window) {
             // 使用本地文件系统
             try {
@@ -694,7 +709,14 @@ function saveCurrentFileAs() {
     }
 
     const currentContent = window.PhoiAPI.getCurrentFileContent();
-    const fileName = prompt('请输入文件名:', 'new_file.cpp');
+    
+    let fileName;
+    if (window.PhoiDialog) {
+        fileName = await PhoiDialog.prompt('请输入文件名:', 'new_file.cpp');
+    } else {
+        fileName = prompt('请输入文件名:', 'new_file.cpp');
+    }
+    
     if (!fileName) return;
 
     // 将当前代码保存为新文件
@@ -722,7 +744,13 @@ function saveCurrentFileAs() {
 
 // 新建文件
 async function newFile() {
-    const fileName = prompt('请输入文件名:', 'new.cpp');
+    let fileName;
+    if (window.PhoiDialog) {
+        fileName = await PhoiDialog.prompt('请输入文件名:', 'new.cpp');
+    } else {
+        fileName = prompt('请输入文件名:', 'new.cpp');
+    }
+    
     if (!fileName) return;
 
     if (useNativeFS && 'showDirectoryPicker' in window) {
@@ -734,7 +762,11 @@ async function newFile() {
             // 检查文件是否已存在
             const fileList = await fsManager.getFileList();
             if (fileList.includes(fileName)) {
-                alert('文件已存在！');
+                if (window.PhoiDialog) {
+                    await PhoiDialog.alert('文件已存在！');
+                } else {
+                    alert('文件已存在！');
+                }
                 return;
             }
 
@@ -755,7 +787,11 @@ async function newFile() {
         // 使用虚拟文件系统
         // 检查文件是否已存在
         if (vfsStructure['/'].children[fileName]) {
-            alert('文件已存在！');
+            if (window.PhoiDialog) {
+                await PhoiDialog.alert('文件已存在！');
+            } else {
+                alert('文件已存在！');
+            }
             return;
         }
 
