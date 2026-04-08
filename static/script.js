@@ -2140,35 +2140,35 @@ function renderPrefsSetup() {
     if (prefsSetupStep === 0) {
         // 第1页：设备类型
         prefsSetupContent.innerHTML = `
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #4daafc; margin-bottom: 10px; font-size: 20px;">📱 选择设备类型</h2>
-                <p style="color: #999; font-size: 13px; margin: 0;">选择适合您设备的编辑模式</p>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <h2 style="color: #4daafc; margin-bottom: 8px; font-size: 18px;">📱 选择设备类型</h2>
+                <p style="color: #999; font-size: 12px; margin: 0;">选择适合您设备的编辑模式</p>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <button id="device-computer" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedDeviceType === 'computer' ? '#0e639c' : '#3e3e42'}; text-align: left;">
-                    <div style="font-size: 24px; margin-bottom: 5px;">💻</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">电脑模式</div>
-                    <div style="font-size: 12px; color: #ccc;">完整的编辑器界面，适合桌面设备使用</div>
+            <div class="device-options" style="margin-bottom: 15px;">
+                <button id="device-computer" class="modal-btn" style="width: 100%; padding: 12px; background-color: ${selectedDeviceType === 'computer' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 20px; margin-bottom: 4px;">💻</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">电脑模式</div>
+                    <div style="font-size: 11px; color: #ccc;">完整的编辑器界面，适合桌面设备使用</div>
                 </button>
                 
-                <button id="device-mobile" class="modal-btn" style="width: 100%; padding: 15px; background-color: ${selectedDeviceType === 'mobile' ? '#0e639c' : '#3e3e42'}; text-align: left;">
-                    <div style="font-size: 24px; margin-bottom: 5px;">📱</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">手机模式</div>
-                    <div style="font-size: 12px; color: #ccc;">优化的移动端界面，显示3行预览和虚拟键盘</div>
+                <button id="device-mobile" class="modal-btn" style="width: 100%; padding: 12px; background-color: ${selectedDeviceType === 'mobile' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 20px; margin-bottom: 4px;">📱</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">手机模式</div>
+                    <div style="font-size: 11px; color: #ccc;">优化的移动端界面，显示3行预览和虚拟键盘</div>
                 </button>
             </div>
             
             ${selectedDeviceType === 'computer' ? `
-            <div style="background-color: #2d1f3d; padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7;">
-                <p style="color: #e0c0ff; font-size: 13px; margin: 0 0 8px 0;">
+            <div style="background-color: #2d1f3d; padding: 10px; border-radius: 6px; border-left: 3px solid #a855f7;">
+                <p style="color: #e0c0ff; font-size: 12px; margin: 0 0 6px 0;">
                     💡 <strong>提示：</strong>电脑模式下，您可以使用更多高级功能！
                 </p>
-                <p style="color: #c9a0ff; font-size: 12px; margin: 0 0 6px 0;">
+                <p style="color: #c9a0ff; font-size: 11px; margin: 0 0 4px 0;">
                     建议进入 <strong>文件 → 首选项</strong> 进行更深入的设置，包括：
                 </p>
-                <ul style="color: #b890e0; font-size: 12px; margin: 0; padding-left: 20px;">
-                    <li>🔧 启用 Clangd 语言服务器（高级代码补全和语法高亮）</li>
+                <ul style="color: #b890e0; font-size: 11px; margin: 0; padding-left: 18px;">
+                    <li>🔧 启用 Clangd 语言服务器</li>
                     <li>📁 启用本地文件系统支持</li>
                     <li>🎯 自定义默认代码模板</li>
                     <li>🎨 调整编辑器颜色和主题</li>
@@ -2214,33 +2214,33 @@ function renderPrefsSetup() {
         const currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
         
         prefsSetupContent.innerHTML = `
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #4daafc; margin-bottom: 10px; font-size: 20px;">🎨 选择主题</h2>
-                <p style="color: #999; font-size: 13px; margin: 0;">选择您喜欢的编辑界面主题</p>
+            <div style="text-align: center; margin-bottom: 15px;">
+                <h2 style="color: #4daafc; margin-bottom: 8px; font-size: 18px;">🎨 选择主题</h2>
+                <p style="color: #999; font-size: 12px; margin: 0;">选择您喜欢的编辑界面主题</p>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <button id="theme-dark" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedTheme === 'dark' ? '#0e639c' : '#3e3e42'}; text-align: left;">
-                    <div style="font-size: 24px; margin-bottom: 5px;">🌙</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">深色主题</div>
-                    <div style="font-size: 12px; color: #ccc;">适合夜间使用，减少眼睛疲劳</div>
+            <div class="theme-options" style="margin-bottom: 15px;">
+                <button id="theme-dark" class="modal-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background-color: ${selectedTheme === 'dark' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 20px; margin-bottom: 4px;">🌙</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">深色主题</div>
+                    <div style="font-size: 11px; color: #ccc;">适合夜间使用，减少眼睛疲劳</div>
                 </button>
                 
-                <button id="theme-light" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedTheme === 'light' ? '#0e639c' : '#3e3e42'}; text-align: left;">
-                    <div style="font-size: 24px; margin-bottom: 5px;">☀️</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">浅色主题</div>
-                    <div style="font-size: 12px; color: #ccc;">清晰明亮，适合白天使用</div>
+                <button id="theme-light" class="modal-btn" style="width: 100%; padding: 12px; margin-bottom: 8px; background-color: ${selectedTheme === 'light' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 20px; margin-bottom: 4px;">☀️</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">浅色主题</div>
+                    <div style="font-size: 11px; color: #ccc;">清晰明亮，适合白天使用</div>
                 </button>
                 
-                <button id="theme-auto" class="modal-btn" style="width: 100%; padding: 15px; background-color: ${selectedTheme === 'auto' ? '#0e639c' : '#3e3e42'}; text-align: left;">
-                    <div style="font-size: 24px; margin-bottom: 5px;">🔄</div>
-                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">自动模式</div>
-                    <div style="font-size: 12px; color: #ccc;">跟随系统设置，自动切换深浅色</div>
+                <button id="theme-auto" class="modal-btn" style="width: 100%; padding: 12px; background-color: ${selectedTheme === 'auto' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 20px; margin-bottom: 4px;">🔄</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">自动模式</div>
+                    <div style="font-size: 11px; color: #ccc;">跟随系统设置，自动切换深浅色</div>
                 </button>
             </div>
             
-            <div style="background-color: #1e1e1e; padding: 12px; border-radius: 6px; border-left: 3px solid #0e639c;">
-                <p style="color: #ccc; font-size: 13px; margin: 0;">
+            <div style="background-color: #1e1e1e; padding: 10px; border-radius: 6px; border-left: 3px solid #0e639c;">
+                <p style="color: #ccc; font-size: 12px; margin: 0;">
                     💡 <strong>提示：</strong>您可以在 <strong>文件 → 首选项</strong> 中随时修改这些设置
                 </p>
             </div>

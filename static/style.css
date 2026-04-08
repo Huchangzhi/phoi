@@ -502,12 +502,18 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 
 #preferences-setup-modal .modal-body {
     max-height: 70vh;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
 }
 
 #preferences-setup-modal .modal-footer {
@@ -515,11 +521,24 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
     justify-content: space-between;
     gap: 10px;
     margin-top: 15px;
+    flex-shrink: 0;
 }
 
 #preferences-setup-modal .modal-footer .modal-btn {
     flex: 1;
     padding: 10px 16px;
+}
+
+/* 快速设置内容区域优化 */
+#prefs-setup-content {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
+/* 设备类型和主题按钮优化 */
+#prefs-setup-content button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 /* 输出面板 - 已废弃，使用终端面板替代 */
@@ -2033,20 +2052,39 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
     /* 快速设置弹窗 - 手机横屏优化 */
     #preferences-setup-modal .modal-content {
-        max-width: 90vw;
-        max-height: 85vh;
+        max-width: 95vw;
+        max-height: 90vh;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
     }
 
     #preferences-setup-modal .modal-body {
-        max-height: 65vh;
+        max-height: 70vh;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 15px;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+        overscroll-behavior: contain;
     }
 
     #preferences-setup-modal .modal-footer .modal-btn {
         padding: 12px 16px;
         font-size: 14px;
+    }
+
+    /* 手机横屏下优化按钮布局 */
+    #prefs-setup-content button {
+        padding: 12px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #prefs-setup-content .device-options,
+    #prefs-setup-content .theme-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     /* 关于弹窗 */
