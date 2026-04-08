@@ -422,10 +422,16 @@ jobs:
           import android.annotation.SuppressLint;
           import android.app.Activity;
           import android.os.Bundle;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebResourceResponse;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import androidx.webkit.WebViewAssetLoader;
+          import androidx.webkit.WebViewAssetLoader.AssetsPathHandler;
+          import java.io.InputStream;
           public class MainActivity extends Activity {
+              private WebViewAssetLoader assetLoader;
               @SuppressLint("SetJavaScriptEnabled")
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -435,8 +441,18 @@ jobs:
                   WebSettings s = webView.getSettings();
                   s.setJavaScriptEnabled(true);
                   s.setDomStorageEnabled(true);
-                  webView.setWebViewClient(new WebViewClient());
-                  webView.loadUrl("file:///android_asset/index.html");
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  assetLoader = new WebViewAssetLoader.Builder()
+                      .addPathHandler("/assets/", new AssetsPathHandler(this))
+                      .build();
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                          return assetLoader.shouldInterceptRequest(request.getUrl());
+                      }
+                  });
+                  webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
               }
               @Override
               public void onBackPressed() {
@@ -473,7 +489,9 @@ jobs:
                   targetCompatibility JavaVersion.VERSION_1_8
               }
           }
-          dependencies {}
+          dependencies {
+              implementation 'androidx.webkit:webkit:1.8.0'
+          }
           GRADLEOF
 
           # build.gradle (project)
