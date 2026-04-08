@@ -299,7 +299,8 @@ jobs:
       - name: Get version from build job
         id: get_version
         run: |
-          VERSION=$(cat version_info.txt)
+          # 读取版本号，去除前后空格和换行符
+          VERSION=$(cat version_info.txt | tr -d '\n\r' | xargs)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "版本: $VERSION"
 
@@ -307,7 +308,12 @@ jobs:
           if [[ "$VERSION" == nightly-* ]]; then
             TAG_NAME="nightly"
           else
-            TAG_NAME="v$VERSION"
+            # 确保 tagName 有 'v' 前缀
+            if [[ "$VERSION" == v* ]]; then
+              TAG_NAME="$VERSION"
+            else
+              TAG_NAME="v$VERSION"
+            fi
           fi
           echo "tagName=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "tagName: $TAG_NAME"
@@ -317,8 +323,8 @@ jobs:
             # nightly 构建使用固定 versionCode
             VC="1"
           else
-            # 对于稳定版本，使用版本号数字
-            VC=$(echo "$VERSION" | tr -d '.' | grep -oP '^\d+' | head -1)
+            # 对于稳定版本，提取纯数字
+            VC=$(echo "$VERSION" | sed 's/[^0-9]//g' | head -c 9)
             if [ -z "$VC" ] || ! [[ "$VC" =~ ^[0-9]+$ ]]; then
               VC="1"
             fi
