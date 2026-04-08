@@ -285,12 +285,20 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "版本: $VERSION"
 
-          # 解析 versionCode
+          # 解析 versionCode（必须是整数）
           if [[ "$VERSION" == nightly-* ]]; then
-            VC=$(echo "$VERSION" | grep -oP '\d{10}' || echo "1")
+            # 提取时间戳部分，确保是数字
+            VC=$(echo "$VERSION" | grep -oP '\d{10,}' | head -1)
+            # 如果提取失败或为空，使用默认值
+            if [ -z "$VC" ] || ! [[ "$VC" =~ ^[0-9]+$ ]]; then
+              VC="1"
+            fi
           else
-            VC=$(echo "$VERSION" | tr -d '.' | head -c 5)
-            [ -z "$VC" ] && VC="1"
+            # 对于稳定版本，使用版本号数字
+            VC=$(echo "$VERSION" | tr -d '.' | grep -oP '^\d+' | head -1)
+            if [ -z "$VC" ] || ! [[ "$VC" =~ ^[0-9]+$ ]]; then
+              VC="1"
+            fi
           fi
           echo "versionCode=$VC" >> $GITHUB_OUTPUT
           echo "versionCode: $VC"

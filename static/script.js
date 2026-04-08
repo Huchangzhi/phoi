@@ -2102,13 +2102,13 @@ const closeTutorial = document.getElementById('close-tutorial');
 // 首选项设置模态框
 const prefsSetupModal = document.getElementById('preferences-setup-modal');
 const prefsSetupContent = document.getElementById('prefs-setup-content');
+const prefsSetupFooter = document.getElementById('prefs-setup-footer');
 const closePrefsSetup = document.getElementById('close-prefs-setup');
-const prefsSetupSkip = document.getElementById('prefs-setup-skip');
-const prefsSetupConfirm = document.getElementById('prefs-setup-confirm');
 
 // 首选项设置状态
+let prefsSetupStep = 0; // 0: 设备类型, 1: 主题选择
 let selectedDeviceType = 'computer'; // 'computer' 或 'mobile'
-let selectedTheme = 'dark'; // 'dark' 或 'light'
+let selectedTheme = 'dark'; // 'dark', 'light', 或 'auto'
 
 // 显示首选项设置
 function showPrefsSetup() {
@@ -2116,10 +2116,11 @@ function showPrefsSetup() {
     
     // 从 localStorage 读取已保存的设置
     const savedDevice = localStorage.getItem('phoi_deviceType');
-    const savedTheme = localStorage.getItem('phoi_theme');
+    const savedTheme = localStorage.getItem(THEME_KEY);
     
     selectedDeviceType = savedDevice || 'computer';
     selectedTheme = savedTheme || 'dark';
+    prefsSetupStep = 0;
     
     prefsSetupModal.style.display = 'flex';
     renderPrefsSetup();
@@ -2134,89 +2135,160 @@ function hidePrefsSetup() {
 // 渲染首选项设置界面
 function renderPrefsSetup() {
     if (!prefsSetupContent) return;
+    if (!prefsSetupFooter) return;
     
-    prefsSetupContent.innerHTML = `
-        <div style="margin-bottom: 25px;">
-            <h3 style="color: #4daafc; margin-bottom: 15px; font-size: 16px;">📱 设备类型</h3>
-            <div style="display: flex; gap: 10px;">
-                <button id="device-computer" class="modal-btn" style="flex: 1; background-color: ${selectedDeviceType === 'computer' ? '#0e639c' : '#3e3e42'};">
-                    💻 电脑模式
+    if (prefsSetupStep === 0) {
+        // 第1页：设备类型
+        prefsSetupContent.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #4daafc; margin-bottom: 10px; font-size: 20px;">📱 选择设备类型</h2>
+                <p style="color: #999; font-size: 13px; margin: 0;">选择适合您设备的编辑模式</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <button id="device-computer" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedDeviceType === 'computer' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">💻</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">电脑模式</div>
+                    <div style="font-size: 12px; color: #ccc;">完整的编辑器界面，适合桌面设备使用</div>
                 </button>
-                <button id="device-mobile" class="modal-btn" style="flex: 1; background-color: ${selectedDeviceType === 'mobile' ? '#0e639c' : '#3e3e42'};">
-                    📱 手机模式
+                
+                <button id="device-mobile" class="modal-btn" style="width: 100%; padding: 15px; background-color: ${selectedDeviceType === 'mobile' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">📱</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">手机模式</div>
+                    <div style="font-size: 12px; color: #ccc;">优化的移动端界面，显示3行预览和虚拟键盘</div>
                 </button>
             </div>
-            <p style="color: #999; font-size: 12px; margin-top: 8px;">
-                ${selectedDeviceType === 'computer' ? '电脑模式：完整的编辑器界面，适合桌面设备' : '手机模式：优化的移动端界面，显示3行预览和虚拟键盘'}
-            </p>
-        </div>
+            
+            ${selectedDeviceType === 'computer' ? `
+            <div style="background-color: #2d1f3d; padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7;">
+                <p style="color: #e0c0ff; font-size: 13px; margin: 0 0 8px 0;">
+                    💡 <strong>提示：</strong>电脑模式下，您可以使用更多高级功能！
+                </p>
+                <p style="color: #c9a0ff; font-size: 12px; margin: 0 0 6px 0;">
+                    建议进入 <strong>文件 → 首选项</strong> 进行更深入的设置，包括：
+                </p>
+                <ul style="color: #b890e0; font-size: 12px; margin: 0; padding-left: 20px;">
+                    <li>🔧 启用 Clangd 语言服务器（高级代码补全和语法高亮）</li>
+                    <li>📁 启用本地文件系统支持</li>
+                    <li>🎯 自定义默认代码模板</li>
+                    <li>🎨 调整编辑器颜色和主题</li>
+                </ul>
+            </div>
+            ` : ''}
+        `;
         
-        <div style="margin-bottom: 25px;">
-            <h3 style="color: #4daafc; margin-bottom: 15px; font-size: 16px;">🎨 主题选择</h3>
-            <div style="display: flex; gap: 10px;">
-                <button id="theme-dark" class="modal-btn" style="flex: 1; background-color: ${selectedTheme === 'dark' ? '#0e639c' : '#3e3e42'};">
-                    🌙 深色主题
+        // 更新底部按钮
+        prefsSetupFooter.innerHTML = `
+            <button id="prefs-setup-skip" class="modal-btn" style="background-color: #3e3e42;">跳过</button>
+            <button id="prefs-setup-next" class="modal-btn" style="background-color: #0e639c;">下一步</button>
+        `;
+        
+        // 添加事件监听
+        document.getElementById('device-computer')?.addEventListener('click', () => {
+            selectedDeviceType = 'computer';
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('device-mobile')?.addEventListener('click', () => {
+            selectedDeviceType = 'mobile';
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('prefs-setup-skip')?.addEventListener('click', () => {
+            // 跳过设置
+            savePrefsSetup();
+            hidePrefsSetup();
+            setTimeout(() => {
+                currentTutorialStep = 0;
+                showTutorial();
+            }, 300);
+        });
+        
+        document.getElementById('prefs-setup-next')?.addEventListener('click', () => {
+            prefsSetupStep = 1;
+            renderPrefsSetup();
+        });
+        
+    } else if (prefsSetupStep === 1) {
+        // 第2页：主题选择
+        const currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+        
+        prefsSetupContent.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #4daafc; margin-bottom: 10px; font-size: 20px;">🎨 选择主题</h2>
+                <p style="color: #999; font-size: 13px; margin: 0;">选择您喜欢的编辑界面主题</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <button id="theme-dark" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedTheme === 'dark' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">🌙</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">深色主题</div>
+                    <div style="font-size: 12px; color: #ccc;">适合夜间使用，减少眼睛疲劳</div>
                 </button>
-                <button id="theme-light" class="modal-btn" style="flex: 1; background-color: ${selectedTheme === 'light' ? '#0e639c' : '#3e3e42'};">
-                    ☀️ 浅色主题
+                
+                <button id="theme-light" class="modal-btn" style="width: 100%; padding: 15px; margin-bottom: 10px; background-color: ${selectedTheme === 'light' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">☀️</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">浅色主题</div>
+                    <div style="font-size: 12px; color: #ccc;">清晰明亮，适合白天使用</div>
+                </button>
+                
+                <button id="theme-auto" class="modal-btn" style="width: 100%; padding: 15px; background-color: ${selectedTheme === 'auto' ? '#0e639c' : '#3e3e42'}; text-align: left;">
+                    <div style="font-size: 24px; margin-bottom: 5px;">🔄</div>
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">自动模式</div>
+                    <div style="font-size: 12px; color: #ccc;">跟随系统设置，自动切换深浅色</div>
                 </button>
             </div>
-            <p style="color: #999; font-size: 12px; margin-top: 8px;">
-                ${selectedTheme === 'dark' ? '深色主题：适合夜间使用，减少眼睛疲劳' : '浅色主题：清晰明亮，适合白天使用'}
-            </p>
-        </div>
+            
+            <div style="background-color: #1e1e1e; padding: 12px; border-radius: 6px; border-left: 3px solid #0e639c;">
+                <p style="color: #ccc; font-size: 13px; margin: 0;">
+                    💡 <strong>提示：</strong>您可以在 <strong>文件 → 首选项</strong> 中随时修改这些设置
+                </p>
+            </div>
+        `;
         
-        ${selectedDeviceType === 'computer' ? `
-        <div style="background-color: #2d1f3d; padding: 12px; border-radius: 6px; border-left: 3px solid #a855f7; margin-bottom: 12px;">
-            <p style="color: #e0c0ff; font-size: 13px; margin: 0 0 8px 0;">
-                💡 <strong>提示：</strong>电脑模式下，您可以使用更多高级功能！
-            </p>
-            <p style="color: #c9a0ff; font-size: 12px; margin: 0 0 6px 0;">
-                建议进入 <strong>文件 → 首选项</strong> 进行更深入的设置，包括：
-            </p>
-            <ul style="color: #b890e0; font-size: 12px; margin: 0; padding-left: 20px;">
-                <li>🔧 启用 Clangd 语言服务器（高级代码补全和语法高亮）</li>
-                <li>📁 启用本地文件系统支持</li>
-                <li>🎯 自定义默认代码模板</li>
-                <li>🎨 调整编辑器颜色和主题</li>
-            </ul>
-        </div>
-        ` : ''}
+        // 更新底部按钮
+        prefsSetupFooter.innerHTML = `
+            <button id="prefs-setup-back" class="modal-btn" style="background-color: #3e3e42;">上一步</button>
+            <button id="prefs-setup-confirm" class="modal-btn" style="background-color: #0e639c;">完成设置</button>
+        `;
         
-        <div style="background-color: #1e1e1e; padding: 12px; border-radius: 6px; border-left: 3px solid #0e639c;">
-            <p style="color: #ccc; font-size: 13px; margin: 0;">
-                💡 <strong>提示：</strong>您可以在 <strong>文件 → 首选项</strong> 中随时修改这些设置
-            </p>
-        </div>
-    `;
-    
-    // 添加事件监听
-    document.getElementById('device-computer')?.addEventListener('click', () => {
-        selectedDeviceType = 'computer';
-        renderPrefsSetup();
-    });
-    
-    document.getElementById('device-mobile')?.addEventListener('click', () => {
-        selectedDeviceType = 'mobile';
-        renderPrefsSetup();
-    });
-    
-    document.getElementById('theme-dark')?.addEventListener('click', () => {
-        selectedTheme = 'dark';
-        renderPrefsSetup();
-    });
-    
-    document.getElementById('theme-light')?.addEventListener('click', () => {
-        selectedTheme = 'light';
-        renderPrefsSetup();
-    });
+        // 添加事件监听
+        document.getElementById('theme-dark')?.addEventListener('click', () => {
+            selectedTheme = 'dark';
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('theme-light')?.addEventListener('click', () => {
+            selectedTheme = 'light';
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('theme-auto')?.addEventListener('click', () => {
+            selectedTheme = 'auto';
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('prefs-setup-back')?.addEventListener('click', () => {
+            prefsSetupStep = 0;
+            renderPrefsSetup();
+        });
+        
+        document.getElementById('prefs-setup-confirm')?.addEventListener('click', () => {
+            savePrefsSetup();
+            hidePrefsSetup();
+            setTimeout(() => {
+                currentTutorialStep = 0;
+                showTutorial();
+            }, 300);
+        });
+    }
 }
 
-// 确认首选项设置
-function confirmPrefsSetup() {
+// 保存首选项设置
+function savePrefsSetup() {
     // 保存设置到 localStorage
     localStorage.setItem('phoi_deviceType', selectedDeviceType);
-    localStorage.setItem('phoi_theme', selectedTheme);
+    localStorage.setItem(THEME_KEY, selectedTheme);
     
     // 应用设备类型设置
     if (selectedDeviceType === 'mobile') {
@@ -2233,21 +2305,6 @@ function confirmPrefsSetup() {
     
     // 应用主题设置
     applyTheme(selectedTheme);
-    
-    hidePrefsSetup();
-    
-    // 显示新手教程
-    setTimeout(() => {
-        currentTutorialStep = 0;
-        showTutorial();
-    }, 300);
-}
-
-// 应用主题
-function applyTheme(theme) {
-    // 这里需要根据实际的主题切换逻辑来实现
-    // 暂时只保存设置，实际主题切换可能需要额外实现
-    console.log(`[Theme] 主题已设置为: ${theme}`);
 }
 
 // 切换手机/电脑模式
@@ -2261,21 +2318,6 @@ function toggleMobileMode() {
 // 首选项设置事件监听器
 if (closePrefsSetup) {
     closePrefsSetup.addEventListener('click', hidePrefsSetup);
-}
-
-if (prefsSetupSkip) {
-    prefsSetupSkip.addEventListener('click', () => {
-        hidePrefsSetup();
-        // 跳过设置后直接显示教程
-        setTimeout(() => {
-            currentTutorialStep = 0;
-            showTutorial();
-        }, 300);
-    });
-}
-
-if (prefsSetupConfirm) {
-    prefsSetupConfirm.addEventListener('click', confirmPrefsSetup);
 }
 
 // 点击模态框背景关闭
