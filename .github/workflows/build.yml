@@ -351,6 +351,7 @@ jobs:
           sed -i 's|"/static/|"static/|g' android-app/app/src/main/assets/index.html
           find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|'/static/|'static/|g" {} \;
           find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|"/static/|"static/|g' {} \;
+          find android-app/app/src/main/assets/static -name "*.js" -exec sed -i 's|`/static/|`static/|g' {} \;
 
           # 修复运行 API 路径（所有 JS 文件）
           find android-app/app/src/main/assets/static -name "*.js" -exec sed -i "s|fetch('/run'|fetch(window.RUN_API_URL|g" {} \;
