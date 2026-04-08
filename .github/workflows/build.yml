@@ -212,9 +212,9 @@ jobs:
     - name: Save version info for Android job
       run: |
         $version = "${{ steps.version.outputs.version }}"
-        $tagName = if ($version.StartsWith("nightly-")) { "nightly" } else { "v$version" }
-        Set-Content -Path "version_info.txt" -Value "$tagName" -Encoding UTF8
-        Write-Host "Saved version tag: $tagName"
+        # 保存实际版本号（不是 tagName），Android job 会自己计算 tagName
+        Set-Content -Path "version_info.txt" -Value "$version" -Encoding UTF8 -NoNewline
+        Write-Host "Saved version: $version"
 
     - name: Upload version info
       uses: actions/upload-artifact@v4
