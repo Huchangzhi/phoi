@@ -437,6 +437,7 @@ jobs:
           JAVAEOF
 
           # build.gradle (app) — 使用动态版本号
+          VERSION_ESCAPED=$(echo "$VERSION" | sed 's/"/\\"/g')
           cat > android-app/app/build.gradle << GRADLEOF
           plugins { id 'com.android.application' }
           android {
@@ -447,7 +448,7 @@ jobs:
                   minSdk 21
                   targetSdk 34
                   versionCode $VERSION_CODE
-                  versionName "$VERSION"
+                  versionName "$VERSION_ESCAPED"
               }
               buildTypes {
                   release {
