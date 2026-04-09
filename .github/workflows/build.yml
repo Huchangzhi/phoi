@@ -296,6 +296,11 @@ jobs:
         with:
           name: version-info
 
+      - name: Decode keystore
+        run: |
+          # 从 GitHub Secrets 获取 base64 编码的 keystore
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > android-app/app/phcode.keystore
+
       - name: Get version from build job
         id: get_version
         run: |
@@ -481,6 +486,14 @@ jobs:
           android {
               namespace 'com.hcz.phcode'
               compileSdk 34
+              signingConfigs {
+                  release {
+                      storeFile file('phcode.keystore')
+                      storePassword System.getenv('KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('KEY_ALIAS')
+                      keyPassword System.getenv('KEY_PASSWORD')
+                  }
+              }
               defaultConfig {
                   applicationId "com.hcz.phcode"
                   minSdk 21
@@ -491,7 +504,7 @@ jobs:
               buildTypes {
                   release {
                       minifyEnabled false
-                      signingConfig signingConfigs.debug
+                      signingConfig signingConfigs.release
                   }
                   debug { minifyEnabled false }
               }
@@ -556,6 +569,10 @@ jobs:
           chmod +x gradlew
 
       - name: Build APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android-app
           ./gradlew assembleRelease --no-daemon

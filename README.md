@@ -80,6 +80,19 @@ python app.py
 python app_local.py
 ```
 
+**Android 签名证书配置（维护者）**
+
+首次构建前需要生成签名证书并配置 GitHub Secrets：
+
+1. 运行 `generate_keystore.bat` 生成签名证书
+2. 在 GitHub 仓库 Settings → Secrets and variables → Actions 中添加：
+   - `ANDROID_KEYSTORE`: base64 编码的 keystore 文件内容
+   - `KEYSTORE_PASSWORD`: 密钥库密码
+   - `KEY_ALIAS`: 密钥别名
+   - `KEY_PASSWORD`: 密钥密码
+
+⚠️ **重要**：生成后请删除本地的 `.keystore` 文件，并妥善保管密码。丢失证书将无法更新应用。
+
 gui版本
 ```sh
 python server_gui.py

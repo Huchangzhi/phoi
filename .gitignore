@@ -17,6 +17,8 @@ Thumbs.db
 aireadme.md
 pushmsg.py
 # pywebview 数据存储目录
+*.keystore
+*.keystore.b64
 phcode_data/
 ~/.phcode/
 
