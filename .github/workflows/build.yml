@@ -296,11 +296,6 @@ jobs:
         with:
           name: version-info
 
-      - name: Decode keystore
-        run: |
-          # 从 GitHub Secrets 获取 base64 编码的 keystore
-          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > android-app/app/phcode.keystore
-
       - name: Get version from build job
         id: get_version
         run: |
@@ -567,6 +562,11 @@ jobs:
           curl -L -o gradlew \
             "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew"
           chmod +x gradlew
+
+      - name: Decode keystore
+        run: |
+          # 从 GitHub Secrets 获取 base64 编码的 keystore
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > android-app/app/phcode.keystore
 
       - name: Build APK
         env:
