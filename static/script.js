@@ -630,7 +630,17 @@ async function executeRunCode(stdin) {
 
 function copyCode() {
     const t = document.createElement('textarea'); t.value = globalText; document.body.appendChild(t); t.select();
-    try { if(document.execCommand('copy')){ if(navigator.vibrate)navigator.vibrate(50); } else alert('Fail'); } catch(e){}
+    try { 
+        if(document.execCommand('copy')){ 
+            if(navigator.vibrate)navigator.vibrate(50); 
+        } else {
+            if (window.PhoiDialog) {
+                PhoiDialog.alert('复制失败');
+            } else {
+                alert('Fail');
+            }
+        } 
+    } catch(e){}
     document.body.removeChild(t);
 }
 if (copyBtn) {

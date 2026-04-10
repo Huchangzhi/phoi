@@ -521,7 +521,7 @@
         }
 
         if (!code) {
-            alert('没有可调试的代码');
+            await PhoiDialog.alert('没有可调试的代码');
             return;
         }
 
@@ -547,7 +547,7 @@
                 startDebugSession(pairingCode);
             } else {
                 appendTerminalOutput(`[错误] ${data.message}\n`, 'error');
-                alert('启动调试失败：' + data.message);
+                await PhoiDialog.alert('启动调试失败：' + data.message);
             }
         } catch (error) {
             console.error('[Debug] 启动调试失败:', error);
@@ -1186,7 +1186,7 @@
 
     async function handleDebugClose() {
         if (!debugState.isDebugging) return;
-        if (confirm('确定要退出调试吗，若不将保留调试进程？')) {
+        if (await PhoiDialog.confirm('确定要退出调试吗，若不将保留调试进程？')) {
             await stopDebug();
         }
     }
@@ -1252,13 +1252,13 @@
     }
 
     // 显示添加变量对话框
-    function showAddVariableDialog() {
+    async function showAddVariableDialog() {
         if (!debugState.isDebugging) {
-            alert('请先启动调试会话');
+            await PhoiDialog.alert('请先启动调试会话');
             return;
         }
 
-        const varName = prompt('请输入要监视的变量名：');
+        const varName = await PhoiDialog.prompt('请输入要监视的变量名：', '', '添加变量');
         if (varName && varName.trim()) {
             addVariable(varName.trim());
         }
@@ -1268,7 +1268,7 @@
     async function addVariable(varName) {
         // 检查是否已存在
         if (variableWatchState.variables.some(v => v.name === varName)) {
-            alert('该变量已在监视列表中');
+            await PhoiDialog.alert('该变量已在监视列表中');
             return;
         }
 
@@ -1380,9 +1380,9 @@
     }
 
     // 移除选中的变量
-    function removeSelectedVariable() {
+    async function removeSelectedVariable() {
         if (variableWatchState.selectedVarIndex === -1) {
-            alert('请先选择要移除的变量');
+            await PhoiDialog.alert('请先选择要移除的变量');
             return;
         }
 

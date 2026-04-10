@@ -231,24 +231,24 @@
             const model = document.getElementById('aidebug-model').value.trim();
 
             if (!baseUrl || !apiKey || !model) {
-                alert('请填写完整的 API 配置');
+                await PhoiDialog.alert('请填写完整的 API 配置');
                 return;
             }
 
             this.config = { baseUrl, apiKey, model };
             this.saveConfig();
-            alert('配置已保存');
+            await PhoiDialog.alert('配置已保存');
         }
 
         async startDebugging() {
             const problem = document.getElementById('aidebug-problem').value.trim();
             if (!problem) {
-                alert('请输入题目描述');
+                await PhoiDialog.alert('请输入题目描述');
                 return;
             }
 
             if (!this.config.apiKey) {
-                alert('请先配置 API Key');
+                await PhoiDialog.alert('请先配置 API Key');
                 return;
             }
 
@@ -676,19 +676,19 @@ ${this.state.virtualFileContent}
         async applyChanges() {
             if (window.PhoiAPI) {
                 window.PhoiAPI.setCurrentFileContent(this.state.virtualFileContent);
-                alert('代码已应用到编辑器！');
+                await PhoiDialog.alert('代码已应用到编辑器！');
                 this.closeDebugPanel();
             } else if (window.monacoEditor) {
                 window.monacoEditor.setValue(this.state.virtualFileContent);
-                alert('代码已应用到编辑器！');
+                await PhoiDialog.alert('代码已应用到编辑器！');
                 this.closeDebugPanel();
             }
         }
 
-        cancelChanges() {
+        async cancelChanges() {
             this.state.virtualFileContent = this.state.originalContent;
             this.updateEditor();
-            alert('已取消修改');
+            await PhoiDialog.alert('已取消修改');
         }
 
         closeDebugPanel() {
