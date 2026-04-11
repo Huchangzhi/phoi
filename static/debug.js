@@ -551,8 +551,25 @@
         debugState.isPanelVisible = true;
         debugState.isMinimized = false;
 
-        // 重置变量状态
-        resetVariableState();
+        // 重置变量状态，但保留变量名列表
+        // 清理进行中的请求和旧映射
+        for (const [varName, pending] of variableWatchState.pendingVariables) {
+            if (pending.timer) {
+                clearTimeout(pending.timer);
+            }
+        }
+        variableWatchState.pendingVariables.clear();
+        variableWatchState.gdbValueMap.clear();
+        variableWatchState.isRefreshing = false;
+        variableWatchState.selectedVarIndex = -1;
+
+        // 将变量值标记为等待状态（程序还未运行）
+        variableWatchState.variables.forEach(variable => {
+            variable.value = '<未运行>';
+            variable.fullValue = '等待程序启动后获取变量值';
+            variable.expanded = false;
+        });
+        refreshVariablesDisplay();
 
         if (elements.debugBtn) {
             elements.debugBtn.classList.add('debug-active');
