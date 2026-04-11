@@ -272,19 +272,9 @@
 
         // 如果正在调试，从 GDB 删除
         if (debugState.isDebugging) {
-            // 优先使用 bp.gdbId，如果为 null 则从 gdbBreakpointIds 映射中查找
-            let gdbId = bp.gdbId;
-            if (gdbId === null) {
-                gdbId = breakpointState.gdbBreakpointIds.get(lineNumber);
-                console.log(`[Breakpoint] gdbId 为 null，从映射中查找：${gdbId}`);
-            }
-            
-            if (gdbId !== null && gdbId !== undefined) {
-                console.log(`[Breakpoint] 发送 GDB 删除命令：delete ${gdbId}`);
-                deleteGDBBreakpoint(gdbId);
-            } else {
-                console.log(`[Breakpoint] 无法获取 gdbId，跳过 GDB 删除`);
-            }
+            // 使用 clear 命令通过行号删除断点，更可靠
+            console.log(`[Breakpoint] 发送 GDB clear 命令：clear source.cpp:${lineNumber}`);
+            clearGDBBreakpoint(lineNumber);
         }
 
         breakpointState.breakpoints.delete(lineNumber);
@@ -340,9 +330,9 @@
         }
     }
 
-    // 删除 GDB 断点
-    function deleteGDBBreakpoint(gdbId) {
-        const cmd = `delete ${gdbId}`;
+    // 删除 GDB 断点（通过行号，使用 clear 命令）
+    function clearGDBBreakpoint(lineNumber) {
+        const cmd = `clear source.cpp:${lineNumber}`;
         sendCommand(cmd);
     }
 
