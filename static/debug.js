@@ -1223,8 +1223,25 @@
         // 清除执行行高亮
         clearExecutionLine();
 
-        // 清空变量列表
-        resetVariableState();
+        // 清理进行中的请求（避免僵尸定时器和未完成的请求）
+        // 但保留 variables 列表，让用户可以在下次调试时继续观测
+        for (const [varName, pending] of variableWatchState.pendingVariables) {
+            if (pending.timer) {
+                clearTimeout(pending.timer);
+            }
+        }
+        variableWatchState.pendingVariables.clear();
+        variableWatchState.gdbValueMap.clear();
+        variableWatchState.isRefreshing = false;
+        variableWatchState.selectedVarIndex = -1;
+
+        // 将变量值标记为等待状态，保留变量名供下次调试使用
+        variableWatchState.variables.forEach(variable => {
+            variable.value = '<未调试>';
+            variable.fullValue = '等待下一次调试启动';
+            variable.expanded = false;
+        });
+        refreshVariablesDisplay();
 
         debugState.isPanelVisible = false;
         debugState.isMinimized = false;
