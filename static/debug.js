@@ -515,6 +515,9 @@
             return;
         }
 
+        // 统一换行符为 \n，避免 GDB 解析出现额外空行
+        code = code.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
         hideDebugStatusModal();
 
         // 显示等待提示
