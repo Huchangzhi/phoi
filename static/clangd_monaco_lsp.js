@@ -31,7 +31,19 @@ class MonacoClangdLSP {
         if (this.statusCallback) {
             this.statusCallback(status, progress, max);
         }
-        console.log(`[MonacoClangd] ${status} (${progress}/${max})`);
+        
+        // Always show popup when starting to load/download
+        if (status === 'loading' || status === 'downloading') {
+            if (typeof updateClangdDownloadProgress === 'function') {
+                updateClangdDownloadProgress(status, progress, max);
+            }
+        } else if (typeof updateClangdDownloadProgress === 'function') {
+            updateClangdDownloadProgress(status, progress, max);
+        }
+        
+        if (status === 'loading' || status === 'ready' || status === 'failed') {
+            console.log(`[MonacoClangd] ${status}: ${progress}/${max}`);
+        }
     }
 
     checkCrossOriginIsolation() {
@@ -67,16 +79,41 @@ class MonacoClangdLSP {
                 throw new Error('Cross-origin isolation not enabled');
             }
 
-            this.updateStatus('loading', 5, 100);
+            this.updateStatus('loading', 0, 0);
 
             // 1. 下载压缩的 wasm 文件
-            this.updateStatus('downloading', 10, 100);
+            this.updateStatus('downloading', 0, 100);
             const response = await fetch('/static/clangd/clangd.wasm.compressed');
             if (!response.ok) {
                 throw new Error(`Failed to download: ${response.status}`);
             }
 
-            const gzData = await response.arrayBuffer();
+            // Get total size for progress display
+            const totalSize = response.headers.get('content-length') || 0;
+
+            // Stream with progress
+            const reader = response.body.getReader();
+            const chunks = [];
+            let loaded = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loaded += value.length;
+                if (totalSize) {
+                    this.updateStatus('downloading', loaded, parseInt(totalSize));
+                } else {
+                    this.updateStatus('downloading', loaded, loaded * 2);
+                }
+            }
+
+            const gzData = new Uint8Array(loaded);
+            let offset = 0;
+            for (const chunk of chunks) {
+                gzData.set(chunk, offset);
+                offset += chunk.length;
+            }
 
             // 2. 解压 wasm 文件
             this.updateStatus('decompressing', 40, 100);
@@ -1026,9 +1063,7 @@ async function initializeMonacoClangdIntegration() {
 
     console.log('[MonacoClangd] Starting initialization...');
 
-    window.monacoClangdLSP.onStatusChange((status, progress, max) => {
-        updateClangdStatus(status, progress, max);
-    });
+    // Progress now shown in popup, not terminal
 
     try {
         await window.monacoClangdLSP.initialize(monacoEditor);
@@ -1038,43 +1073,8 @@ async function initializeMonacoClangdIntegration() {
     }
 }
 
-function updateClangdStatus(status, progress, max) {
-    const statusElement = document.getElementById('clangd-status');
-    if (statusElement) {
-        const statusText = {
-            'loading': '正在加载 clangd...或未启用 clangd',
-            'downloading': `下载 wasm... ${Math.round(progress)}%`,
-            'decompressing': `解压... ${Math.round(progress)}%`,
-            'loading_module': '加载模块...',
-            'initializing': '初始化 LSP...或未启用 clangd',
-            'ready': '✓ clangd 已就绪',
-            'failed': '✗ clangd 失败，使用备用方案',
-            'fallback': '使用备用代码补全'
-        }[status] || status;
-
-        statusElement.textContent = statusText;
-    }
-
-    // 控制重启按钮的显示/隐藏
-    const restartBtn = document.getElementById('restart-clangd-btn');
-    if (restartBtn) {
-        if (status === 'ready' || status === 'failed' || status === 'fallback') {
-            restartBtn.style.display = 'inline-block';
-        } else {
-            restartBtn.style.display = 'none';
-        }
-    }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    const terminalInfoContent = document.getElementById('terminal-info-content');
-    if (terminalInfoContent && !document.getElementById('clangd-status')) {
-        const statusDiv = document.createElement('div');
-        statusDiv.id = 'clangd-status';
-        statusDiv.style.cssText = 'padding: 10px; color: #4daafc; font-size: 13px;';
-        statusDiv.textContent = 'clangd: 等待初始化...';
-        terminalInfoContent.appendChild(statusDiv);
-    }
+    // Progress popup now handles all status updates, remove terminal status
 
     // 重启 clangd 按钮点击事件
     const restartBtn = document.getElementById('restart-clangd-btn');
@@ -1085,10 +1085,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const statusElement = document.getElementById('clangd-status');
-            if (statusElement) {
-                statusElement.textContent = '正在重启 clangd...';
-            }
             restartBtn.style.display = 'none';
 
             try {

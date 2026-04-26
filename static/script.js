@@ -247,6 +247,222 @@ if (typeof window.vfsModule.initVFSModule === 'function') {
     window.vfsModule.initVFSModule();
 }
 
+// Create clangd download progress popup if it doesn't exist
+function createClangdDownloadProgress() {
+    let popup = document.getElementById('clangd-download-progress');
+    if (!popup) {
+        // Get theme colors - same as local storage popup
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const bgColor = isLight ? '#ffffff' : '#252526';
+        const textColor = isLight ? '#333333' : '#cccccc';
+        const borderColor = isLight ? '#d0d0d0' : '#444';
+        
+        // Create the main container
+        popup = document.createElement('div');
+        popup.id = 'clangd-download-progress';
+        
+        // Header
+        const header = document.createElement('div');
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.alignItems = 'center';
+        header.style.marginBottom = '12px';
+        header.style.paddingBottom = '10px';
+        header.style.borderBottom = '1px solid ' + borderColor;
+        
+        const title = document.createElement('div');
+        title.className = 'clangd-download-progress-title';
+        title.textContent = '正在下载 Clangd';
+        title.style.fontWeight = 'bold';
+        title.style.fontSize = '15px';
+        title.style.color = textColor;
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'clangd-download-progress-close';
+        closeBtn.textContent = '×';
+        closeBtn.style.background = 'none';
+        closeBtn.style.border = 'none';
+        closeBtn.style.color = textColor;
+        closeBtn.style.fontSize = '20px';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.padding = '4px 8px';
+        closeBtn.style.borderRadius = '4px';
+        
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+        
+        // Progress bar container
+        const progressContainer = document.createElement('div');
+        progressContainer.style.marginTop = '8px';
+        
+        // Progress bar background
+        const barBg = document.createElement('div');
+        barBg.style.height = '8px';
+        barBg.style.backgroundColor = isLight ? '#e0e0e0' : '#1e1e1e';
+        barBg.style.borderRadius = '4px';
+        barBg.style.overflow = 'hidden';
+        
+        // Progress bar fill
+        const barFill = document.createElement('div');
+        barFill.className = 'clangd-download-progress-fill';
+        barFill.style.height = '100%';
+        barFill.style.backgroundColor = '#0e639c';
+        barFill.style.borderRadius = '4px';
+        barFill.style.width = '0%';
+        barFill.style.transition = 'width 0.3s ease';
+        
+        barBg.appendChild(barFill);
+        
+        // Progress text - now with file size info
+        const progressText = document.createElement('div');
+        progressText.style.display = 'flex';
+        progressText.style.justifyContent = 'space-between';
+        progressText.style.marginTop = '8px';
+        progressText.style.fontSize = '13px';
+        progressText.style.color = textColor;
+        
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'progress-status';
+        statusSpan.textContent = '准备下载...';
+        
+        const percentSpan = document.createElement('span');
+        percentSpan.className = 'progress-percent';
+        percentSpan.textContent = '0%';
+        
+        progressText.appendChild(statusSpan);
+        progressText.appendChild(percentSpan);
+        
+        // File size info
+        const fileInfo = document.createElement('div');
+        fileInfo.className = 'clangd-download-progress-file';
+        fileInfo.style.marginTop = '6px';
+        fileInfo.style.fontSize = '12px';
+        fileInfo.style.color = isLight ? '#666' : '#888';
+        fileInfo.textContent = '';
+        
+        progressContainer.appendChild(barBg);
+        progressContainer.appendChild(progressText);
+        progressContainer.appendChild(fileInfo);
+        
+        // Assemble the popup
+        popup.appendChild(header);
+        popup.appendChild(progressContainer);
+        
+        // Apply styles directly
+        popup.style.position = 'fixed';
+        popup.style.top = '20px';
+        popup.style.right = '20px';
+        popup.style.width = '320px';
+        popup.style.backgroundColor = bgColor;
+        popup.style.border = '1px solid ' + borderColor;
+        popup.style.borderRadius = '8px';
+        popup.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.5)';
+        popup.style.zIndex = '10001';
+        popup.style.padding = '16px';
+        popup.style.display = 'none';
+        
+        document.body.appendChild(popup);
+        console.log('[ClangdProgress] Popup created:', popup);
+        
+        // Close button event
+        closeBtn.onclick = function() {
+            popup.style.display = 'none';
+        };
+    }
+    return popup;
+}
+
+// Update clangd download progress
+function updateClangdDownloadProgress(status, progress, max) {
+    // Only log significant status changes
+    if (status === 'loading' || status === 'ready' || status === 'failed') {
+        console.log('[ClangdProgress] status:', status);
+    }
+    
+    const popup = createClangdDownloadProgress();
+    
+    // Show popup
+    popup.style.display = 'block';
+    
+    // Update title
+    const title = popup.querySelector('.clangd-download-progress-title');
+    const statusMap = {
+        'loading': '正在加载 Clangd...',
+        'downloading': '正在下载 Clangd...',
+        'decompressing': '正在解压文件...',
+        'loading_module': '正在加载模块...',
+        'initializing': '正在初始化 LSP...',
+        'ready': 'Clangd 加载完成!',
+        'failed': '加载失败'
+    };
+    title.textContent = statusMap[status] || status;
+    
+    // Calculate percentage
+    let percent = 0;
+    if (max > 0) {
+        percent = Math.round((progress / max) * 100);
+    } else if (status === 'ready') {
+        percent = 100;
+    }
+    
+    // Update progress bar
+    const fill = popup.querySelector('.clangd-download-progress-fill');
+    fill.style.width = percent + '%';
+    
+    // Update percent text
+    const percentSpan = popup.querySelector('.progress-percent');
+    percentSpan.textContent = percent + '%';
+    
+    // Update status text
+    const statusSpan = popup.querySelector('.progress-status');
+    statusSpan.textContent = statusMap[status] || status;
+    
+    // Update file size info
+    const fileInfo = popup.querySelector('.clangd-download-progress-file');
+    if (status === 'downloading' && max > 0) {
+        const downloaded = formatBytes(progress);
+        const total = formatBytes(max);
+        fileInfo.textContent = `已下载: ${downloaded} / ${total}`;
+    } else if (status === 'decompressing') {
+        fileInfo.textContent = '正在解压 wasm 文件...';
+    } else if (status === 'loading_module') {
+        fileInfo.textContent = '正在加载 clangd 模块...';
+    } else if (status === 'initializing') {
+        fileInfo.textContent = '正在启动 LSP 服务...';
+    } else if (status === 'ready') {
+        fileInfo.textContent = 'Clangd 启动成功!';
+    } else if (status === 'failed') {
+        fileInfo.textContent = '加载失败，请刷新重试';
+    } else {
+        fileInfo.textContent = '';
+    }
+    
+    // Progress bar color based on status
+    if (status === 'ready') {
+        fill.style.backgroundColor = '#4caf50';
+    } else if (status === 'failed') {
+        fill.style.backgroundColor = '#f48771';
+    } else {
+        fill.style.backgroundColor = '#0e639c';
+    }
+    
+    // Auto-hide after success
+    if (status === 'ready') {
+        setTimeout(() => {
+            popup.style.display = 'none';
+        }, 3000);
+    }
+}
+
+// Format bytes to human readable
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i]);
+}
+
 
 // --- 恢复保存的代码 ---
 const defaultDefaultCode = `#include <iostream>\n\nusing namespace std;\n\nint main() {\n\tcout << "Hello Ph Code" << endl;\n\treturn 0;\n}`;

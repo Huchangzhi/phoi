@@ -2255,9 +2255,119 @@ body { margin: 0; padding: 0; background-color: var(--bg-color); height: 100vh; 
 
     .btn-small:hover {
         background-color: #106ebe;
-    }
+}
 
-    /* AI Debug 样式 */
+/* Clangd download progress popup - using modal variables */
+.clangd-download-progress {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 320px;
+    max-width: 90vw;
+    background-color: var(--modal-bg);
+    border: 1px solid var(--modal-border);
+    color: var(--text-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--modal-shadow);
+    z-index: 9999;
+    padding: 16px;
+    display: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.clangd-download-progress.active {
+    display: block !important;
+}
+
+.clangd-download-progress.success {
+    border-left: 4px solid #4caf50;
+}
+
+.clangd-download-progress.error {
+    border-left: 4px solid #f48771;
+}
+
+.clangd-download-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--modal-border);
+}
+
+.clangd-download-progress-title {
+    font-weight: bold;
+    font-size: 15px;
+    color: var(--text-color);
+}
+
+.clangd-download-progress-close {
+    background: none;
+    border: none;
+    color: var(--dim-color, #888);
+    font-size: 20px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.clangd-download-progress-close:hover {
+    background-color: var(--menu-hover, #444);
+    color: var(--text-color, #fff);
+}
+
+.clangd-download-progress-content {
+    margin-top: 8px;
+}
+
+.clangd-download-progress-bar {
+    height: 8px;
+    background-color: var(--bg-color, #1e1e1e);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.clangd-download-progress-fill {
+    height: 100%;
+    background-color: #0e639c;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.clangd-download-progress-success .clangd-download-progress-fill {
+    background-color: #4caf50;
+}
+
+.clangd-download-progress-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--dim-color, #888);
+}
+
+.clangd-download-progress-file {
+    font-size: 12px;
+    color: var(--dim-color, #666);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* AI Debug 样式 */
     .aidebug-config-panel {
         background-color: #fafafa;
         border-color: #ddd;
