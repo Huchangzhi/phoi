@@ -420,9 +420,12 @@ function updateClangdDownloadProgress(status, progress, max) {
     // Update file size info
     const fileInfo = popup.querySelector('.clangd-download-progress-file');
     if (status === 'downloading' && max > 0) {
-        const downloaded = formatBytes(progress);
-        const total = formatBytes(max);
-        fileInfo.textContent = `已下载: ${downloaded} / ${total}`;
+        const unitIndex = Math.floor(Math.log(max) / Math.log(1024));
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const unit = units[unitIndex];
+        const progressValue = (progress / Math.pow(1024, unitIndex)).toFixed(2);
+        const maxValue = (max / Math.pow(1024, unitIndex)).toFixed(2);
+        fileInfo.textContent = `已下载: ${progressValue} ${unit} / ${maxValue} ${unit}`;
     } else if (status === 'decompressing') {
         fileInfo.textContent = '正在解压 wasm 文件...';
     } else if (status === 'loading_module') {
