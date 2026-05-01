@@ -47,8 +47,33 @@
         gdbValueMap: new Map(),  // GDB $数字 -> 变量名的映射
         pendingVariables: new Map(),  // 正在等待GDB响应的变量 {变量名: {buffer, timer, isComplete}}
         isRefreshing: false,  // 是否正在刷新
-        captureTimeout: 200  // 捕获超时时间（毫秒）
+        captureTimeout: 200,  // 捕获超时时间（毫秒）
+        capturingVarName: null  // 当前正在捕获输出的变量名（防止乱序）
     };
+
+    // 调试悬停状态
+    let debugHoverState = {
+        provider: null,
+        enabled: false,
+        hoverTimeout: 300,  // 悬停捕获静默期（毫秒），300ms 无新输出则认为捕获完成
+        pendingHover: null,   // 当前待处理的悬停请求 {varName, resolve, reject, timer, gdbId, buffer}
+        globalTimeout: 5000  // 全局超时（毫秒），防止 GDB 完全无响应
+    };
+
+    // C++ 关键字集合（悬停时跳过）
+    const cppKeywords = new Set([
+        'int', 'void', 'double', 'float', 'char', 'bool', 'long', 'short',
+        'unsigned', 'signed', 'const', 'static', 'extern', 'register',
+        'if', 'else', 'switch', 'case', 'default', 'break', 'continue',
+        'for', 'while', 'do', 'return', 'goto',
+        'struct', 'class', 'union', 'enum', 'namespace', 'using',
+        'public', 'private', 'protected', 'virtual', 'friend',
+        'try', 'catch', 'throw', 'new', 'delete',
+        'true', 'false', 'nullptr', 'this',
+        'auto', 'decltype', 'constexpr', 'template', 'typename',
+        'include', 'define', 'ifdef', 'ifndef', 'endif', 'pragma',
+        'sizeof', 'typedef', 'inline', 'volatile', 'mutable'
+    ]);
 
     // 初始化
     function init() {
@@ -610,6 +635,71 @@
         setTimeout(() => {
             setAllBreakpoints();
         }, 500);
+        
+        // 注册调试悬停提供器
+        registerDebugHoverProvider();
+    }
+
+    // 注册调试悬停提供器
+    function registerDebugHoverProvider() {
+        // 先销毁旧提供器
+        if (debugHoverState.provider) {
+            debugHoverState.provider.dispose();
+            debugHoverState.provider = null;
+        }
+
+        if (!monacoEditor || !debugState.isDebugging) {
+            console.log('[DebugHover] 未注册悬停提供器：编辑器不存在或调试未启动');
+            return;
+        }
+
+        console.log('[DebugHover] 注册调试悬停提供器');
+
+        debugHoverState.provider = monaco.languages.registerHoverProvider('cpp', {
+            provideHover: async (model, position) => {
+                if (!debugState.isDebugging) {
+                    return null;
+                }
+
+                // 获取鼠标位置的单词
+                const word = model.getWordAtPosition(position);
+                if (!word) {
+                    return null;
+                }
+
+                const varName = word.word;
+
+                // 跳过 C++ 关键字
+                if (cppKeywords.has(varName)) {
+                    return null;
+                }
+
+                // 跳过数字
+                if (/^\d/.test(varName)) {
+                    return null;
+                }
+
+                console.log(`[DebugHover] 悬停变量：${varName}`);
+
+                try {
+                    const value = await requestHoverValue(varName);
+                    return {
+                        range: {
+                            startLineNumber: position.lineNumber,
+                            startColumn: word.startColumn,
+                            endLineNumber: position.lineNumber,
+                            endColumn: word.endColumn
+                        },
+                        contents: [
+                            { value: `**${varName}** = \`${value}\`` }
+                        ]
+                    };
+                } catch (error) {
+                    console.log(`[DebugHover] 获取变量 ${varName} 失败：${error.message}`);
+                    return null;
+                }
+            }
+        });
     }
 
     function connectSSE() {
@@ -821,13 +911,22 @@
             }
             
             if (varName) {
-                // 标记为错误并完成
                 const pending = variableWatchState.pendingVariables.get(varName);
                 pending.buffer = text + '\n';
                 console.log(`[Variable] 变量 ${varName} 标记为错误`);
                 
-                // 立即完成捕获
-                completeVariableCapture(varName);
+                // 检查是否是悬停请求
+                if (pending.isHover && debugHoverState.pendingHover && debugHoverState.pendingHover.varName === varName) {
+                    console.log(`[DebugHover] 悬停请求错误：${varName} 不存在`);
+                    clearTimeout(debugHoverState.pendingHover.timer);
+                    const reject = debugHoverState.pendingHover.reject;
+                    debugHoverState.pendingHover = null;
+                    variableWatchState.pendingVariables.delete(varName);
+                    reject(new Error(`变量 ${varName} 不存在于当前上下文`));
+                } else {
+                    // 立即完成捕获（普通变量监视）
+                    completeVariableCapture(varName);
+                }
             }
             
             return;
@@ -835,7 +934,7 @@
 
         // 检查是否是新的 print 命令开始（$数字 = 格式）
         const varValueMatch = text.match(/\$(\d+)\s*=\s*(.*)/);
-
+        
         if (varValueMatch) {
             console.log('[Variable] 检测到 $数字= 匹配，原始文本:', text);
             const gdbId = varValueMatch[1];
@@ -843,7 +942,32 @@
             
             console.log(`[Variable] 检测到 GDB 输出：$${gdbId} = ${initialValue}`);
             
-            // 查找对应的变量名（从pendingVariables中查找）
+            // 先检查是否是悬停请求的输出
+            if (debugHoverState.pendingHover && !debugHoverState.pendingHover.gdbId) {
+                // 这是悬停请求的输出，建立映射
+                debugHoverState.pendingHover.gdbId = gdbId;
+                debugHoverState.pendingHover.buffer = initialValue + '\n';
+                console.log(`[DebugHover] 开始捕获悬停变量 ${debugHoverState.pendingHover.varName} 的输出`);
+                
+                // 设置超时定时器（超时后完成捕获）
+                if (debugHoverState.pendingHover.timer) {
+                    clearTimeout(debugHoverState.pendingHover.timer);
+                }
+                debugHoverState.pendingHover.timer = setTimeout(() => {
+                    console.log(`[DebugHover] 悬停变量 ${debugHoverState.pendingHover.varName} 捕获完成（超时）`);
+completeHoverCapture();
+                }, debugHoverState.hoverTimeout);
+                
+                return;
+            }
+            
+            // 如果有正在捕获的变量（监视变量），先完成它（防止乱序）
+            if (variableWatchState.capturingVarName) {
+                console.log(`[Variable] 检测到新变量输出，先完成之前的变量：${variableWatchState.capturingVarName}`);
+                completeVariableCapture(variableWatchState.capturingVarName);
+            }
+            
+            // 查找对应的变量名（从pendingVariables中查找监视变量）
             let varName = null;
             for (const [name, pending] of variableWatchState.pendingVariables) {
                 if (!pending.isComplete && !pending.gdbId) {
@@ -863,12 +987,16 @@
                 pending.buffer = initialValue + '\n';
                 console.log(`[Variable] 开始捕获变量 ${varName} 的输出`);
                 
+                // 设置当前正在捕获的变量名
+                variableWatchState.capturingVarName = varName;
+                
                 // 设置超时定时器
                 if (pending.timer) {
                     clearTimeout(pending.timer);
                 }
                 pending.timer = setTimeout(() => {
                     console.log(`[Variable] 变量 ${varName} 捕获超时，完成输出`);
+                    variableWatchState.capturingVarName = null;
                     completeVariableCapture(varName);
                 }, variableWatchState.captureTimeout);
             } else {
@@ -878,28 +1006,44 @@
             return;
         }
 
-        // 检查是否有正在捕获的变量，如果有则累积所有后续输出
-        // 包括错误信息、空行等，所有内容都作为变量的值
-        if (variableWatchState.pendingVariables.size > 0) {
-            for (const [varName, pending] of variableWatchState.pendingVariables) {
-                if (!pending.isComplete && pending.gdbId) {
-                    // 累积所有后续行（包括错误信息）
-                    pending.buffer += text + '\n';
-                    console.log(`[Variable] 累积变量 ${varName} 的输出：${text.trim()}`);
-                    
-                    // 重置定时器
-                    if (pending.timer) {
-                        clearTimeout(pending.timer);
-                    }
-                    
-                    // 设置超时定时器
-                    pending.timer = setTimeout(() => {
-                        console.log(`[Variable] 变量 ${varName} 捕获超时，完成输出`);
-                        completeVariableCapture(varName);
-                    }, variableWatchState.captureTimeout);
-                    
-                    break; // 只处理第一个正在捕获的变量
+        // 检查是否有正在捕获的悬停请求，如果有则累积输出
+        if (debugHoverState.pendingHover && debugHoverState.pendingHover.gdbId && !debugHoverState.pendingHover.isComplete) {
+            // 累积悬停请求的输出
+            debugHoverState.pendingHover.buffer += text + '\n';
+            console.log(`[DebugHover] 累积悬停变量 ${debugHoverState.pendingHover.varName} 的输出：${text.trim()}`);
+            
+            // 重置定时器
+            if (debugHoverState.pendingHover.timer) {
+                clearTimeout(debugHoverState.pendingHover.timer);
+            }
+            
+            // 设置超时定时器（超时后完成捕获并 resolve promise）
+            debugHoverState.pendingHover.timer = setTimeout(() => {
+                console.log(`[DebugHover] 悬停变量 ${debugHoverState.pendingHover.varName} 捕获完成（超时）`);
+                completeHoverCapture();
+            }, debugHoverState.hoverTimeout);
+        }
+        // 检查是否有正在捕获的变量监视请求，如果有则累积所有后续输出
+        else if (variableWatchState.capturingVarName) {
+            const varName = variableWatchState.capturingVarName;
+            const pending = variableWatchState.pendingVariables.get(varName);
+            
+            if (pending && !pending.isComplete && pending.gdbId) {
+                // 累积所有后续行（包括错误信息）
+                pending.buffer += text + '\n';
+                console.log(`[Variable] 累积变量 ${varName} 的输出：${text.trim()}`);
+                
+                // 重置定时器
+                if (pending.timer) {
+                    clearTimeout(pending.timer);
                 }
+                
+                // 设置超时定时器
+                pending.timer = setTimeout(() => {
+                    console.log(`[Variable] 变量 ${varName} 捕获超时，完成输出`);
+                    variableWatchState.capturingVarName = null;
+                    completeVariableCapture(varName);
+                }, variableWatchState.captureTimeout);
             }
         }
 
@@ -1088,16 +1232,26 @@
             const varName = printMatch[1].trim();
             console.log(`[Variable] 发送 print 命令：${varName}`);
             
-            // 生成唯一的请求ID
-            const requestId = Date.now() + Math.random();
-            
-            // 将变量名与请求ID关联
-            variableWatchState.pendingVariables.set(varName, {
-                requestId: requestId,
-                buffer: '',
-                timer: null,
-                isComplete: false
-            });
+            // 检查是否已存在 pending 条目（如悬停请求已创建）
+            const existing = variableWatchState.pendingVariables.get(varName);
+            if (!existing) {
+                // 生成唯一的请求ID
+                const requestId = Date.now() + Math.random();
+                
+                // 将变量名与请求ID关联
+                variableWatchState.pendingVariables.set(varName, {
+                    requestId: requestId,
+                    buffer: '',
+                    timer: null,
+                    isComplete: false,
+                    isHover: false
+                });
+            } else {
+                // 已存在条目，确保有 isHover 字段
+                if (existing.isHover === undefined) {
+                    existing.isHover = false;
+                }
+            }
         }
 
         appendTerminalOutput(`(gdb) ${command}\n`);
@@ -1131,8 +1285,24 @@
             clearTimeout(pending.timer);
         }
 
+        // 清除当前捕获状态
+        if (variableWatchState.capturingVarName === varName) {
+            variableWatchState.capturingVarName = null;
+        }
+
         let fullValue = pending.buffer.trim();
         console.log(`[Variable] 变量 ${varName} 捕获完成，完整值长度：${fullValue.length}`);
+
+        // 检查是否是悬停请求
+        if (pending.isHover && debugHoverState.pendingHover && debugHoverState.pendingHover.varName === varName) {
+            console.log(`[DebugHover] 完成悬停请求：${varName} = ${fullValue}`);
+            const hoverResolve = debugHoverState.pendingHover.resolve;
+            clearTimeout(debugHoverState.pendingHover.timer);
+            debugHoverState.pendingHover = null;
+            variableWatchState.pendingVariables.delete(varName);
+            hoverResolve(fullValue);
+            return;
+        }
 
         const displayValue = fullValue.length > 50 ? fullValue.substring(0, 50) + '...' : fullValue;
 
@@ -1153,6 +1323,108 @@
         // 标记为完成并移除
         pending.isComplete = true;
         variableWatchState.pendingVariables.delete(varName);
+    }
+
+    // 完成悬停捕获
+    function completeHoverCapture() {
+        if (!debugHoverState.pendingHover) return;
+        
+        const pending = debugHoverState.pendingHover;
+        clearTimeout(pending.timer);
+        
+        const fullValue = pending.buffer.trim();
+        console.log(`[DebugHover] 完成悬停捕获：${pending.varName} = ${fullValue}`);
+        
+        debugHoverState.pendingHover = null;
+        pending.resolve(fullValue);
+    }
+
+    // 请求悬停时变量的当前值
+    async function requestHoverValue(varName) {
+        if (!debugState.isDebugging) {
+            throw new Error('调试未运行');
+        }
+
+        // 如果已有待处理的悬停请求，取消它
+        if (debugHoverState.pendingHover) {
+            const oldPending = debugHoverState.pendingHover;
+            if (oldPending.timer) {
+                clearTimeout(oldPending.timer);
+            }
+            oldPending.reject(new Error('cancel previous hover request'));
+            debugHoverState.pendingHover = null;
+        }
+
+        console.log(`[DebugHover] 请求变量值：${varName}`);
+
+        // 创建 promise，保存 resolve 和 reject
+        let resolvePromise, rejectPromise;
+        const promise = new Promise((resolve, reject) => {
+            resolvePromise = resolve;
+            rejectPromise = reject;
+        });
+
+        // 设置超时
+        const timer = setTimeout(() => {
+            if (debugHoverState.pendingHover && debugHoverState.pendingHover.varName === varName) {
+                console.log(`[DebugHover] 变量 ${varName} 悬停请求超时`);
+                const pending = debugHoverState.pendingHover;
+                debugHoverState.pendingHover = null;
+                pending.reject(new Error('请求超时'));
+            }
+        }, debugHoverState.hoverTimeout);
+
+        // 保存待处理的悬停请求（完全独立，不放入 pendingVariables）
+        debugHoverState.pendingHover = {
+            varName: varName,
+            resolve: resolvePromise,
+            reject: rejectPromise,
+            timer: timer,
+            gdbId: null,    // GDB 的 $数字标识符
+            buffer: ''        // 累积的输出
+        };
+
+        // 发送 print 命令（不通过 sendSingleCommand，避免往 pendingVariables 写）
+        try {
+            await sendHoverCommand(varName);
+        } catch (error) {
+            // 发送失败，清理
+            if (debugHoverState.pendingHover && debugHoverState.pendingHover.varName === varName) {
+                clearTimeout(debugHoverState.pendingHover.timer);
+                debugHoverState.pendingHover = null;
+            }
+            throw error;
+        }
+
+        return promise;
+    }
+
+    // 发送悬停命令（独立函数，不往 pendingVariables 写）
+    async function sendHoverCommand(varName) {
+        if (!debugState.isDebugging) {
+            throw new Error('调试未运行');
+        }
+
+        appendTerminalOutput(`(gdb) print ${varName}\n`);
+
+        try {
+            const response = await fetch('/debug/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    command: `print ${varName}`,
+                    pairing_code: debugState.pairingCode
+                })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                appendTerminalOutput(`[错误] ${data.message}\n`, 'error');
+            }
+        } catch (error) {
+            appendTerminalOutput(`[错误] 发送命令失败：${error.message}\n`, 'error');
+            throw error;
+        }
     }
 
     function focusCommandInput() {
@@ -1254,6 +1526,21 @@
         variableWatchState.gdbValueMap.clear();
         variableWatchState.isRefreshing = false;
         variableWatchState.selectedVarIndex = -1;
+
+        // 清理悬停提供器
+        if (debugHoverState.provider) {
+            debugHoverState.provider.dispose();
+            debugHoverState.provider = null;
+        }
+        // 清理待处理的悬停请求
+        if (debugHoverState.pendingHover) {
+            if (debugHoverState.pendingHover.timer) {
+                clearTimeout(debugHoverState.pendingHover.timer);
+            }
+            debugHoverState.pendingHover = null;
+        }
+        // 清理捕获状态
+        variableWatchState.capturingVarName = null;
 
         // 将变量值标记为等待状态，保留变量名供下次调试使用
         variableWatchState.variables.forEach(variable => {
