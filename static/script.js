@@ -217,6 +217,26 @@ const windowReloadBtn = document.getElementById('window-reload');
 const editorZoomInBtn = document.getElementById('editor-zoom-in');
 const editorZoomOutBtn = document.getElementById('editor-zoom-out');
 
+// 编辑器缩放计数（用于记忆功能）
+let editorZoomCount = parseInt(localStorage.getItem('phoi_editorZoomCount')) || 0;
+
+// 保存编辑器缩放计数
+function saveEditorZoomCount() {
+    localStorage.setItem('phoi_editorZoomCount', editorZoomCount.toString());
+}
+
+// 应用保存的编辑器缩放（在 Monaco 初始化后调用）
+function applySavedEditorZoom() {
+    if (typeof monacoEditor === 'undefined' || !monacoEditor || editorZoomCount === 0) return;
+    
+    const action = editorZoomCount > 0 ? 'editor.action.fontZoomIn' : 'editor.action.fontZoomOut';
+    const times = Math.abs(editorZoomCount);
+    
+    for (let i = 0; i < times; i++) {
+        monacoEditor.trigger('contextmenu', action, null);
+    }
+}
+
 // 首选项弹窗相关元素
 const preferencesModal = document.getElementById('preferences-modal');
 const closePreferences = document.getElementById('close-preferences');
@@ -585,6 +605,9 @@ require(['vs/editor/editor.main'], function() {
 
     // Initialize clangd LSP after Monaco Editor is ready (使用 Monaco 内置 LSP 客户端)
     initializeMonacoClangdIntegration();
+
+    // 恢复之前保存的编辑器缩放
+    setTimeout(applySavedEditorZoom, 500);
 
     // Update globalText when editor content changes
     monacoEditor.onDidChangeModelContent(() => {
@@ -1561,6 +1584,8 @@ if (editorZoomInBtn) {
     editorZoomInBtn.addEventListener('click', function() {
         if (typeof monacoEditor !== 'undefined' && monacoEditor) {
             monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
+            editorZoomCount++;
+            saveEditorZoomCount();
         }
         windowDropdown.style.display = 'none';
     });
@@ -1571,6 +1596,8 @@ if (editorZoomOutBtn) {
     editorZoomOutBtn.addEventListener('click', function() {
         if (typeof monacoEditor !== 'undefined' && monacoEditor) {
             monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
+            editorZoomCount--;
+            saveEditorZoomCount();
         }
         windowDropdown.style.display = 'none';
     });
@@ -1586,6 +1613,8 @@ document.addEventListener('keydown', function(event) {
             event.preventDefault();
             if (typeof monacoEditor !== 'undefined' && monacoEditor) {
                 monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
+                editorZoomCount++;
+                saveEditorZoomCount();
             }
             handled = true;
         } 
@@ -1594,6 +1623,8 @@ document.addEventListener('keydown', function(event) {
             event.preventDefault();
             if (typeof monacoEditor !== 'undefined' && monacoEditor) {
                 monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
+                editorZoomCount--;
+                saveEditorZoomCount();
             }
             handled = true;
         }
@@ -1617,9 +1648,13 @@ window.addEventListener('wheel', function(event) {
             if (delta < 0) {
                 // 滚轮向上，放大编辑器字体
                 monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
+                editorZoomCount++;
+                saveEditorZoomCount();
             } else {
                 // 滚轮向下，缩小编辑器字体
                 monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
+                editorZoomCount--;
+                saveEditorZoomCount();
             }
         }
     }
