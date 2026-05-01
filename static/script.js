@@ -213,6 +213,10 @@ const windowZoomOutBtn = document.getElementById('window-zoom-out');
 const windowZoomResetBtn = document.getElementById('window-zoom-reset');
 const windowReloadBtn = document.getElementById('window-reload');
 
+// 编辑器缩放按钮（仅在电脑模式下显示）
+const editorZoomInBtn = document.getElementById('editor-zoom-in');
+const editorZoomOutBtn = document.getElementById('editor-zoom-out');
+
 // 首选项弹窗相关元素
 const preferencesModal = document.getElementById('preferences-modal');
 const closePreferences = document.getElementById('close-preferences');
@@ -1282,6 +1286,9 @@ if (toggleBtn) {
         if (editorContainer) {
             editorContainer.style.display = isFullMode ? 'block' : 'none';
         }
+        
+        // 更新编辑器缩放按钮显示状态
+        updateEditorZoomButtonsVisibility();
     });
 }
 
@@ -1318,6 +1325,9 @@ const editorContainer = document.getElementById('editor-container');
 if (editorContainer) {
     editorContainer.style.display = isFullMode ? 'block' : 'none';
 }
+
+// 初始化编辑器缩放按钮显示状态
+updateEditorZoomButtonsVisibility();
 
 updateKeyboardVisuals();
 
@@ -1546,48 +1556,87 @@ if (windowReloadBtn) {
     });
 }
 
-// 键盘事件：Ctrl+上/下箭头缩放
+// 编辑器放大按钮（仅在电脑模式下有效）
+if (editorZoomInBtn) {
+    editorZoomInBtn.addEventListener('click', function() {
+        if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+            monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
+        }
+        windowDropdown.style.display = 'none';
+    });
+}
+
+// 编辑器缩小按钮（仅在电脑模式下有效）
+if (editorZoomOutBtn) {
+    editorZoomOutBtn.addEventListener('click', function() {
+        if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+            monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
+        }
+        windowDropdown.style.display = 'none';
+    });
+}
+
+// 键盘事件：Ctrl++/- 或 Ctrl+上/下箭头缩放编辑器字体
 document.addEventListener('keydown', function(event) {
     if (event.ctrlKey) {
-        if (event.key === 'ArrowUp') {
+        let handled = false;
+        
+        // Ctrl + + (包括Shift+=) 或 Ctrl+ArrowUp → 编辑器放大
+        if (event.key === 'ArrowUp' || event.key === '+' || event.key === '=') {
             event.preventDefault();
-            if (currentScale < 2.0) {
-                currentScale += 0.1;
-                applyScale();
+            if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+                monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
             }
-        } else if (event.key === 'ArrowDown') {
+            handled = true;
+        } 
+        // Ctrl + - 或 Ctrl+ArrowDown → 编辑器缩小
+        else if (event.key === 'ArrowDown' || event.key === '-' || event.key === '_') {
             event.preventDefault();
-            if (currentScale > 0.5) {
-                currentScale -= 0.1;
-                applyScale();
+            if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+                monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
             }
+            handled = true;
+        }
+        
+        // 如果不是在电脑模式，保留原有的全局缩放（可选）
+        // 如果要完全替换为编辑器缩放，可以删除下面这段
+        if (!handled && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+            // 原来的全局缩放逻辑已被替换
         }
     }
 });
 
-// 滚轮事件：Ctrl+滚轮缩放
-document.addEventListener('wheel', function(event) {
-    if (event.ctrlKey) {
+// 滚轮事件：Ctrl+滚轮缩放编辑器字体（仅在电脑模式有效）
+// 使用捕获阶段，确保在 Monaco 编辑器之前处理
+window.addEventListener('wheel', function(event) {
+    if (event.ctrlKey && isFullMode) {
         event.preventDefault();
+        event.stopPropagation(); // 阻止 Monaco 自身的滚轮缩放处理
         const delta = event.deltaY;
-        if (delta < 0) {
-            // 滚轮向上，放大
-            if (currentScale < 2.0) {
-                currentScale += 0.1;
-                applyScale();
-            }
-        } else {
-            // 滚轮向下，缩小
-            if (currentScale > 0.5) {
-                currentScale -= 0.1;
-                applyScale();
+        if (typeof monacoEditor !== 'undefined' && monacoEditor) {
+            if (delta < 0) {
+                // 滚轮向上，放大编辑器字体
+                monacoEditor.trigger('contextmenu', 'editor.action.fontZoomIn', null);
+            } else {
+                // 滚轮向下，缩小编辑器字体
+                monacoEditor.trigger('contextmenu', 'editor.action.fontZoomOut', null);
             }
         }
     }
-}, { passive: false });
+}, { capture: true, passive: false });
 
 
 // 插件中心面板切换功能
+// 根据模式更新编辑器缩放按钮显示
+function updateEditorZoomButtonsVisibility() {
+    if (editorZoomInBtn && editorZoomOutBtn) {
+        // 仅在电脑模式（Monaco编辑器模式）下显示
+        const shouldShow = isFullMode === true;
+        editorZoomInBtn.style.display = shouldShow ? 'block' : 'none';
+        editorZoomOutBtn.style.display = shouldShow ? 'block' : 'none';
+    }
+}
+
 function togglePluginCenterPanel() {
     if (!pluginCenterPanel || !pluginCenterToggle) return; // 如果元素不存在则返回
 
