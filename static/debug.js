@@ -163,9 +163,9 @@
                 registerBreakpointClick();
                 registerBreakpointContextMenu();
 
-                // 监听编辑器内容变化，当行数变化时清除断点
-                monacoEditor.onDidChangeModelContent(() => {
-                    handleEditorContentChange();
+                // 监听编辑器内容变化，当行数变化时清���断点
+                monacoEditor.onDidChangeModelContent((e) => {
+                    handleEditorContentChange(e.changes);
                 });
 
                 console.log('[Debug] 断点功能已启用');
@@ -176,37 +176,94 @@
         }, 500);
     }
     
-    // 处理编辑器内容变化
-    function handleEditorContentChange() {
-        if (!monacoEditor || !breakpointState.breakpoints.size) return;
+    // 处理编辑器内容变化，动态移动断点跟随代码
+    function handleEditorContentChange(changes) {
+        if (!changes || changes.length === 0 || !monacoEditor || !breakpointState.breakpoints.size) return;
         
-        const model = monacoEditor.getModel();
-        if (!model) return;
-        
-        const lineCount = model.getLineCount();
-        
-        // 检查每个断点
-        const invalidLines = [];
-        for (const [lineNum] of breakpointState.breakpoints) {
-            // 检查行号是否超过总行数，或者该行是否为空
-            if (lineNum > lineCount) {
-                invalidLines.push(lineNum);
+        for (const change of changes) {
+            const startLine = change.range.startLineNumber;
+            const endLine = change.range.endLineNumber;
+            const oldLines = endLine - startLine + 1;
+            const newLineCount = change.text.split('\n').length;
+            const lineShift = newLineCount - oldLines;
+            
+            if (lineShift === 0) continue;
+            
+            if (lineShift > 0) {
+                // 插入行：当前行断点不动，其下方的断点行号 +lineShift
+                const toMove = [];
+                for (const [lineNum] of breakpointState.breakpoints) {
+                    if (lineNum > startLine) {
+                        toMove.push(lineNum);
+                    }
+                }
+                
+                // 从大到小移动，避免目标位置被同批次其他断点占用
+                const sorted = [...toMove].sort((a, b) => b - a);
+                for (const oldLine of sorted) {
+                    const newLine = oldLine + lineShift;
+                    const bp = breakpointState.breakpoints.get(oldLine);
+                    if (!bp) continue;
+                    const gdbId = breakpointState.gdbBreakpointIds.get(oldLine);
+                    
+                    breakpointState.breakpoints.delete(oldLine);
+                    breakpointState.gdbBreakpointIds.delete(oldLine);
+                    
+                    // 如果目标已有断点（非本次移动的），移除
+                    if (breakpointState.breakpoints.has(newLine)) {
+                        breakpointState.breakpoints.delete(newLine);
+                        breakpointState.gdbBreakpointIds.delete(newLine);
+                    }
+                    
+                    bp.lineNumber = newLine;
+                    breakpointState.breakpoints.set(newLine, bp);
+                    if (gdbId !== undefined) {
+                        breakpointState.gdbBreakpointIds.set(newLine, gdbId);
+                    }
+                }
             } else {
-                // 检查该行是否为空行
-                const lineContent = model.getLineContent(lineNum);
-                if (!lineContent || lineContent.trim() === '') {
-                    invalidLines.push(lineNum);
+                // 删除行/合并行：startLine 为保留行，不删其断点；
+                // (startLine, endLine] 内的被删除行断点移除，endLine 以下的断点上移
+                const toRemove = [];
+                const toMove = [];
+                
+                for (const [lineNum] of breakpointState.breakpoints) {
+                    if (lineNum > startLine && lineNum <= endLine) {
+                        toRemove.push(lineNum);
+                    } else if (lineNum > endLine) {
+                        toMove.push(lineNum);
+                    }
+                }
+                
+                for (const lineNum of toRemove) {
+                    breakpointState.breakpoints.delete(lineNum);
+                    breakpointState.gdbBreakpointIds.delete(lineNum);
+                }
+                
+                // 从小到大移动，避免目标位置冲突
+                const sorted = [...toMove].sort((a, b) => a - b);
+                for (const oldLine of sorted) {
+                    const newLine = oldLine + lineShift;
+                    const bp = breakpointState.breakpoints.get(oldLine);
+                    if (!bp) continue;
+                    const gdbId = breakpointState.gdbBreakpointIds.get(oldLine);
+                    
+                    breakpointState.breakpoints.delete(oldLine);
+                    breakpointState.gdbBreakpointIds.delete(oldLine);
+                    
+                    if (breakpointState.breakpoints.has(newLine)) {
+                        breakpointState.breakpoints.delete(newLine);
+                        breakpointState.gdbBreakpointIds.delete(newLine);
+                    }
+                    
+                    bp.lineNumber = newLine;
+                    breakpointState.breakpoints.set(newLine, bp);
+                    if (gdbId !== undefined) {
+                        breakpointState.gdbBreakpointIds.set(newLine, gdbId);
+                    }
                 }
             }
-        }
-        
-        // 清除无效断点
-        if (invalidLines.length > 0) {
-            console.log('[Breakpoint] 检测到内容变化，清除无效断点:', invalidLines);
-            for (const lineNum of invalidLines) {
-                breakpointState.breakpoints.delete(lineNum);
-                breakpointState.gdbBreakpointIds.delete(lineNum);
-            }
+            
             updateActiveBreakpoints();
         }
     }
